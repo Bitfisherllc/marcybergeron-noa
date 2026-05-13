@@ -1,117 +1,26 @@
 /**
  * Creates all app tables on Turso (libSQL) when the remote DB is empty.
- * Run once from your machine with Turso credentials in the environment:
  *
  *   export TURSO_DATABASE_URL="libsql://..."
  *   export TURSO_AUTH_TOKEN="..."
  *   npm run db:ensure-turso
  *
- * This does NOT copy data — only schema. For schema + data, import local `data/site.db`
- * with Turso CLI: https://docs.turso.tech/cli/db/import
+ * Tables only — no data. For schema + rows, import local `data/site.db`:
+ * https://docs.turso.tech/cli/db/import
+ *
+ * Vercel also runs this automatically before `next build` via `prebuild` when TURSO_* is set.
  */
-import { createClient } from "@libsql/client";
+import { applyTursoSchema } from "./turso-schema";
 
 const url = process.env.TURSO_DATABASE_URL?.trim();
 const authToken = process.env.TURSO_AUTH_TOKEN?.trim();
 
-if (!url || !authToken) {
-  console.error("Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN, then run: npm run db:ensure-turso");
-  process.exit(1);
-}
-
-const client = createClient({ url, authToken });
-
-const stmts = [
-  `CREATE TABLE IF NOT EXISTS "series" (
-    "id" text PRIMARY KEY NOT NULL,
-    "slug" text NOT NULL,
-    "title" text NOT NULL,
-    "excerpt" text NOT NULL,
-    "content" text NOT NULL DEFAULT '',
-    "featured_image" text NOT NULL,
-    "sort_order" integer NOT NULL DEFAULT 0,
-    "created_at" integer NOT NULL,
-    "updated_at" integer NOT NULL
-  )`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "series_slug_unique" ON "series" ("slug")`,
-  `CREATE TABLE IF NOT EXISTS "artwork" (
-    "id" text PRIMARY KEY NOT NULL,
-    "series_id" text NOT NULL REFERENCES "series"("id") ON DELETE CASCADE ON UPDATE NO ACTION,
-    "title" text NOT NULL,
-    "medium" text NOT NULL DEFAULT '',
-    "size" text NOT NULL DEFAULT '',
-    "year" text NOT NULL DEFAULT '',
-    "description" text NOT NULL DEFAULT '',
-    "image" text NOT NULL,
-    "alt" text NOT NULL,
-    "status" text NOT NULL DEFAULT 'unknown',
-    "sort_order" integer NOT NULL DEFAULT 0,
-    "created_at" integer NOT NULL,
-    "updated_at" integer NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "post" (
-    "id" text PRIMARY KEY NOT NULL,
-    "slug" text NOT NULL,
-    "title" text NOT NULL,
-    "excerpt" text NOT NULL,
-    "content" text NOT NULL,
-    "featured_image" text,
-    "published" integer NOT NULL DEFAULT 0,
-    "published_at" integer,
-    "category" text NOT NULL DEFAULT 'News',
-    "tags" text NOT NULL DEFAULT '',
-    "created_at" integer NOT NULL,
-    "updated_at" integer NOT NULL
-  )`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "post_slug_unique" ON "post" ("slug")`,
-  `CREATE TABLE IF NOT EXISTS "contact_message" (
-    "id" text PRIMARY KEY NOT NULL,
-    "name" text NOT NULL,
-    "email" text NOT NULL,
-    "message" text NOT NULL,
-    "created_at" integer NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "mailing_list_signup" (
-    "id" text PRIMARY KEY NOT NULL,
-    "email" text NOT NULL,
-    "name" text NOT NULL DEFAULT '',
-    "created_at" integer NOT NULL
-  )`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "mailing_list_signup_email_unique" ON "mailing_list_signup" ("email")`,
-  `CREATE TABLE IF NOT EXISTS "home_section" (
-    "section" text PRIMARY KEY NOT NULL,
-    "eyebrow" text NOT NULL DEFAULT '',
-    "title" text NOT NULL DEFAULT '',
-    "quote" text NOT NULL DEFAULT '',
-    "body" text NOT NULL DEFAULT '',
-    "updated_at" integer NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "home_slideshow" (
-    "id" text PRIMARY KEY NOT NULL,
-    "sort_order" integer NOT NULL DEFAULT 0,
-    "image" text NOT NULL,
-    "alt" text NOT NULL,
-    "created_at" integer NOT NULL,
-    "updated_at" integer NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "home_featured_series_slot" (
-    "slot" integer PRIMARY KEY NOT NULL,
-    "series_id" text REFERENCES "series"("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "home_featured_post_slot" (
-    "slot" integer PRIMARY KEY NOT NULL,
-    "post_id" text REFERENCES "post"("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "home_selected_artwork_slot" (
-    "slot" integer PRIMARY KEY NOT NULL,
-    "artwork_id" text REFERENCES "artwork"("id") ON DELETE SET NULL ON UPDATE CASCADE
-  )`,
-];
-
 async function main() {
-  for (const sql of stmts) {
-    await client.execute(sql);
+  if (!url || !authToken) {
+    console.error("Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN, then run: npm run db:ensure-turso");
+    process.exit(1);
   }
+  await applyTursoSchema(url, authToken);
   console.log("Turso schema applied (tables + indexes).");
 }
 
