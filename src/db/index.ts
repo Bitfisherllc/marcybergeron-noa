@@ -10,7 +10,7 @@ import * as schema from "./schema";
 /** Single Drizzle surface for app code (libSQL + better-sqlite3 share the same query API). */
 export type AppDb = BetterSQLite3Database<typeof schema>;
 
-function useTurso(): boolean {
+function tursoConfigured(): boolean {
   return Boolean(process.env.TURSO_DATABASE_URL?.trim() && process.env.TURSO_AUTH_TOKEN?.trim());
 }
 
@@ -20,7 +20,7 @@ let _db: AppDb | null = null;
 
 /** Local file SQLite only. Not available when `TURSO_*` is set (production remote DB). */
 export function getSqlite(): Database.Database {
-  if (useTurso()) {
+  if (tursoConfigured()) {
     throw new Error(
       "getSqlite() is only for the local file database. Unset TURSO_DATABASE_URL / TURSO_AUTH_TOKEN to run the seed script against ./data/site.db, or use Turso’s import/backup tools for production data.",
     );
@@ -38,7 +38,7 @@ export function getSqlite(): Database.Database {
 /** Drizzle instance: Turso (libSQL) when env is set, otherwise local better-sqlite3. */
 export function getDb(): AppDb {
   if (_db) return _db;
-  if (useTurso()) {
+  if (tursoConfigured()) {
     libsqlClient = createClient({
       url: process.env.TURSO_DATABASE_URL!,
       authToken: process.env.TURSO_AUTH_TOKEN!,
