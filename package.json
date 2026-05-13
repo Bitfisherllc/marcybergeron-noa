@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:push": "drizzle-kit push",
     "db:ensure-home": "tsx scripts/ensure-home-tables.ts",
+    "db:ensure-turso": "tsx scripts/ensure-turso-schema.ts",
     "db:backup": "mkdir -p data/backups && cp data/site.db \"data/backups/site-$(date +%Y%m%d-%H%M%S).db\" && echo \"Backed up to data/backups/\"",
     "db:studio": "drizzle-kit studio",
     "seed": "tsx scripts/seed.ts"
