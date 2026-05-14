@@ -4,7 +4,7 @@ import { jwtVerify } from "jose";
 
 const ADMIN_COOKIE = "mbn_admin";
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (pathname === "/gallery" || pathname === "/gallery/") {
