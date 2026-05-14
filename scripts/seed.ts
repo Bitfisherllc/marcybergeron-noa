@@ -1,22 +1,20 @@
 /**
- * Seeds SQLite and downloads full-resolution artwork from the legacy Wix CDN
+ * Seeds the database and downloads full-resolution artwork from the legacy Wix CDN
  * (same files referenced on https://www.mbergeronnoa.com/).
  *
- * Run: `npm run db:push` then `npm run seed`
+ * Run: `npm run db:push` then `DATABASE_URL=... npm run seed`
  */
 import fs from "node:fs/promises";
 import path from "node:path";
 import { nanoid } from "nanoid";
-import { asc, eq } from "drizzle-orm";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { asc, eq, sql } from "drizzle-orm";
 import { captionSubtitle } from "../src/components/ArtCaption";
 import * as schema from "../src/db/schema";
 import { artwork, post, series } from "../src/db/schema";
-import { getDb, getSqlite } from "../src/db/index";
+import type { AppDb } from "../src/db/index";
+import { closeDb, getDb } from "../src/db/index";
 
 const now = () => new Date();
-
-type SeedDb = BetterSQLite3Database<typeof schema>;
 
 type SeedArt = {
   title: string;
@@ -508,7 +506,7 @@ type BlogDef = {
   featuredImage?: string;
 };
 
-async function seedPosts(db: SeedDb, t: Date) {
+async function seedPosts(db: AppDb, t: Date) {
   const artRows = await db
     .select({
       image: artwork.image,
@@ -704,20 +702,27 @@ To inquire about **studio availability** at the building, email [studios.porterm
 }
 
 async function main() {
-  if (process.env.TURSO_DATABASE_URL?.trim()) {
-    console.error(
-      "Seed only runs against the local file database. Unset TURSO_DATABASE_URL and TURSO_AUTH_TOKEN, then run again.",
-    );
+  if (!process.env.DATABASE_URL?.trim()) {
+    console.error("Set DATABASE_URL (e.g. Railway Postgres), then run: npm run seed");
     process.exit(1);
   }
-  const db = getDb() as SeedDb;
+  const db = getDb();
   const t = now();
 
-  getSqlite().exec("PRAGMA foreign_keys = OFF;");
-  getSqlite().exec("DELETE FROM artwork;");
-  getSqlite().exec("DELETE FROM series;");
-  getSqlite().exec("DELETE FROM post;");
-  getSqlite().exec("PRAGMA foreign_keys = ON;");
+  await db.execute(
+    sql.raw(`TRUNCATE TABLE
+      home_selected_artwork_slot,
+      home_featured_post_slot,
+      home_featured_series_slot,
+      home_slideshow,
+      home_section,
+      artwork,
+      post,
+      series,
+      contact_message,
+      mailing_list_signup
+    RESTART IDENTITY CASCADE`),
+  );
 
   for (const s of SERIES) {
     const sid = nanoid();
@@ -768,9 +773,11 @@ async function main() {
   await seedPosts(db, t);
 
   console.log("Seed complete. Images saved under public/uploads/. ");
+  await closeDb();
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error(e);
+  await closeDb().catch(() => {});
   process.exit(1);
 });

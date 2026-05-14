@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3"],
+  serverExternalPackages: ["postgres"],
   /** Allow same-origin Geolocation API (some hosts default to a restrictive policy). */
   async headers() {
     return [

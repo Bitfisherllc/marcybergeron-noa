@@ -1,53 +1,53 @@
-import { createClient, type Client as LibsqlClient } from "@libsql/client";
-import Database from "better-sqlite3";
-import { drizzle as drizzleBetter } from "drizzle-orm/better-sqlite3";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { drizzle as drizzleLibsql } from "drizzle-orm/libsql";
-import fs from "node:fs";
-import path from "node:path";
+import postgres from "postgres";
+import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
 
-/** Single Drizzle surface for app code (libSQL + better-sqlite3 share the same query API). */
-export type AppDb = BetterSQLite3Database<typeof schema>;
+export type AppDb = PostgresJsDatabase<typeof schema>;
 
-function tursoConfigured(): boolean {
-  return Boolean(process.env.TURSO_DATABASE_URL?.trim() && process.env.TURSO_AUTH_TOKEN?.trim());
-}
-
-let betterSqlite: Database.Database | null = null;
-let libsqlClient: LibsqlClient | null = null;
+let _sql: ReturnType<typeof postgres> | null = null;
 let _db: AppDb | null = null;
 
-/** Local file SQLite only. Not available when `TURSO_*` is set (production remote DB). */
-export function getSqlite(): Database.Database {
-  if (tursoConfigured()) {
-    throw new Error(
-      "getSqlite() is only for the local file database. Unset TURSO_DATABASE_URL / TURSO_AUTH_TOKEN to run the seed script against ./data/site.db, or use Turso’s import/backup tools for production data.",
-    );
-  }
-  if (!betterSqlite) {
-    const dir = path.join(process.cwd(), "data");
-    fs.mkdirSync(dir, { recursive: true });
-    const dbPath = path.join(dir, "site.db");
-    betterSqlite = new Database(dbPath);
-    betterSqlite.pragma("journal_mode = WAL");
-  }
-  return betterSqlite;
+function databaseUrl(): string | undefined {
+  return process.env.DATABASE_URL?.trim();
 }
 
-/** Drizzle instance: Turso (libSQL) when env is set, otherwise local better-sqlite3. */
+function postgresSsl(url: string): false | "require" {
+  try {
+    const normalized = url.replace(/^postgres:/, "http:").replace(/^postgresql:/, "http:");
+    const u = new URL(normalized);
+    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") return false;
+  } catch {
+    /* fall through */
+  }
+  return "require";
+}
+
+/** Drizzle instance: PostgreSQL (e.g. Railway) via `DATABASE_URL`. */
 export function getDb(): AppDb {
   if (_db) return _db;
-  if (tursoConfigured()) {
-    libsqlClient = createClient({
-      url: process.env.TURSO_DATABASE_URL!,
-      authToken: process.env.TURSO_AUTH_TOKEN!,
-    });
-    _db = drizzleLibsql(libsqlClient, { schema }) as unknown as AppDb;
-  } else {
-    _db = drizzleBetter(getSqlite(), { schema });
+  const url = databaseUrl();
+  if (!url) {
+    throw new Error(
+      "DATABASE_URL is not set. Add it to .env.local (e.g. Railway Postgres URL) or see docker-compose.yml for local Postgres.",
+    );
   }
+  /** Single connection per serverless invocation is typical for `postgres` on Vercel. */
+  _sql = postgres(url, { max: 1, ssl: postgresSsl(url) });
+  _db = drizzlePg(_sql, { schema });
   return _db;
+}
+
+/**
+ * Local scripts only (e.g. migrate from SQLite). Closes the pooled connection.
+ * Do not call from Next.js request handlers.
+ */
+export async function closeDb(): Promise<void> {
+  if (_sql) {
+    await _sql.end({ timeout: 5 });
+    _sql = null;
+    _db = null;
+  }
 }
 
 export type Series = typeof schema.series.$inferSelect;

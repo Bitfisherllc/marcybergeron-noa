@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: marcy
+      POSTGRES_PASSWORD: marcy
+      POSTGRES_DB: marcy
+    volumes:
+      - marcy_pg_data:/var/lib/postgresql/data
+
+volumes:
+  marcy_pg_data:
