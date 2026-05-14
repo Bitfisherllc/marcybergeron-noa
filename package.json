@@ -8,12 +8,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:push": "drizzle-kit push --force",
+    "db:push": "dotenv -e .env.local -- drizzle-kit push --force",
     "db:ensure-home": "tsx scripts/ensure-home-tables.ts",
-    "db:migrate-sqlite": "tsx scripts/migrate-sqlite-to-postgres.ts",
+    "db:migrate-sqlite": "dotenv -e .env.local -- tsx scripts/migrate-sqlite-to-postgres.ts",
     "db:backup": "mkdir -p data/backups && cp data/site.db \"data/backups/site-$(date +%Y%m%d-%H%M%S).db\" && echo \"Backed up to data/backups/\"",
     "db:studio": "drizzle-kit studio",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "dotenv -e .env.local -- tsx scripts/seed.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.10.0",
@@ -36,6 +36,7 @@
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
+    "dotenv-cli": "^8.0.0",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
