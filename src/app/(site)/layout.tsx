@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 
+/** Public pages read Turso/SQLite at request time so content updates without a stale static shell from an empty build. */
+export const dynamic = "force-dynamic";
+
 export default function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <>
