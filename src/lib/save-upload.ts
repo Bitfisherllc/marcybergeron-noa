@@ -35,10 +35,18 @@ export async function saveUpload(file: File | null, seriesSlug?: string): Promis
       });
       return blob.url;
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       if (onVercel) {
+        if (/private store/i.test(msg)) {
+          throw new Error(
+            "Your Vercel Blob store is Private, but site images must be Public. " +
+              "Create a new Blob store with Public access, connect it to marcybergeron-noa, then redeploy. " +
+              "(Private stores cannot serve images on the public website.)",
+          );
+        }
         throw new Error(
-          "Blob upload failed. In Vercel: Storage → Blob → Create store → Projects tab → Connect to marcybergeron-noa → Redeploy. " +
-            (e instanceof Error ? e.message : String(e)),
+          "Blob upload failed. Connect a Public Blob store to this project in Vercel → Storage, then redeploy. " +
+            msg,
         );
       }
       throw e;
