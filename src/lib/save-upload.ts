@@ -13,7 +13,7 @@ export function uploadFolderForSlug(slug: string | undefined): string {
 
 /**
  * Save an admin upload. Local dev writes to `public/uploads/`.
- * On Vercel, uses Blob storage (`BLOB_READ_WRITE_TOKEN`) — the filesystem is read-only.
+ * On Vercel, uses Blob storage — OIDC auth is automatic when a store is connected to the project.
  */
 export async function saveUpload(file: File | null, seriesSlug?: string): Promise<string | null> {
   if (!file || file.size === 0) return null;
@@ -23,16 +23,26 @@ export async function saveUpload(file: File | null, seriesSlug?: string): Promis
   const sub = uploadFolderForSlug(seriesSlug);
   const blobPath = `uploads/${sub}/${safe}`;
 
-  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-  if (token) {
-    const blob = await put(blobPath, file, { access: "public", token });
-    return blob.url;
-  }
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  const onVercel = Boolean(process.env.VERCEL);
+  const canUseBlob = onVercel || Boolean(blobToken);
 
-  if (process.env.VERCEL) {
-    throw new Error(
-      "Image uploads on Vercel require Blob storage. In Vercel: Storage → Create Blob store → connect to this project, then redeploy.",
-    );
+  if (canUseBlob) {
+    try {
+      const blob = await put(blobPath, file, {
+        access: "public",
+        ...(blobToken ? { token: blobToken } : {}),
+      });
+      return blob.url;
+    } catch (e) {
+      if (onVercel) {
+        throw new Error(
+          "Blob upload failed. In Vercel: Storage → Blob → Create store → Projects tab → Connect to marcybergeron-noa → Redeploy. " +
+            (e instanceof Error ? e.message : String(e)),
+        );
+      }
+      throw e;
+    }
   }
 
   const rel = `/${blobPath}`;
