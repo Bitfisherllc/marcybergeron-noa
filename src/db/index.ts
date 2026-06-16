@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { assertReachableDatabaseUrl, isLocalPostgresHost, resolveDatabaseUrl } from "./connection-url";
 import * as schema from "./schema";
 
 export type AppDb = PostgresJsDatabase<typeof schema>;
@@ -8,15 +9,11 @@ export type AppDb = PostgresJsDatabase<typeof schema>;
 let _sql: ReturnType<typeof postgres> | null = null;
 let _db: AppDb | null = null;
 
-function databaseUrl(): string | undefined {
-  return process.env.DATABASE_URL?.trim();
-}
-
 function postgresSsl(url: string): false | "require" {
   try {
     const normalized = url.replace(/^postgres:/, "http:").replace(/^postgresql:/, "http:");
     const u = new URL(normalized);
-    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") return false;
+    if (isLocalPostgresHost(u.hostname)) return false;
   } catch {
     /* fall through */
   }
@@ -26,12 +23,13 @@ function postgresSsl(url: string): false | "require" {
 /** Drizzle instance: PostgreSQL (e.g. Railway) via `DATABASE_URL`. */
 export function getDb(): AppDb {
   if (_db) return _db;
-  const url = databaseUrl();
+  const url = resolveDatabaseUrl();
   if (!url) {
     throw new Error(
-      "DATABASE_URL is not set. Add it to .env.local (e.g. Railway Postgres URL) or see docker-compose.yml for local Postgres.",
+      "DATABASE_URL is not set. Add it to .env.local (e.g. Railway Postgres public URL) or see docker-compose.yml for local Postgres.",
     );
   }
+  assertReachableDatabaseUrl(url, process.env.VERCEL ? "vercel" : "local");
   /** Single connection per serverless invocation is typical for `postgres` on Vercel. */
   _sql = postgres(url, { max: 1, ssl: postgresSsl(url) });
   _db = drizzlePg(_sql, { schema });

@@ -5,8 +5,9 @@
  * Local builds without Postgres: unset `DATABASE_URL` to skip push, or use docker-compose + `.env.local`.
  */
 import { execSync } from "node:child_process";
+import { assertReachableDatabaseUrl, resolveDatabaseUrl } from "../src/db/connection-url";
 
-const url = process.env.DATABASE_URL?.trim();
+const url = resolveDatabaseUrl();
 
 function main() {
   if (!url) {
@@ -19,16 +20,30 @@ function main() {
     console.log("[prebuild] Skipping drizzle-kit push (DATABASE_URL not set).");
     return;
   }
-  execSync("npx drizzle-kit push --force", {
-    stdio: "inherit",
-    env: { ...process.env, CI: "true" },
-  });
+
+  try {
+    assertReachableDatabaseUrl(url, process.env.VERCEL ? "vercel" : "local");
+  } catch (e) {
+    console.error("[prebuild]", e instanceof Error ? e.message : e);
+    process.exit(1);
+  }
+
+  try {
+    execSync("npx drizzle-kit push --force", {
+      stdio: "inherit",
+      env: { ...process.env, CI: "true" },
+    });
+  } catch (e) {
+    const hint =
+      "Check Vercel → Environment Variables: DATABASE_URL must be Railway's **public** URL (*.proxy.rlwy.net), not postgres.railway.internal.";
+    console.error("[prebuild] drizzle-kit push failed.", hint);
+    if (e instanceof Error && "stderr" in e && typeof e.stderr === "string" && e.stderr.trim()) {
+      console.error(e.stderr);
+    }
+    process.exit(1);
+  }
+
   console.log("[prebuild] Postgres schema push OK.");
 }
 
-try {
-  main();
-} catch (e) {
-  console.error("[prebuild] drizzle-kit push failed:", e);
-  process.exit(1);
-}
+main();
