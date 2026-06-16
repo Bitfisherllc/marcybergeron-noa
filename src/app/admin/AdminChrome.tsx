@@ -10,32 +10,22 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
     return <div className="min-h-screen bg-paper text-ink">{children}</div>;
   }
 
+  const onMenu = pathname === "/admin";
+
   return (
     <div className="min-h-screen bg-paper text-ink">
       <div className="border-b border-line bg-white/60">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 md:px-8">
-          <div className="flex items-center gap-6 text-sm">
-            <Link className="font-serif text-lg tracking-tight" href="/admin">
-              Admin
+          {onMenu ? (
+            <span className="font-serif text-lg tracking-tight text-ink">Admin</span>
+          ) : (
+            <Link
+              className="border border-ink bg-ink px-4 py-2.5 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90"
+              href="/admin"
+            >
+              Admin Menu
             </Link>
-            <nav className="flex flex-wrap gap-4 text-xs tracking-[0.18em] text-muted uppercase">
-              <Link className="hover:text-ink" href="/admin/home">
-                Home page
-              </Link>
-              <Link className="hover:text-ink" href="/admin/series">
-                Series
-              </Link>
-              <Link className="hover:text-ink" href="/admin/posts">
-                Posts
-              </Link>
-              <Link className="hover:text-ink" href="/admin/mailing-list">
-                Mailing list
-              </Link>
-              <Link className="hover:text-ink" href="/">
-                Site
-              </Link>
-            </nav>
-          </div>
+          )}
           <form action={logoutAction}>
             <button className="text-xs tracking-[0.18em] text-muted uppercase hover:text-ink" type="submit">
               Log out

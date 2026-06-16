@@ -6,10 +6,9 @@ export default async function AdminHomePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-serif text-3xl tracking-tight">Dashboard</h1>
+        <h1 className="font-serif text-3xl tracking-tight">Admin Menu</h1>
         <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
-          Manage series and artwork from the Art section, and publish news posts. Changes appear on the public site
-          immediately after saving.
+          Choose what you want to edit. Changes appear on the public site after you save.
         </p>
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
