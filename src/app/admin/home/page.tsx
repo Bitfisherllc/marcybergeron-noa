@@ -65,6 +65,9 @@ export default async function AdminHomePage({
         {sp.error === "slide" ? (
           <p className="mt-3 text-sm text-red-700">Choose an image file to add a slide.</p>
         ) : null}
+        {sp.error && sp.error !== "slide" ? (
+          <p className="mt-3 text-sm text-red-700">{decodeURIComponent(sp.error)}</p>
+        ) : null}
       </div>
 
       <div className="border border-line bg-white/50 p-6">

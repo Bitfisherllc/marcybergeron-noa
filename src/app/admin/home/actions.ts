@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { saveUpload } from "@/app/admin/actions";
+import { saveUpload } from "@/lib/save-upload";
 import {
   homeFeaturedPostSlot,
   homeFeaturedSeriesSlot,
@@ -82,25 +82,30 @@ export async function saveHomeAllAction(formData: FormData) {
 }
 
 export async function addHomeSlideshowAction(formData: FormData) {
-  const file = formData.get("slide") as File | null;
-  const alt = String(formData.get("slide_alt") ?? "").trim() || "Homepage slideshow image";
-  const rel = await saveUpload(file, "home-slideshow");
-  if (!rel) redirect("/admin/home?error=slide");
+  try {
+    const file = formData.get("slide") as File | null;
+    const alt = String(formData.get("slide_alt") ?? "").trim() || "Homepage slideshow image";
+    const rel = await saveUpload(file, "home-slideshow");
+    if (!rel) redirect("/admin/home?error=slide");
 
-  const db = getDb();
-  const rows = await db.select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder));
-  const nextOrder = rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.sortOrder)) + 1;
-  const t = now();
-  await db.insert(homeSlideshow).values({
-    id: nanoid(),
-    sortOrder: nextOrder,
-    image: rel,
-    alt,
-    createdAt: t,
-    updatedAt: t,
-  });
-  revalidatePath("/");
-  redirect("/admin/home?saved=1");
+    const db = getDb();
+    const rows = await db.select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder));
+    const nextOrder = rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.sortOrder)) + 1;
+    const t = now();
+    await db.insert(homeSlideshow).values({
+      id: nanoid(),
+      sortOrder: nextOrder,
+      image: rel,
+      alt,
+      createdAt: t,
+      updatedAt: t,
+    });
+    revalidatePath("/");
+    redirect("/admin/home?saved=1");
+  } catch (e) {
+    console.error("[addHomeSlideshowAction]", e);
+    redirect(`/admin/home?error=${encodeURIComponent(e instanceof Error ? e.message : "upload")}`);
+  }
 }
 
 export async function deleteHomeSlideshowAction(formData: FormData) {

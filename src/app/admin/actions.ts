@@ -1,7 +1,5 @@
 "use server";
 
-import fs from "node:fs/promises";
-import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
@@ -9,6 +7,7 @@ import { nanoid } from "nanoid";
 import { artwork, post, series } from "@/db/schema";
 import { getDb } from "@/db";
 import { createAdminSession, destroyAdminSession, verifyAdminPassword } from "@/lib/auth";
+import { saveUpload } from "@/lib/save-upload";
 
 export async function loginAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
@@ -20,27 +19,6 @@ export async function loginAction(formData: FormData) {
 export async function logoutAction() {
   await destroyAdminSession();
   redirect("/admin/login");
-}
-
-/** Slug-shaped folder under public/uploads/ (e.g. standing-tall-as-trees). Fallback: admin. */
-function uploadFolderForSlug(slug: string | undefined): string {
-  if ((slug ?? "").trim().toLowerCase() === "home-slideshow") return "home-slideshow";
-  const s = (slug ?? "").trim().toLowerCase();
-  if (s && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s)) return s;
-  return "admin";
-}
-
-export async function saveUpload(file: File | null, seriesSlug?: string) {
-  if (!file || file.size === 0) return null;
-  const buf = Buffer.from(await file.arrayBuffer());
-  const ext = path.extname(file.name) || ".jpg";
-  const safe = `${nanoid()}${ext}`;
-  const sub = uploadFolderForSlug(seriesSlug);
-  const rel = `/uploads/${sub}/${safe}`;
-  const abs = path.join(process.cwd(), "public", rel.slice(1));
-  await fs.mkdir(path.dirname(abs), { recursive: true });
-  await fs.writeFile(abs, buf);
-  return rel;
 }
 
 function now() {
