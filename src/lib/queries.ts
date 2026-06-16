@@ -120,5 +120,16 @@ export async function listArtworksWithSeriesForPicker() {
   return rows.map(({ piece, ser }) => ({
     id: piece.id,
     label: `${piece.title} — ${ser.title}`,
+    image: piece.image,
+    alt: piece.alt,
   }));
+}
+
+/** Series list for admin with artwork counts per gallery. */
+export async function listSeriesAdminOverview() {
+  const rows = await listSeries();
+  const pieces = await getDb().select({ seriesId: artwork.seriesId }).from(artwork);
+  const counts = new Map<string, number>();
+  for (const p of pieces) counts.set(p.seriesId, (counts.get(p.seriesId) ?? 0) + 1);
+  return rows.map((s) => ({ ...s, artworkCount: counts.get(s.id) ?? 0 }));
 }

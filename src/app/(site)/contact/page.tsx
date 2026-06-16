@@ -135,14 +135,6 @@ export default async function ContactPage({
                 </button>
               </form>
             </div>
-
-            <p className="text-xs text-muted">
-              Legacy reference site:{" "}
-              <a className="link-quiet" href="https://www.mbergeronnoa.com/">
-                mbergeronnoa.com
-              </a>
-              .
-            </p>
           </div>
         </div>
       </section>

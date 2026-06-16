@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { getDb } from "@/db";
 import { HOME_SECTION_KEYS } from "@/lib/homeDefaults";
+import { getArtwork } from "@/lib/queries";
 
 function now() {
   return new Date();
@@ -106,6 +107,29 @@ export async function addHomeSlideshowAction(formData: FormData) {
     console.error("[addHomeSlideshowAction]", e);
     redirect(`/admin/home?error=${encodeURIComponent(e instanceof Error ? e.message : "upload")}`);
   }
+}
+
+export async function addHomeSlideshowFromArtworkAction(formData: FormData) {
+  const artworkId = String(formData.get("artwork_id") ?? "").trim();
+  if (!artworkId) redirect("/admin/home?error=slide");
+
+  const piece = await getArtwork(artworkId);
+  if (!piece) redirect("/admin/home?error=slide");
+
+  const db = getDb();
+  const rows = await db.select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder));
+  const nextOrder = rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.sortOrder)) + 1;
+  const t = now();
+  await db.insert(homeSlideshow).values({
+    id: nanoid(),
+    sortOrder: nextOrder,
+    image: piece.image,
+    alt: piece.alt,
+    createdAt: t,
+    updatedAt: t,
+  });
+  revalidatePath("/");
+  redirect("/admin/home?saved=1");
 }
 
 export async function deleteHomeSlideshowAction(formData: FormData) {

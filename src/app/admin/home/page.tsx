@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   addHomeSlideshowAction,
+  addHomeSlideshowFromArtworkAction,
   deleteHomeSlideshowAction,
   reorderHomeSlideshowAction,
   saveHomeAllAction,
@@ -57,9 +58,11 @@ export default async function AdminHomePage({
       <div>
         <h1 className="font-serif text-3xl tracking-tight">Home page</h1>
         <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
-          Edit slideshow images, section titles and copy, and which series, journal posts, and artworks appear in the
-          three card rows. Save once at the bottom. Slideshow images use the forms in the slideshow block (separate
-          uploads).
+          Choose homepage slideshow and featured cards. To reorder paintings inside a gallery, use{" "}
+          <Link className="text-ink/80 underline-offset-2 hover:underline" href="/admin/series">
+            Galleries &amp; artwork
+          </Link>
+          .
         </p>
         {sp.saved ? <p className="mt-3 text-sm text-ink">Saved. Public home is updated.</p> : null}
         {sp.error === "slide" ? (
@@ -74,8 +77,28 @@ export default async function AdminHomePage({
         <h2 className="font-serif text-xl tracking-tight">Slideshow</h2>
         <p className="mt-2 max-w-prose text-sm text-muted">
           When at least one image is saved here, the home hero uses only these images (in order). If none are added,
-          the site falls back to the automatic mix of series and artwork images.
+          the site falls back to the automatic mix of series and artwork images. Upload a new file or pick an existing
+          painting from your galleries.
         </p>
+        <form action={addHomeSlideshowFromArtworkAction} className="mt-6 flex flex-wrap items-end gap-4 border-t border-line pt-6">
+          <label className="block min-w-[16rem] flex-1 text-sm text-muted">
+            Add from gallery
+            <select name="artwork_id" required className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm">
+              <option value="">Choose a painting…</option>
+              {artworkOptions.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="submit"
+            className="border border-ink bg-ink px-4 py-3 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90"
+          >
+            Add to slideshow
+          </button>
+        </form>
         <form action={addHomeSlideshowAction} className="mt-6 flex flex-wrap items-end gap-4 border-t border-line pt-6">
           <label className="block text-sm text-muted">
             Add image

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { StudioDirectionsClient } from "@/components/StudioDirectionsClient";
+import { StudioDirectionsLinks, StudioLocationPanel } from "@/components/StudioDirectionsClient";
 import { CONTACT, SITE_URL, STUDIO } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -59,10 +59,12 @@ export default function DirectionsPage() {
                 />
               </div>
             </div>
+
+            <StudioLocationPanel />
           </div>
         </figure>
 
-        <StudioDirectionsClient />
+        <StudioDirectionsLinks />
       </section>
     </div>
   );

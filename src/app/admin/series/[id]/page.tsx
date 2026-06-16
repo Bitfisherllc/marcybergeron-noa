@@ -13,9 +13,10 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
   return (
     <div className="space-y-12">
       <div>
-        <h1 className="font-serif text-3xl tracking-tight">Edit series</h1>
+        <h1 className="font-serif text-3xl tracking-tight">Edit gallery</h1>
         <p className="mt-3 text-sm text-muted">
-          Public URL: <span className="text-ink/80">/art/{s.slug}</span>
+          Public page: <span className="text-ink/80">/art/{s.slug}</span> · {arts.length}{" "}
+          {arts.length === 1 ? "painting" : "paintings"}
         </p>
       </div>
 
@@ -64,8 +65,10 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
       <div className="space-y-4">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="font-serif text-2xl tracking-tight">Artwork</h2>
-            <p className="mt-2 text-sm text-muted">Reorder with up/down. Captions on the site use title + medium/size/year.</p>
+            <h2 className="font-serif text-2xl tracking-tight">Paintings in this gallery</h2>
+            <p className="mt-2 text-sm text-muted">
+              All photos shown on the public gallery page. Use Up/Down to change order.
+            </p>
           </div>
         </div>
 

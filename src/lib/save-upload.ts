@@ -6,6 +6,7 @@ import { nanoid } from "nanoid";
 /** Slug-shaped folder under uploads/ (e.g. standing-tall-as-trees). Fallback: admin. */
 export function uploadFolderForSlug(slug: string | undefined): string {
   if ((slug ?? "").trim().toLowerCase() === "home-slideshow") return "home-slideshow";
+  if ((slug ?? "").trim().toLowerCase() === "about-portrait") return "about-portrait";
   const s = (slug ?? "").trim().toLowerCase();
   if (s && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s)) return s;
   return "admin";

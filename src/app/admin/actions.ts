@@ -75,6 +75,28 @@ export async function deleteSeries(formData: FormData) {
   redirect("/admin/series");
 }
 
+export async function reorderSeries(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const dir = String(formData.get("dir") ?? "");
+  if (!id || (dir !== "up" && dir !== "down")) redirect("/admin/series");
+
+  const db = getDb();
+  const items = await db.select().from(series).orderBy(asc(series.sortOrder), asc(series.title));
+  const idx = items.findIndex((s) => s.id === id);
+  if (idx === -1) redirect("/admin/series");
+  const swapWith = dir === "up" ? idx - 1 : idx + 1;
+  if (swapWith < 0 || swapWith >= items.length) redirect("/admin/series");
+
+  const a = items[idx]!;
+  const b = items[swapWith]!;
+  await db.update(series).set({ sortOrder: b.sortOrder, updatedAt: now() }).where(eq(series.id, a.id));
+  await db.update(series).set({ sortOrder: a.sortOrder, updatedAt: now() }).where(eq(series.id, b.id));
+
+  revalidatePath("/");
+  revalidatePath("/art");
+  redirect("/admin/series");
+}
+
 export async function upsertArtwork(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const seriesId = String(formData.get("seriesId") ?? "").trim();

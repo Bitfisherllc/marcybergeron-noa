@@ -17,10 +17,17 @@ export default async function AdminHomePage() {
           <div className="mt-2 font-serif text-2xl tracking-tight">Home page</div>
           <p className="mt-3 text-sm text-muted">Slideshow, section copy, featured picks</p>
         </Link>
+        <Link className="border border-line bg-white/50 p-6 hover:bg-white/80" href="/admin/about">
+          <div className="text-xs tracking-[0.18em] text-muted uppercase">About</div>
+          <div className="mt-2 font-serif text-2xl tracking-tight">About page</div>
+          <p className="mt-3 text-sm text-muted">Portrait, statement, bio, education, exhibitions</p>
+        </Link>
         <Link className="border border-line bg-white/50 p-6 hover:bg-white/80" href="/admin/series">
-          <div className="text-xs tracking-[0.18em] text-muted uppercase">Gallery</div>
-          <div className="mt-2 font-serif text-2xl tracking-tight">Series &amp; artwork</div>
-          <p className="mt-3 text-sm text-muted">{rows.length} series</p>
+          <div className="text-xs tracking-[0.18em] text-muted uppercase">Galleries</div>
+          <div className="mt-2 font-serif text-2xl tracking-tight">Galleries &amp; artwork</div>
+          <p className="mt-3 text-sm text-muted">
+            {rows.length} galleries — view all paintings, reorder, edit titles &amp; photos
+          </p>
         </Link>
         <Link className="border border-line bg-white/50 p-6 hover:bg-white/80" href="/admin/posts">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">News</div>

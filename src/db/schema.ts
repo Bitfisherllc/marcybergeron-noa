@@ -94,3 +94,20 @@ export const homeSelectedArtworkSlot = pgTable("home_selected_artwork_slot", {
   slot: integer("slot").primaryKey(),
   artworkId: text("artwork_id").references(() => artwork.id, { onDelete: "set null" }),
 });
+
+/** About page copy — one row per section key (hero, artist_statement, …). */
+export const aboutSection = pgTable("about_section", {
+  section: text("section").primaryKey(),
+  eyebrow: text("eyebrow").notNull().default(""),
+  title: text("title").notNull().default(""),
+  body: text("body").notNull().default(""),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
+});
+
+/** Single portrait on the About page (id is always `default`). */
+export const aboutPortrait = pgTable("about_portrait", {
+  id: text("id").primaryKey(),
+  image: text("image").notNull(),
+  alt: text("alt").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
+});

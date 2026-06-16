@@ -2,6 +2,9 @@ export const SITE_NAME = "Marcy Bergeron-Noa";
 export const SITE_DOMAIN = "MarcyBergeron-Noa.com";
 export const SITE_URL = `https://${SITE_DOMAIN.toLowerCase()}`;
 
+/** Admin “view live site” — set `NEXT_PUBLIC_SITE_URL` if the custom domain isn’t live yet. */
+export const LIVE_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || SITE_URL).replace(/\/$/, "");
+
 export const CONTACT = {
   email: "marcynoaart@gmail.com",
   phone: "617 515 7915",

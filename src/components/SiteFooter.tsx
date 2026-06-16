@@ -49,7 +49,7 @@ export function SiteFooter() {
             </li>
             <li>
               <Link className="link-quiet" href="/contact">
-                Contact
+                Contact Marcy
               </Link>
             </li>
           </ul>
