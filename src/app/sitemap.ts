@@ -3,8 +3,14 @@ import { listPublishedPosts, listSeries } from "@/lib/queries";
 import { SITE_URL } from "@/lib/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const series = await listSeries();
-  const posts = await listPublishedPosts();
+  let series: Awaited<ReturnType<typeof listSeries>> = [];
+  let posts: Awaited<ReturnType<typeof listPublishedPosts>> = [];
+  try {
+    series = await listSeries();
+    posts = await listPublishedPosts();
+  } catch {
+    /* Build or deploy without reachable DB — emit static URLs only. */
+  }
 
   return [
     { url: `${SITE_URL}/`, lastModified: new Date() },

@@ -9,9 +9,16 @@ import { slideFromArtwork, slideFromSeriesHero } from "@/lib/gallerySlides";
 import { getSeriesBySlug, getSeriesNeighbors, listArtworksForSeries, listSeries } from "@/lib/queries";
 import { SITE_URL } from "@/lib/site";
 
+/** Build-time paths for SSG; if Postgres is unreachable (e.g. no local Docker), skip rather than fail `next build`. */
 export async function generateStaticParams() {
-  const rows = await listSeries();
-  return rows.map((s) => ({ slug: s.slug }));
+  try {
+    const rows = await listSeries();
+    return rows.map((s) => ({ slug: s.slug }));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn("[art/[slug]] generateStaticParams: could not list series —", msg);
+    return [];
+  }
 }
 
 export async function generateMetadata({

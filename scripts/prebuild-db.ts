@@ -1,7 +1,8 @@
 /**
  * Runs before `next build`. If `DATABASE_URL` is set (e.g. Vercel + Railway Postgres),
  * applies schema with `drizzle-kit push --force` so the app does not hit missing tables.
- * If unset, skips (local builds without Postgres must set DATABASE_URL for production-like builds).
+ * On Vercel, missing `DATABASE_URL` fails the build (otherwise push is skipped and `series` etc. are absent at runtime).
+ * Local builds without Postgres: unset `DATABASE_URL` to skip push, or use docker-compose + `.env.local`.
  */
 import { execSync } from "node:child_process";
 
@@ -9,6 +10,12 @@ const url = process.env.DATABASE_URL?.trim();
 
 function main() {
   if (!url) {
+    if (process.env.VERCEL) {
+      console.error(
+        "[prebuild] DATABASE_URL is not set on Vercel. Add it under Project → Settings → Environment Variables for Production (and Preview if you use it), then redeploy. Without it, drizzle-kit push is skipped and tables like `series` are missing at runtime.",
+      );
+      process.exit(1);
+    }
     console.log("[prebuild] Skipping drizzle-kit push (DATABASE_URL not set).");
     return;
   }
