@@ -26,49 +26,73 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  const stepSize = useCallback(() => {
+  const cardElements = useCallback((): HTMLElement[] => {
     const el = scrollerRef.current;
-    if (!el) return 304;
-    const card = el.querySelector("[data-journal-card]") as HTMLElement | null;
-    const gap = 24;
-    return (card?.offsetWidth ?? 280) + gap;
+    if (!el) return [];
+    return [...el.querySelectorAll<HTMLElement>("[data-journal-card]")];
   }, []);
 
-  const scrollByDir = useCallback(
-    (dir: -1 | 1) => {
-      const el = scrollerRef.current;
-      if (!el) return;
-      const step = stepSize();
-      el.scrollBy({ left: dir * step, behavior: reduceMotion ? "auto" : "smooth" });
-    },
-    [stepSize, reduceMotion],
-  );
+  const syncActiveFromScroll = useCallback(() => {
+    const el = scrollerRef.current;
+    const cards = cardElements();
+    if (!el || cards.length === 0) return;
+
+    const scrollLeft = el.scrollLeft;
+    let best = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i]!;
+      const dist = Math.abs(card.offsetLeft - scrollLeft);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = i;
+      }
+    }
+    setActive(best);
+  }, [cardElements]);
 
   const scrollToIndex = useCallback(
-    (i: number) => {
-      const el = scrollerRef.current;
-      if (!el) return;
-      const step = stepSize();
-      el.scrollTo({ left: Math.max(0, i) * step, behavior: reduceMotion ? "auto" : "smooth" });
+    (index: number) => {
+      const cards = cardElements();
+      const card = cards[index];
+      if (!card) return;
+
+      card.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        inline: "start",
+        block: "nearest",
+      });
+      setActive(index);
     },
-    [stepSize, reduceMotion],
+    [cardElements, reduceMotion],
+  );
+
+  const goDelta = useCallback(
+    (dir: -1 | 1) => {
+      const next = Math.min(posts.length - 1, Math.max(0, active + dir));
+      scrollToIndex(next);
+    },
+    [active, posts.length, scrollToIndex],
   );
 
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el || posts.length === 0) return;
 
-    const onScroll = () => {
-      const step = stepSize();
-      if (step <= 0) return;
-      const i = Math.min(posts.length - 1, Math.max(0, Math.floor((el.scrollLeft + step / 2) / step)));
-      setActive(i);
-    };
+    el.addEventListener("scroll", syncActiveFromScroll, { passive: true });
+    window.addEventListener("resize", syncActiveFromScroll);
+    syncActiveFromScroll();
 
-    el.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [posts.length, stepSize]);
+    return () => {
+      el.removeEventListener("scroll", syncActiveFromScroll);
+      window.removeEventListener("resize", syncActiveFromScroll);
+    };
+  }, [posts.length, syncActiveFromScroll]);
+
+  useEffect(() => {
+    if (posts.length === 0) return;
+    setActive((i) => Math.min(posts.length - 1, i));
+  }, [posts.length]);
 
   if (posts.length === 0) return null;
 
@@ -120,8 +144,9 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
         <div className="mt-5 flex items-center justify-between gap-4 border-t border-line pt-5">
           <button
             type="button"
-            onClick={() => scrollByDir(-1)}
-            className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-line text-ink/55 transition hover:border-ink/25 hover:text-ink"
+            onClick={() => goDelta(-1)}
+            disabled={active === 0}
+            className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-line text-ink/55 transition hover:border-ink/25 hover:text-ink disabled:pointer-events-none disabled:opacity-30"
             aria-label="Previous article"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="-translate-x-px">
@@ -146,8 +171,9 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
 
           <button
             type="button"
-            onClick={() => scrollByDir(1)}
-            className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-line text-ink/55 transition hover:border-ink/25 hover:text-ink"
+            onClick={() => goDelta(1)}
+            disabled={active === n - 1}
+            className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-line text-ink/55 transition hover:border-ink/25 hover:text-ink disabled:pointer-events-none disabled:opacity-30"
             aria-label="Next article"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="translate-x-px">

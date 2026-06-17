@@ -1,6 +1,24 @@
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 
+/** Indented lines after a blank break inside seeded gallery HTML were parsed as markdown code blocks. */
+function normalizePostGalleryHtml(content: string): string {
+  return content
+    .replace(
+      /<p class="mt-3 text-sm leading-relaxed text-muted">/g,
+      '<div class="mt-3 text-sm leading-relaxed text-muted">',
+    )
+    .replace(
+      /<p class="mt-3 text-sm leading-relaxed text-ink\/50 italic">/g,
+      '<div class="mt-3 text-sm leading-relaxed text-ink/50 italic">',
+    )
+    .replace(
+      /(<div class="mt-3 text-sm leading-relaxed text-(?:muted|ink\/50 italic)">[\s\S]*?)<\/p>/g,
+      "$1</div>",
+    )
+    .replace(/\n    \n    <(?:p|div) class="mt-3 text-sm leading-relaxed/g, '\n    <div class="mt-3 text-sm leading-relaxed');
+}
+
 const sharedMarkdown =
   "[&_h2]:font-serif [&_h2]:tracking-tight [&_h2]:text-ink [&_h2:first-child]:mt-0 [&_p]:text-muted [&_p_img]:mx-auto [&_p_img]:block [&_p_img]:max-h-[min(70vh,640px)] [&_p_img]:w-auto [&_p_img]:max-w-full [&_p_img]:border [&_p_img]:border-line [&_p_img]:bg-black/[0.03] [&_p_img]:object-contain [&_strong]:text-ink";
 
@@ -19,7 +37,9 @@ export function ProseMarkdown({
 
   return (
     <div className={`${layout} ${sharedMarkdown}`}>
-      <ReactMarkdown rehypePlugins={[rehypeRaw]}>{content}</ReactMarkdown>
+      <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+        {variant === "article" ? normalizePostGalleryHtml(content) : content}
+      </ReactMarkdown>
     </div>
   );
 }

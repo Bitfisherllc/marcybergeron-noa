@@ -1,4 +1,6 @@
 import { upsertSeries } from "@/app/admin/actions";
+import { AdminFilePicker } from "@/components/AdminFilePicker";
+import { AdminLink, adminBtnPrimary } from "@/components/AdminLink";
 
 export default function NewSeriesPage() {
   return (
@@ -32,14 +34,16 @@ export default function NewSeriesPage() {
             Sort order
             <input name="sortOrder" defaultValue="0" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
           </label>
-          <label className="block text-sm text-muted">
-            Featured image (required)
-            <input name="featured" type="file" accept="image/*" required className="mt-2 w-full text-sm" />
-          </label>
+          <AdminFilePicker name="featured" label="Add image" buttonLabel="Choose image" required />
         </div>
-        <button className="border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase" type="submit">
-          Create series
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button className={adminBtnPrimary} type="submit">
+            Create series
+          </button>
+          <AdminLink variant="back" href="/admin/series">
+            Back
+          </AdminLink>
+        </div>
       </form>
     </div>
   );

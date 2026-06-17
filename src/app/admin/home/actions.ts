@@ -13,8 +13,10 @@ import {
   homeSlideshow,
 } from "@/db/schema";
 import { getDb } from "@/db";
-import { HOME_SECTION_KEYS } from "@/lib/homeDefaults";
+import { HOME_SECTION_KEYS, type HomeSectionKey } from "@/lib/homeDefaults";
+import { heroSlideAlt } from "@/lib/heroSlides";
 import { getArtwork } from "@/lib/queries";
+import { captionSubtitle } from "@/components/ArtCaption";
 
 function now() {
   return new Date();
@@ -25,6 +27,87 @@ function readSlotId(formData: FormData, name: string): string | null {
   return v || null;
 }
 
+async function upsertHomeTextSection(db: ReturnType<typeof getDb>, key: HomeSectionKey, formData: FormData, t: Date) {
+  const eyebrow = String(formData.get("eyebrow") ?? "");
+  const title = String(formData.get("title") ?? "");
+  const quote = String(formData.get("quote") ?? "");
+  const body = String(formData.get("body") ?? "");
+  await db
+    .insert(homeSection)
+    .values({
+      section: key,
+      eyebrow,
+      title,
+      quote,
+      body,
+      updatedAt: t,
+    })
+    .onConflictDoUpdate({
+      target: homeSection.section,
+      set: { eyebrow, title, quote, body, updatedAt: t },
+    });
+}
+
+export async function saveHomeTextSectionAction(formData: FormData) {
+  const key = String(formData.get("section") ?? "");
+  if (!HOME_SECTION_KEYS.includes(key as HomeSectionKey)) redirect("/admin/home?error=section");
+
+  const db = getDb();
+  const t = now();
+  await upsertHomeTextSection(db, key as HomeSectionKey, formData, t);
+  revalidatePath("/");
+  redirect(`/admin/home?saved=${encodeURIComponent(key)}`);
+}
+
+export async function saveHomeFeaturedSeriesAction(formData: FormData) {
+  const db = getDb();
+  for (let slot = 0; slot < 3; slot++) {
+    const seriesId = readSlotId(formData, `series_slot_${slot}`);
+    await db
+      .insert(homeFeaturedSeriesSlot)
+      .values({ slot, seriesId })
+      .onConflictDoUpdate({
+        target: homeFeaturedSeriesSlot.slot,
+        set: { seriesId },
+      });
+  }
+  revalidatePath("/");
+  redirect("/admin/home?saved=featured_series_picks");
+}
+
+export async function saveHomeJournalAction(formData: FormData) {
+  const db = getDb();
+  for (let slot = 0; slot < 3; slot++) {
+    const postId = readSlotId(formData, `post_slot_${slot}`);
+    await db
+      .insert(homeFeaturedPostSlot)
+      .values({ slot, postId })
+      .onConflictDoUpdate({
+        target: homeFeaturedPostSlot.slot,
+        set: { postId },
+      });
+  }
+  revalidatePath("/");
+  redirect("/admin/home?saved=journal_picks");
+}
+
+export async function saveHomeSelectedWorksAction(formData: FormData) {
+  const db = getDb();
+  for (let slot = 0; slot < 3; slot++) {
+    const artworkId = readSlotId(formData, `artwork_slot_${slot}`);
+    await db
+      .insert(homeSelectedArtworkSlot)
+      .values({ slot, artworkId })
+      .onConflictDoUpdate({
+        target: homeSelectedArtworkSlot.slot,
+        set: { artworkId },
+      });
+  }
+  revalidatePath("/");
+  redirect("/admin/home?saved=selected_works_picks");
+}
+
+/** @deprecated Use per-section save actions instead. */
 export async function saveHomeAllAction(formData: FormData) {
   const db = getDb();
   const t = now();
@@ -82,10 +165,27 @@ export async function saveHomeAllAction(formData: FormData) {
   redirect("/admin/home?saved=1");
 }
 
+export async function saveHomeSlideshowSlideAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) redirect("/admin/home?error=slide");
+
+  const title = String(formData.get("title") ?? "").trim();
+  const subtitle = String(formData.get("subtitle") ?? "").trim();
+  const alt = heroSlideAlt(title, subtitle);
+  const t = now();
+
+  await getDb()
+    .update(homeSlideshow)
+    .set({ title, subtitle, alt, updatedAt: t })
+    .where(eq(homeSlideshow.id, id));
+
+  revalidatePath("/");
+  redirect("/admin/home?saved=slideshow");
+}
+
 export async function addHomeSlideshowAction(formData: FormData) {
   try {
     const file = formData.get("slide") as File | null;
-    const alt = String(formData.get("slide_alt") ?? "").trim() || "Homepage slideshow image";
     const rel = await saveUpload(file, "home-slideshow");
     if (!rel) redirect("/admin/home?error=slide");
 
@@ -97,7 +197,9 @@ export async function addHomeSlideshowAction(formData: FormData) {
       id: nanoid(),
       sortOrder: nextOrder,
       image: rel,
-      alt,
+      title: "",
+      subtitle: "",
+      alt: heroSlideAlt("", ""),
       createdAt: t,
       updatedAt: t,
     });
@@ -116,6 +218,9 @@ export async function addHomeSlideshowFromArtworkAction(formData: FormData) {
   const piece = await getArtwork(artworkId);
   if (!piece) redirect("/admin/home?error=slide");
 
+  const title = piece.title;
+  const subtitle = captionSubtitle({ medium: piece.medium, size: piece.size, year: piece.year });
+
   const db = getDb();
   const rows = await db.select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder));
   const nextOrder = rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.sortOrder)) + 1;
@@ -124,7 +229,9 @@ export async function addHomeSlideshowFromArtworkAction(formData: FormData) {
     id: nanoid(),
     sortOrder: nextOrder,
     image: piece.image,
-    alt: piece.alt,
+    title,
+    subtitle,
+    alt: heroSlideAlt(title, subtitle),
     createdAt: t,
     updatedAt: t,
   });

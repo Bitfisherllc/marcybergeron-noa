@@ -1,8 +1,8 @@
-import Link from "next/link";
-import { listSeries } from "@/lib/queries";
+import { AdminLink } from "@/components/AdminLink";
+import { listContactMessages, listSeries } from "@/lib/queries";
 
 export default async function AdminHomePage() {
-  const rows = await listSeries();
+  const [rows, messages] = await Promise.all([listSeries(), listContactMessages()]);
   return (
     <div className="space-y-8">
       <div>
@@ -12,33 +12,40 @@ export default async function AdminHomePage() {
         </p>
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Link className="border border-line bg-white/50 p-6 hover:bg-white/80" href="/admin/home">
+        <AdminLink variant="menu" href="/admin/home">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">Home</div>
           <div className="mt-2 font-serif text-2xl tracking-tight">Home page</div>
           <p className="mt-3 text-sm text-muted">Slideshow, section copy, featured picks</p>
-        </Link>
-        <Link className="border border-line bg-white/50 p-6 hover:bg-white/80" href="/admin/about">
+        </AdminLink>
+        <AdminLink variant="menu" href="/admin/about">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">About</div>
           <div className="mt-2 font-serif text-2xl tracking-tight">About page</div>
           <p className="mt-3 text-sm text-muted">Portrait, statement, bio, education, exhibitions</p>
-        </Link>
-        <Link className="border border-line bg-white/50 p-6 hover:bg-white/80" href="/admin/series">
+        </AdminLink>
+        <AdminLink variant="menu" href="/admin/series">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">Galleries</div>
           <div className="mt-2 font-serif text-2xl tracking-tight">Galleries &amp; artwork</div>
           <p className="mt-3 text-sm text-muted">
             {rows.length} galleries — view all paintings, reorder, edit titles &amp; photos
           </p>
-        </Link>
-        <Link className="border border-line bg-white/50 p-6 hover:bg-white/80" href="/admin/posts">
+        </AdminLink>
+        <AdminLink variant="menu" href="/admin/posts">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">News</div>
           <div className="mt-2 font-serif text-2xl tracking-tight">Posts</div>
           <p className="mt-3 text-sm text-muted">Exhibitions, updates, press</p>
-        </Link>
-        <Link className="border border-line bg-white/50 p-6 hover:bg-white/80" href="/admin/mailing-list">
+        </AdminLink>
+        <AdminLink variant="menu" href="/admin/mailing-list">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">Audience</div>
           <div className="mt-2 font-serif text-2xl tracking-tight">Mailing list</div>
           <p className="mt-3 text-sm text-muted">Public signups from the site</p>
-        </Link>
+        </AdminLink>
+        <AdminLink variant="menu" href="/admin/contact">
+          <div className="text-xs tracking-[0.18em] text-muted uppercase">Inbox</div>
+          <div className="mt-2 font-serif text-2xl tracking-tight">Contact messages</div>
+          <p className="mt-3 text-sm text-muted">
+            {messages.length} {messages.length === 1 ? "message" : "messages"} from the contact form
+          </p>
+        </AdminLink>
       </div>
     </div>
   );

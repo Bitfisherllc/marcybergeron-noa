@@ -1,7 +1,9 @@
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { upsertPost } from "@/app/admin/actions";
+import { AdminFilePicker } from "@/components/AdminFilePicker";
+import { AdminLightboxThumb } from "@/components/AdminImageLightbox";
+import { AdminLink, adminBtnPrimary } from "@/components/AdminLink";
 import { getDb } from "@/db";
 import { post } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -59,23 +61,22 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
           <input name="published" type="checkbox" defaultChecked={p.published} className="h-4 w-4" />
           Published
         </label>
-        <label className="block text-sm text-muted">
-          Replace featured image
-          <input name="featured" type="file" accept="image/*" className="mt-2 w-full text-sm" />
-        </label>
+        <AdminFilePicker name="featured" label="Add image" buttonLabel="Choose image" />
         <input type="hidden" name="featuredExisting" value={p.featuredImage ?? ""} />
         {p.featuredImage ? (
-          <div className="relative h-28 w-44 overflow-hidden border border-line bg-black/[0.03]">
-            <Image src={p.featuredImage} alt="" fill className="object-cover" />
-          </div>
+          <AdminLightboxThumb src={p.featuredImage} alt={p.title} caption={`${p.title} — featured image`}>
+            <div className="relative h-28 w-44 overflow-hidden border border-line bg-black/[0.03]">
+              <Image src={p.featuredImage} alt="" fill className="object-cover" />
+            </div>
+          </AdminLightboxThumb>
         ) : null}
         <div className="flex flex-wrap gap-3">
-          <button className="border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase" type="submit">
+          <button className={adminBtnPrimary} type="submit">
             Save post
           </button>
-          <Link className="border border-line px-5 py-3 text-xs tracking-[0.18em] uppercase hover:bg-black/[0.03]" href="/admin/posts">
+          <AdminLink variant="back" href="/admin/posts">
             Back
-          </Link>
+          </AdminLink>
         </div>
       </form>
     </div>

@@ -12,6 +12,7 @@ import {
   getResolvedJournalPostsForHome,
   getResolvedSelectedWorks,
 } from "@/lib/homePage";
+import { toHeroSlide } from "@/lib/heroSlides";
 
 export const metadata: Metadata = {
   title: "Marcy Bergeron-Noa | Abstract Artist Portfolio",
@@ -47,10 +48,11 @@ export default async function HomePage() {
   let heroSlides = slides;
   if (heroSlides.length === 0) {
     heroSlides = [
-      {
-        src: featuredSeries[0]?.featuredImage ?? "/images/logo.svg",
-        alt: "Featured abstract painting by Marcy Bergeron-Noa",
-      },
+      toHeroSlide(
+        featuredSeries[0]?.featuredImage ?? "/images/logo.svg",
+        featuredSeries[0]?.title ?? "",
+        "Featured abstract painting",
+      ),
     ];
   }
 

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AdminLink, adminBtnDanger } from "@/components/AdminLink";
 import { deletePost } from "@/app/admin/actions";
 import { listAllPostsAdmin } from "@/lib/queries";
 
@@ -12,12 +12,9 @@ export default async function AdminPostsPage() {
           <h1 className="font-serif text-3xl tracking-tight">Posts</h1>
           <p className="mt-3 max-w-prose text-sm text-muted">Drafts stay private until published.</p>
         </div>
-        <Link
-          className="inline-flex border border-ink px-4 py-3 text-xs tracking-[0.18em] uppercase hover:bg-black/[0.03]"
-          href="/admin/posts/new"
-        >
+        <AdminLink variant="primary" href="/admin/posts/new">
           New post
-        </Link>
+        </AdminLink>
       </div>
 
       <div className="overflow-hidden border border-line bg-white/50">
@@ -37,13 +34,11 @@ export default async function AdminPostsPage() {
                 <td className="px-4 py-3 text-muted">{p.slug}</td>
                 <td className="px-4 py-3 text-muted">{p.published ? "Published" : "Draft"}</td>
                 <td className="px-4 py-3 text-right">
-                  <div className="flex justify-end gap-3">
-                    <Link className="text-xs hover:underline" href={`/admin/posts/${p.id}`}>
-                      Edit
-                    </Link>
+                  <div className="flex items-center justify-end gap-2">
+                    <AdminLink href={`/admin/posts/${p.id}`}>Edit</AdminLink>
                     <form action={deletePost}>
                       <input type="hidden" name="id" value={p.id} />
-                      <button className="text-xs text-red-700 hover:underline" type="submit">
+                      <button className={adminBtnDanger} type="submit">
                         Delete
                       </button>
                     </form>

@@ -16,6 +16,7 @@ export default async function ContactPage({
   searchParams: Promise<{ sent?: string; error?: string }>;
 }) {
   const sp = await searchParams;
+  const formError = sp.error === "send" ? "send" : sp.error ? "fields" : null;
 
   return (
     <div>
@@ -111,11 +112,19 @@ export default async function ContactPage({
             <div className="border border-line bg-white/50 p-6">
               <h2 className="font-serif text-2xl tracking-tight">Send a message</h2>
               <p className="mt-3 text-sm text-muted">
-                This form stores a message for follow-up. For time-sensitive requests, email directly.
+                Your message is saved in the studio inbox and a notification is emailed when configured. For urgent
+                requests, email directly.
               </p>
 
-              {sp.sent ? <p className="mt-4 text-sm text-ink">Thank you—your message was received.</p> : null}
-              {sp.error ? <p className="mt-4 text-sm text-red-700">Please complete all fields and try again.</p> : null}
+              {sp.sent ? <p className="mt-4 text-sm text-ink">Thank you—your message was sent.</p> : null}
+              {formError === "fields" ? (
+                <p className="mt-4 text-sm text-red-700">Please complete all fields and try again.</p>
+              ) : null}
+              {formError === "send" ? (
+                <p className="mt-4 text-sm text-red-700">
+                  Your message was saved, but the email could not be sent. Please try again or email directly.
+                </p>
+              ) : null}
 
               <form action={submitContact} className="mt-6 space-y-4">
                 <label className="block text-sm text-muted">

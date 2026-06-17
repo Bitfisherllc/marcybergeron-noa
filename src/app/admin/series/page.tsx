@@ -1,11 +1,19 @@
 import Image from "next/image";
-import Link from "next/link";
 import { deleteSeries, reorderSeries } from "@/app/admin/actions";
+import { AdminLightboxProvider, AdminLightboxTrigger } from "@/components/AdminImageLightbox";
+import { AdminLink, adminBtnDanger } from "@/components/AdminLink";
+import { AdminReorderButtons } from "@/components/AdminReorderButtons";
 import { listSeriesAdminOverview } from "@/lib/queries";
 
 export default async function AdminSeriesIndexPage() {
   const rows = await listSeriesAdminOverview();
   const totalArtworks = rows.reduce((n, s) => n + s.artworkCount, 0);
+
+  const coverSlides = rows.map((s) => ({
+    src: s.featuredImage,
+    alt: s.title,
+    caption: s.title,
+  }));
 
   return (
     <div className="space-y-8">
@@ -14,20 +22,17 @@ export default async function AdminSeriesIndexPage() {
           <h1 className="font-serif text-3xl tracking-tight">Galleries &amp; artwork</h1>
           <p className="mt-3 max-w-prose text-sm text-muted">
             Each row is a gallery on <span className="text-ink/80">/art</span>. Click{" "}
-            <span className="text-ink/80">Manage paintings</span> to see every photo, reorder with Up/Down, or edit
-            captions. Use Up/Down here to change gallery order on the Art page.
+            <span className="text-ink/80">Manage paintings</span> to see every photo, reorder with the arrow buttons, or edit
+            captions. Use the arrows here to change gallery order on the Art page.
           </p>
           <p className="mt-2 text-sm text-ink/80">
             {rows.length} {rows.length === 1 ? "gallery" : "galleries"} · {totalArtworks}{" "}
             {totalArtworks === 1 ? "painting" : "paintings"}
           </p>
         </div>
-        <Link
-          className="inline-flex border border-ink px-4 py-3 text-xs tracking-[0.18em] uppercase hover:bg-black/[0.03]"
-          href="/admin/series/new"
-        >
+        <AdminLink variant="primary" href="/admin/series/new">
           New gallery
-        </Link>
+        </AdminLink>
       </div>
 
       {rows.length === 0 ? (
@@ -36,25 +41,28 @@ export default async function AdminSeriesIndexPage() {
           different database — check <span className="text-ink/80">DATABASE_URL</span> matches production.
         </p>
       ) : (
-        <div className="overflow-hidden border border-line bg-white/50">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-line bg-white/70 text-xs tracking-[0.18em] text-muted uppercase">
-              <tr>
-                <th className="px-4 py-3">Cover</th>
-                <th className="px-4 py-3">Gallery</th>
-                <th className="px-4 py-3">Paintings</th>
-                <th className="px-4 py-3">Order</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((s, idx) => (
-                <tr key={s.id} className="border-b border-line last:border-b-0">
-                  <td className="px-4 py-3">
-                    <div className="relative h-16 w-24 overflow-hidden border border-line bg-black/[0.03]">
-                      <Image src={s.featuredImage} alt="" fill className="object-cover" sizes="96px" />
-                    </div>
-                  </td>
+        <AdminLightboxProvider slides={coverSlides}>
+          <div className="overflow-hidden border border-line bg-white/50">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-line bg-white/70 text-xs tracking-[0.18em] text-muted uppercase">
+                <tr>
+                  <th className="px-4 py-3">Cover</th>
+                  <th className="px-4 py-3">Gallery</th>
+                  <th className="px-4 py-3">Paintings</th>
+                  <th className="px-4 py-3">Order</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((s, idx) => (
+                  <tr key={s.id} className="border-b border-line last:border-b-0">
+                    <td className="px-4 py-3">
+                      <AdminLightboxTrigger index={idx} label={`View ${s.title} cover`}>
+                        <div className="relative h-16 w-24 overflow-hidden border border-line bg-black/[0.03]">
+                          <Image src={s.featuredImage} alt="" fill className="object-cover" sizes="96px" />
+                        </div>
+                      </AdminLightboxTrigger>
+                    </td>
                   <td className="px-4 py-3">
                     <div className="font-medium">{s.title}</div>
                     <div className="text-xs text-muted">/art/{s.slug}</div>
@@ -62,27 +70,17 @@ export default async function AdminSeriesIndexPage() {
                   <td className="px-4 py-3 text-muted">{s.artworkCount}</td>
                   <td className="px-4 py-3 text-muted">{idx + 1}</td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <form action={reorderSeries}>
-                        <input type="hidden" name="id" value={s.id} />
-                        <input type="hidden" name="dir" value="up" />
-                        <button className="text-xs hover:underline" type="submit" disabled={idx === 0}>
-                          Up
-                        </button>
-                      </form>
-                      <form action={reorderSeries}>
-                        <input type="hidden" name="id" value={s.id} />
-                        <input type="hidden" name="dir" value="down" />
-                        <button className="text-xs hover:underline" type="submit" disabled={idx === rows.length - 1}>
-                          Down
-                        </button>
-                      </form>
-                      <Link className="text-xs font-medium tracking-wide text-ink hover:underline" href={`/admin/series/${s.id}`}>
-                        Manage paintings
-                      </Link>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <AdminReorderButtons
+                        action={reorderSeries}
+                        fields={{ id: s.id }}
+                        disableUp={idx === 0}
+                        disableDown={idx === rows.length - 1}
+                      />
+                      <AdminLink href={`/admin/series/${s.id}`}>Manage paintings</AdminLink>
                       <form action={deleteSeries}>
                         <input type="hidden" name="id" value={s.id} />
-                        <button className="text-xs tracking-wide text-red-700 hover:underline" type="submit">
+                        <button className={adminBtnDanger} type="submit">
                           Delete
                         </button>
                       </form>
@@ -92,7 +90,8 @@ export default async function AdminSeriesIndexPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </AdminLightboxProvider>
       )}
     </div>
   );

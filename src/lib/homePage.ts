@@ -13,6 +13,7 @@ import {
 import { getDb } from "@/db";
 import { HOME_SECTION_DEFAULTS, HOME_SECTION_KEYS, type HomeSectionKey } from "@/lib/homeDefaults";
 import { featuredHomePieces, heroHomeSlides, listPublishedPosts, listSeries } from "@/lib/queries";
+import { heroSlideAlt, type HeroSlide, toHeroSlide } from "@/lib/heroSlides";
 
 export type HomeSectionResolved = {
   eyebrow: string;
@@ -34,10 +35,17 @@ export async function getResolvedHomeSection(key: HomeSectionKey): Promise<HomeS
   };
 }
 
-export async function getResolvedHeroSlides(): Promise<{ src: string; alt: string }[]> {
+export async function getResolvedHeroSlides(): Promise<HeroSlide[]> {
   const rows = await getDb().select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder), asc(homeSlideshow.createdAt));
   if (rows.length > 0) {
-    return rows.map((r) => ({ src: r.image, alt: r.alt }));
+    return rows.map((r) =>
+      toHeroSlide(
+        r.image,
+        r.title,
+        r.subtitle,
+        r.title || r.subtitle ? heroSlideAlt(r.title, r.subtitle) : r.alt,
+      ),
+    );
   }
   return heroHomeSlides();
 }

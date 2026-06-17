@@ -1,7 +1,8 @@
 import { asc, desc, eq } from "drizzle-orm";
 import type { Artwork, Series } from "@/db";
-import { artwork, mailingListSignup, post, series } from "@/db/schema";
+import { artwork, contactMessage, mailingListSignup, post, series } from "@/db/schema";
 import { getDb } from "@/db";
+import { toHeroSlide, type HeroSlide } from "@/lib/heroSlides";
 
 export async function listSeries() {
   return getDb().select().from(series).orderBy(asc(series.sortOrder), asc(series.title));
@@ -52,29 +53,30 @@ export async function featuredHomePieces(): Promise<{ series: Series; piece: Art
 }
 
 /** Unique images for the home hero slideshow (featured + first-in-series works). */
-export async function heroHomeSlides(): Promise<{ src: string; alt: string }[]> {
+export async function heroHomeSlides(): Promise<HeroSlide[]> {
   const seen = new Set<string>();
-  const out: { src: string; alt: string }[] = [];
+  const out: HeroSlide[] = [];
 
-  const push = (src: string, alt: string) => {
+  const push = (src: string, title: string, subtitle = "") => {
     if (!src || seen.has(src)) return;
     seen.add(src);
-    out.push({ src, alt });
+    out.push(toHeroSlide(src, title, subtitle));
   };
 
   const wf = await getSeriesBySlug("wayfinding");
   if (wf?.featuredImage) {
-    push(wf.featuredImage, "Featured work — Wayfinding series");
+    push(wf.featuredImage, "Wayfinding", "Featured series");
   }
 
   const sers = await listSeries();
   for (const s of sers) {
-    push(s.featuredImage, `${s.title} — featured artwork`);
+    push(s.featuredImage, s.title, "Featured artwork");
   }
 
   const picks = await featuredHomePieces();
   for (const { series: s, piece } of picks) {
-    push(piece.image, piece.alt || `${piece.title} — ${s.title}`);
+    const subtitle = [piece.medium, piece.size, piece.year].filter(Boolean).join(" · ");
+    push(piece.image, piece.title, subtitle || s.title);
     if (out.length >= 7) break;
   }
 
@@ -108,6 +110,10 @@ export async function listAllPostsAdmin() {
 
 export async function listMailingListSignups() {
   return getDb().select().from(mailingListSignup).orderBy(desc(mailingListSignup.createdAt));
+}
+
+export async function listContactMessages() {
+  return getDb().select().from(contactMessage).orderBy(desc(contactMessage.createdAt));
 }
 
 /** Admin home picker: artworks with series title for labels. */

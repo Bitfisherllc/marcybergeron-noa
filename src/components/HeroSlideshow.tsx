@@ -2,8 +2,21 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
+import type { HeroSlide } from "@/lib/heroSlides";
 
-export type HeroSlide = { src: string; alt: string };
+function SlideCaption({ slide }: { slide: HeroSlide }) {
+  if (!slide.title && !slide.subtitle) return null;
+  return (
+    <div className="min-h-[3.25rem] border-t border-line pt-4 text-center">
+      {slide.title ? (
+        <div className="font-serif text-lg font-medium tracking-tight text-ink">{slide.title}</div>
+      ) : null}
+      {slide.subtitle ? (
+        <div className={`text-sm leading-relaxed text-muted ${slide.title ? "mt-1" : ""}`}>{slide.subtitle}</div>
+      ) : null}
+    </div>
+  );
+}
 
 export function HeroSlideshow({ slides }: { slides: HeroSlide[] }) {
   const n = slides.length;
@@ -50,11 +63,16 @@ export function HeroSlideshow({ slides }: { slides: HeroSlide[] }) {
 
   if (n === 0) return null;
 
+  const current = slides[index] ?? slides[0]!;
+
   if (n === 1) {
     const s = slides[0]!;
     return (
-      <div className="relative aspect-[4/5] overflow-hidden bg-black/[0.03]">
-        <Image src={s.src} alt={s.alt} fill priority className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+      <div className="space-y-4">
+        <div className="relative aspect-[4/5] overflow-hidden bg-black/[0.03]">
+          <Image src={s.src} alt={s.alt} fill priority className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+        </div>
+        <SlideCaption slide={s} />
       </div>
     );
   }
@@ -69,7 +87,7 @@ export function HeroSlideshow({ slides }: { slides: HeroSlide[] }) {
       >
         {slides.map((slide, i) => (
           <div
-            key={slide.src}
+            key={`${slide.src}-${i}`}
             className={`absolute inset-0 ease-out motion-reduce:transition-none ${
               reduceMotion ? "" : "transition-opacity duration-[1100ms]"
             } ${i === index ? "z-[1] opacity-100" : "z-0 opacity-0"}`}
@@ -86,6 +104,8 @@ export function HeroSlideshow({ slides }: { slides: HeroSlide[] }) {
           </div>
         ))}
       </div>
+
+      <SlideCaption slide={current} />
 
       <div className="flex items-center justify-between gap-4 border-t border-line pt-4">
         <button

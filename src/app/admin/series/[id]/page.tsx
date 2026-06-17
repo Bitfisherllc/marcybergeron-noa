@@ -1,7 +1,11 @@
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { reorderArtwork, upsertArtwork, upsertSeries } from "@/app/admin/actions";
+import { AdminFilePicker } from "@/components/AdminFilePicker";
+import { AdminLightboxProvider, AdminLightboxThumb, AdminLightboxTrigger } from "@/components/AdminImageLightbox";
+import { AdminLink } from "@/components/AdminLink";
+import { AdminReorderButtons } from "@/components/AdminReorderButtons";
+import { AdminDirtySave } from "@/components/AdminSectionSave";
 import { getSeriesById, listArtworksForSeries } from "@/lib/queries";
 
 export default async function EditSeriesPage({ params }: { params: Promise<{ id: string }> }) {
@@ -9,6 +13,11 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
   const s = await getSeriesById(id);
   if (!s) notFound();
   const arts = await listArtworksForSeries(s.id);
+  const artworkSlides = arts.map((a) => ({
+    src: a.image,
+    alt: a.alt || a.title,
+    caption: a.title,
+  }));
 
   return (
     <div className="space-y-12">
@@ -20,7 +29,7 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
         </p>
       </div>
 
-      <form action={upsertSeries} className="space-y-6 border border-line bg-white/50 p-6">
+      <form id="series-edit" action={upsertSeries} className="space-y-6 border border-line bg-white/50 p-6">
         <input type="hidden" name="id" value={s.id} />
         <div className="grid gap-6 md:grid-cols-2">
           <label className="block text-sm text-muted">
@@ -45,21 +54,18 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
             Sort order
             <input name="sortOrder" defaultValue={String(s.sortOrder)} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
           </label>
-          <label className="block text-sm text-muted">
-            Replace featured image
-            <input name="featured" type="file" accept="image/*" className="mt-2 w-full text-sm" />
-          </label>
+          <AdminFilePicker name="featured" label="Featured image" buttonLabel="Choose image" />
         </div>
         <input type="hidden" name="featuredExisting" value={s.featuredImage} />
         <div className="flex items-center gap-4">
-          <div className="relative h-24 w-36 overflow-hidden border border-line bg-black/[0.03]">
-            <Image src={s.featuredImage} alt="" fill className="object-cover" />
-          </div>
-          <p className="text-xs text-muted">Leave file empty to keep the current featured image.</p>
+          <AdminLightboxThumb src={s.featuredImage} alt={s.title} caption={`${s.title} — featured image`}>
+            <div className="relative h-24 w-36 cursor-zoom-in overflow-hidden border border-line bg-black/[0.03]">
+              <Image src={s.featuredImage} alt="" fill className="object-cover" />
+            </div>
+          </AdminLightboxThumb>
+          <p className="text-xs text-muted">Click image to enlarge. Leave file empty to keep the current featured image.</p>
         </div>
-        <button className="border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase" type="submit">
-          Save series
-        </button>
+        <AdminDirtySave formId="series-edit" />
       </form>
 
       <div className="space-y-4">
@@ -67,11 +73,12 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           <div>
             <h2 className="font-serif text-2xl tracking-tight">Paintings in this gallery</h2>
             <p className="mt-2 text-sm text-muted">
-              All photos shown on the public gallery page. Use Up/Down to change order.
+              All photos shown on the public gallery page. Use the arrow buttons to change order.
             </p>
           </div>
         </div>
 
+        <AdminLightboxProvider slides={artworkSlides}>
         <div className="overflow-hidden border border-line bg-white/50">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-line bg-white/70 text-xs tracking-[0.18em] text-muted uppercase">
@@ -86,9 +93,11 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
               {arts.map((a, idx) => (
                 <tr key={a.id} className="border-b border-line last:border-b-0">
                   <td className="px-4 py-3">
-                    <div className="relative h-16 w-16 overflow-hidden border border-line bg-black/[0.03]">
-                      <Image src={a.image} alt="" fill className="object-cover" />
-                    </div>
+                    <AdminLightboxTrigger index={idx} label={`View ${a.title}`}>
+                      <div className="relative h-16 w-16 overflow-hidden border border-line bg-black/[0.03]">
+                        <Image src={a.image} alt="" fill className="object-cover" />
+                      </div>
+                    </AdminLightboxTrigger>
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium">{a.title}</div>
@@ -99,26 +108,14 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
                   </td>
                   <td className="px-4 py-3 text-muted">{a.sortOrder}</td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <form action={reorderArtwork}>
-                        <input type="hidden" name="id" value={a.id} />
-                        <input type="hidden" name="seriesId" value={s.id} />
-                        <input type="hidden" name="dir" value="up" />
-                        <button className="text-xs hover:underline" type="submit" disabled={idx === 0}>
-                          Up
-                        </button>
-                      </form>
-                      <form action={reorderArtwork}>
-                        <input type="hidden" name="id" value={a.id} />
-                        <input type="hidden" name="seriesId" value={s.id} />
-                        <input type="hidden" name="dir" value="down" />
-                        <button className="text-xs hover:underline" type="submit" disabled={idx === arts.length - 1}>
-                          Down
-                        </button>
-                      </form>
-                      <Link className="text-xs hover:underline" href={`/admin/artworks/${a.id}`}>
-                        Edit
-                      </Link>
+                    <div className="flex items-center justify-end gap-2">
+                      <AdminReorderButtons
+                        action={reorderArtwork}
+                        fields={{ id: a.id, seriesId: s.id }}
+                        disableUp={idx === 0}
+                        disableDown={idx === arts.length - 1}
+                      />
+                      <AdminLink href={`/admin/artworks/${a.id}`}>Edit</AdminLink>
                     </div>
                   </td>
                 </tr>
@@ -126,11 +123,12 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
             </tbody>
           </table>
         </div>
+        </AdminLightboxProvider>
       </div>
 
       <div className="border border-line bg-white/50 p-6">
         <h3 className="font-serif text-xl tracking-tight">Add artwork</h3>
-        <form action={upsertArtwork} className="mt-6 space-y-4">
+        <form id="series-add-artwork" action={upsertArtwork} className="mt-6 space-y-4">
           <input type="hidden" name="id" value="" />
           <input type="hidden" name="seriesId" value={s.id} />
           <div className="grid gap-4 md:grid-cols-2">
@@ -170,18 +168,13 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
             <input name="alt" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
           </label>
           <div className="grid gap-4 md:grid-cols-2">
-            <label className="block text-sm text-muted">
-              Image (required)
-              <input name="image" type="file" accept="image/*" required className="mt-2 w-full text-sm" />
-            </label>
+            <AdminFilePicker name="image" label="Add image" buttonLabel="Choose image" required />
             <label className="block text-sm text-muted">
               Sort order
               <input name="sortOrder" defaultValue={String((arts[arts.length - 1]?.sortOrder ?? -1) + 1)} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
             </label>
           </div>
-          <button className="border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase" type="submit">
-            Add artwork
-          </button>
+          <AdminDirtySave formId="series-add-artwork" />
         </form>
       </div>
     </div>

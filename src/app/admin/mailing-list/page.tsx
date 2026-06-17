@@ -1,3 +1,4 @@
+import { AdminExternalLink } from "@/components/AdminLink";
 import { listMailingListSignups } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -39,9 +40,7 @@ export default async function AdminMailingListPage() {
                 <tr key={r.id} className="border-b border-line last:border-b-0">
                   <td className="whitespace-nowrap px-4 py-3 text-muted">{formatDate(r.createdAt)}</td>
                   <td className="px-4 py-3">
-                    <a className="link-quiet" href={`mailto:${r.email}`}>
-                      {r.email}
-                    </a>
+                    <AdminExternalLink href={`mailto:${r.email}`}>{r.email}</AdminExternalLink>
                   </td>
                   <td className="px-4 py-3 text-muted">{r.name || "—"}</td>
                 </tr>

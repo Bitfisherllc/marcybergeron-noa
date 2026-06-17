@@ -474,16 +474,15 @@ function markdownGallery(rows: GallerySeedRow[]): string {
     .map((r) => {
       const subtitle = captionSubtitle({ medium: r.medium, size: r.size, year: r.year });
       const excerptBlock = r.description.trim()
-        ? `<p class="mt-3 text-sm leading-relaxed text-muted">${escapeHtmlText(r.description.trim())}</p>`
-        : `<p class="mt-3 text-sm leading-relaxed text-ink/50 italic">Excerpt: Further notes for this piece appear with the full listing under <strong>${escapeHtmlText(r.seriesTitle)}</strong> in the Art section.</p>`;
+        ? `<div class="mt-3 text-sm leading-relaxed text-muted">${escapeHtmlText(r.description.trim())}</div>`
+        : `<div class="mt-3 text-sm leading-relaxed text-ink/50 italic">Further notes for this piece appear with the full listing under <strong>${escapeHtmlText(r.seriesTitle)}</strong> in the Art section.</div>`;
       return `<figure class="post-gallery__card border border-line bg-white/30 p-4">
   <div class="post-gallery__media border border-line">
     <img class="post-gallery__thumb" src="${escapeAttr(r.image)}" alt="${escapeAttr(r.alt)}" loading="lazy" decoding="async" />
   </div>
   <figcaption class="mt-4 max-w-prose space-y-1">
     <div class="font-serif text-lg font-medium tracking-tight text-ink">${escapeHtmlText(r.title)}</div>
-    <div class="text-sm font-normal leading-relaxed text-muted">${escapeHtmlText(subtitle || "—")}</div>
-    ${galleryStatusHtml(r.status)}
+    <div class="text-sm font-normal leading-relaxed text-muted">${escapeHtmlText(subtitle || "—")}</div>${galleryStatusHtml(r.status) ? `\n    ${galleryStatusHtml(r.status)}` : ""}
     ${excerptBlock}
   </figcaption>
 </figure>`;

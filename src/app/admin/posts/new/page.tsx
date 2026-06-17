@@ -1,4 +1,6 @@
 import { upsertPost } from "@/app/admin/actions";
+import { AdminFilePicker } from "@/components/AdminFilePicker";
+import { AdminLink, adminBtnPrimary } from "@/components/AdminLink";
 
 export default function NewPostPage() {
   return (
@@ -42,13 +44,15 @@ export default function NewPostPage() {
           <input name="published" type="checkbox" className="h-4 w-4" />
           Published
         </label>
-        <label className="block text-sm text-muted">
-          Featured image (optional)
-          <input name="featured" type="file" accept="image/*" className="mt-2 w-full text-sm" />
-        </label>
-        <button className="border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase" type="submit">
-          Save post
-        </button>
+        <AdminFilePicker name="featured" label="Add image" buttonLabel="Choose image" />
+        <div className="flex flex-wrap gap-3">
+          <button className={adminBtnPrimary} type="submit">
+            Save post
+          </button>
+          <AdminLink variant="back" href="/admin/posts">
+            Back
+          </AdminLink>
+        </div>
       </form>
     </div>
   );

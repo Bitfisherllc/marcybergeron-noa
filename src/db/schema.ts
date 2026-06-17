@@ -75,7 +75,10 @@ export const homeSlideshow = pgTable("home_slideshow", {
   id: text("id").primaryKey(),
   sortOrder: integer("sort_order").notNull().default(0),
   image: text("image").notNull(),
+  /** Used for image accessibility — auto-filled from title/subtitle in admin. */
   alt: text("alt").notNull(),
+  title: text("title").notNull().default(""),
+  subtitle: text("subtitle").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });
