@@ -5,6 +5,8 @@ const onNetworkVolume = cwd().startsWith("/Volumes/");
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["postgres"],
+  /** Next 16 defaults to Turbopack; webpack config below is dev-only (network volume polling). */
+  turbopack: {},
   experimental: {
     serverActions: {
       /** Art uploads via admin forms (default is 1mb). */
