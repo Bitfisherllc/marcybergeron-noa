@@ -1,9 +1,8 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { AdminLink } from "@/components/AdminLink";
-import { listGalleriesForSwitcherAction, type AdminGallerySwitcherOption } from "@/lib/adminBarActions";
+import type { AdminGallerySwitcherOption } from "@/lib/adminBarActions";
 
 function parseGalleryPath(pathname: string): { show: boolean; currentId: string | null; isNew: boolean } {
   if (pathname === "/admin/series/new") {
@@ -16,22 +15,10 @@ function parseGalleryPath(pathname: string): { show: boolean; currentId: string 
   return { show: true, currentId: match[1]!, isNew: false };
 }
 
-export function AdminGallerySwitcher() {
+export function AdminGallerySwitcher({ galleries }: { galleries: AdminGallerySwitcherOption[] }) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const { show, currentId, isNew } = parseGalleryPath(pathname);
-  const [galleries, setGalleries] = useState<AdminGallerySwitcherOption[]>([]);
-
-  useEffect(() => {
-    if (!show) return;
-    let cancelled = false;
-    void listGalleriesForSwitcherAction().then((rows) => {
-      if (!cancelled) setGalleries(rows);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [show, pathname]);
 
   if (!show) return null;
 

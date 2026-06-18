@@ -13,6 +13,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { GallerySlide } from "@/lib/gallerySlides";
+import { ArtworkGalleryCaption } from "@/components/ArtworkGalleryCaption";
 
 export type { GallerySlide } from "@/lib/gallerySlides";
 
@@ -161,8 +162,8 @@ function LightboxDialog({ index, onClose }: { index: number; onClose: () => void
 
   if (!slide) return null;
 
-  const st = statusLabel(slide.status);
   const hasDims = slide.width && slide.height;
+  const isArtworkSlide = slide.medium !== undefined || slide.size !== undefined;
 
   return (
     <div
@@ -259,17 +260,37 @@ function LightboxDialog({ index, onClose }: { index: number; onClose: () => void
           )}
         </div>
 
-        <div className="w-full max-w-2xl shrink-0 border-t border-white/10 pt-5 text-center">
-          <h2 id={titleId} className="font-serif text-xl tracking-tight text-white md:text-2xl">
-            {slide.title}
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-white/65">{slide.subtitle}</p>
-          {st ? <p className="mt-1 text-xs tracking-wide text-white/50">{st}</p> : null}
-          {slide.description ? (
-            <p className="mt-4 text-left text-sm leading-relaxed text-white/55 md:text-center">{slide.description}</p>
-          ) : null}
+        <div className="w-full max-w-2xl shrink-0 border-t border-white/10 pt-5">
+          {isArtworkSlide ? (
+            <ArtworkGalleryCaption
+              as="div"
+              variant="lightbox"
+              titleId={titleId}
+              title={slide.title}
+              medium={slide.medium}
+              size={slide.size}
+              portfolioSeries={slide.portfolioSeries ?? []}
+              mediumGallery={slide.mediumGallery}
+              description={slide.description}
+              status={slide.status}
+              artworkId={slide.artworkId}
+            />
+          ) : (
+            <div className="text-center">
+              <h2 id={titleId} className="font-serif text-xl tracking-tight text-white md:text-2xl">
+                {slide.title}
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-white/65">{slide.subtitle}</p>
+              {statusLabel(slide.status) ? (
+                <p className="mt-1 text-xs tracking-wide text-white/50">{statusLabel(slide.status)}</p>
+              ) : null}
+              {slide.description ? (
+                <p className="mt-4 text-sm leading-relaxed text-white/55 md:text-center">{slide.description}</p>
+              ) : null}
+            </div>
+          )}
           {n > 1 ? (
-            <p className="mt-4 text-xs text-white/40">
+            <p className="mt-4 text-center text-xs text-white/40">
               {index + 1} / {n} · Arrow keys to browse
             </p>
           ) : null}

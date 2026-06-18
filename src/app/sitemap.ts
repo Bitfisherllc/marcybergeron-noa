@@ -15,7 +15,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: `${SITE_URL}/`, lastModified: new Date() },
     { url: `${SITE_URL}/art`, lastModified: new Date() },
-    ...series.map((s) => ({
+    { url: `${SITE_URL}/art/all-work`, lastModified: new Date() },
+    { url: `${SITE_URL}/medium`, lastModified: new Date() },
+    ...series
+      .filter((s) => !s.isPrivate)
+      .map((s) => ({
       url: `${SITE_URL}/art/${s.slug}`,
       lastModified: s.updatedAt,
     })),

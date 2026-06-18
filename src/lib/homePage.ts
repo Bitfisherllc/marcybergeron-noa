@@ -12,7 +12,8 @@ import {
 } from "@/db/schema";
 import { getDb } from "@/db";
 import { HOME_SECTION_DEFAULTS, HOME_SECTION_KEYS, type HomeSectionKey } from "@/lib/homeDefaults";
-import { featuredHomePieces, heroHomeSlides, listPublishedPosts, listSeries } from "@/lib/queries";
+import { isPublicPortfolioSeries } from "@/lib/privateGalleries";
+import { featuredHomePieces, getPrimarySeriesForArtworks, heroHomeSlides, listPublishedPosts, listSeries } from "@/lib/queries";
 import { heroSlideAlt, type HeroSlide, toHeroSlide } from "@/lib/heroSlides";
 
 export type HomeSectionResolved = {
@@ -64,7 +65,7 @@ export async function getResolvedFeaturedSeries(): Promise<Series[]> {
   const ids = slots.filter((id): id is string => Boolean(id));
   if (ids.length === 0) {
     const all = await listSeries();
-    return all.slice(0, 3);
+    return all.filter((s) => isPublicPortfolioSeries(s)).slice(0, 3);
   }
   const db = getDb();
   const found = await db.select().from(series).where(inArray(series.id, ids));
@@ -73,7 +74,7 @@ export async function getResolvedFeaturedSeries(): Promise<Series[]> {
   for (const id of slots) {
     if (!id) continue;
     const s = map.get(id);
-    if (s) ordered.push(s);
+    if (s && isPublicPortfolioSeries(s)) ordered.push(s);
   }
   return ordered.slice(0, 3);
 }
@@ -127,15 +128,13 @@ export async function getResolvedSelectedWorks(): Promise<{ series: Series; piec
   if (ids.length > 0) {
     const pieces = await db.select().from(artwork).where(inArray(artwork.id, ids));
     const pieceMap = new Map(pieces.map((a) => [a.id, a]));
-    const seriesIds = [...new Set(pieces.map((a) => a.seriesId))];
-    const sers = seriesIds.length ? await db.select().from(series).where(inArray(series.id, seriesIds)) : [];
-    const seriesMap = new Map(sers.map((s) => [s.id, s]));
+    const primarySeries = await getPrimarySeriesForArtworks(ids);
     const ordered: { series: Series; piece: Artwork }[] = [];
     for (const id of slots) {
       if (!id) continue;
       const piece = pieceMap.get(id);
       if (!piece) continue;
-      const s = seriesMap.get(piece.seriesId);
+      const s = primarySeries.get(id);
       if (s) ordered.push({ series: s, piece });
     }
     if (ordered.length > 0) return ordered.slice(0, 3);

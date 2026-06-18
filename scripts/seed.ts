@@ -10,7 +10,7 @@ import { nanoid } from "nanoid";
 import { asc, eq, sql } from "drizzle-orm";
 import { captionSubtitle } from "../src/components/ArtCaption";
 import * as schema from "../src/db/schema";
-import { artwork, post, series } from "../src/db/schema";
+import { artwork, artworkSeries, post, series } from "../src/db/schema";
 import type { AppDb } from "../src/db/index";
 import { closeDb, getDb } from "../src/db/index";
 
@@ -472,7 +472,7 @@ function markdownGallery(rows: GallerySeedRow[]): string {
   if (rows.length === 0) return "";
   const figures = rows
     .map((r) => {
-      const subtitle = captionSubtitle({ medium: r.medium, size: r.size, year: r.year });
+      const subtitle = captionSubtitle({ medium: r.medium, size: r.size });
       const excerptBlock = r.description.trim()
         ? `<div class="mt-3 text-sm leading-relaxed text-muted">${escapeHtmlText(r.description.trim())}</div>`
         : `<div class="mt-3 text-sm leading-relaxed text-ink/50 italic">Further notes for this piece appear with the full listing under <strong>${escapeHtmlText(r.seriesTitle)}</strong> in the Art section.</div>`;
@@ -750,9 +750,10 @@ async function main() {
         .toLowerCase()}.${ext}`;
       const disk = `/uploads/${s.slug}/${safeName}`;
       await downloadTo(w.sourceUrl, path.join(process.cwd(), "public", disk.slice(1)));
-      const line2 = [w.medium, w.size, w.year].filter(Boolean).join(" · ");
+      const line2 = [w.medium, w.size].filter(Boolean).join(" · ");
+      const artworkId = nanoid();
       await db.insert(artwork).values({
-        id: nanoid(),
+        id: artworkId,
         seriesId: sid,
         title: w.title,
         medium: w.medium,
@@ -766,6 +767,7 @@ async function main() {
         createdAt: t,
         updatedAt: t,
       });
+      await db.insert(artworkSeries).values({ artworkId, seriesId: sid });
     }
   }
 

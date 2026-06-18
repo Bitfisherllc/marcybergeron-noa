@@ -1,8 +1,9 @@
 import { AdminLink } from "@/components/AdminLink";
-import { listContactMessages, listSeries } from "@/lib/queries";
+import { countContactMessages } from "@/lib/contactMessages";
+import { listSeries } from "@/lib/queries";
 
 export default async function AdminHomePage() {
-  const [rows, messages] = await Promise.all([listSeries(), listContactMessages()]);
+  const [rows, messageCount] = await Promise.all([listSeries(), countContactMessages()]);
   return (
     <div className="space-y-8">
       <div>
@@ -43,7 +44,9 @@ export default async function AdminHomePage() {
           <div className="text-xs tracking-[0.18em] text-muted uppercase">Inbox</div>
           <div className="mt-2 font-serif text-2xl tracking-tight">Contact messages</div>
           <p className="mt-3 text-sm text-muted">
-            {messages.length} {messages.length === 1 ? "message" : "messages"} from the contact form
+            {messageCount === 0
+              ? "No unread messages"
+              : `${messageCount} unread ${messageCount === 1 ? "message" : "messages"}`}
           </p>
         </AdminLink>
       </div>

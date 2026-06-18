@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Gallery image placeholder">
+  <rect width="800" height="600" fill="#f4f1ec"/>
+  <rect x="48" y="48" width="704" height="504" fill="#ebe6df" stroke="#cfc8bc" stroke-width="2"/>
+  <path fill="#cfc8bc" d="M320 220h160v24H320zm0 56h120v24H320zm0 56h200v24H320z"/>
+  <circle cx="520" cy="248" r="40" fill="#d9d3c8"/>
+  <path fill="#d9d3c8" d="M280 420l96-88 72 64 48-40 104 64H280z"/>
+</svg>

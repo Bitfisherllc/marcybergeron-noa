@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
+    "predev": "dotenv -e .env.local -- tsx scripts/migrate-private-galleries.ts",
+    "dev:turbo": "next dev",
     "prebuild": "tsx scripts/prebuild-db.ts",
     "build": "next build",
     "start": "next start",
@@ -11,6 +13,10 @@
     "db:push": "dotenv -e .env.local -- drizzle-kit push --force",
     "db:ensure-home": "tsx scripts/ensure-home-tables.ts",
     "db:migrate-sqlite": "dotenv -e .env.local -- tsx scripts/migrate-sqlite-to-postgres.ts",
+    "db:backfill-medium": "dotenv -e .env.local -- tsx scripts/backfill-medium-series-id.ts",
+    "db:backfill-artwork-series": "dotenv -e .env.local -- tsx scripts/backfill-artwork-series.ts",
+    "db:ensure-medium-galleries": "dotenv -e .env.local -- tsx scripts/ensure-medium-galleries.ts",
+    "db:ensure-private-galleries": "dotenv -e .env.local -- tsx scripts/migrate-private-galleries.ts",
     "db:backup": "mkdir -p data/backups && cp data/site.db \"data/backups/site-$(date +%Y%m%d-%H%M%S).db\" && echo \"Backed up to data/backups/\"",
     "db:studio": "drizzle-kit studio",
     "seed": "dotenv -e .env.local -- tsx scripts/seed.ts"

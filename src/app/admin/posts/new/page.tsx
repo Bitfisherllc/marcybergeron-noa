@@ -44,7 +44,7 @@ export default function NewPostPage() {
           <input name="published" type="checkbox" className="h-4 w-4" />
           Published
         </label>
-        <AdminFilePicker name="featured" label="Add image" buttonLabel="Choose image" />
+        <AdminFilePicker name="featured" label="Add image" buttonLabel="Upload image" />
         <div className="flex flex-wrap gap-3">
           <button className={adminBtnPrimary} type="submit">
             Save post

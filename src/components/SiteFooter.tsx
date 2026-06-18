@@ -88,7 +88,7 @@ export function SiteFooter() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-line">
+      <div className="border-t border-line bg-neutral-100/90">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-6 text-xs text-muted md:flex-row md:items-center md:justify-between md:px-8">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <span>© {new Date().getFullYear()} {SITE_NAME}. All rights reserved.</span>

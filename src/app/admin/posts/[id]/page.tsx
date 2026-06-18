@@ -61,8 +61,12 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
           <input name="published" type="checkbox" defaultChecked={p.published} className="h-4 w-4" />
           Published
         </label>
-        <AdminFilePicker name="featured" label="Add image" buttonLabel="Choose image" />
-        <input type="hidden" name="featuredExisting" value={p.featuredImage ?? ""} />
+        <AdminFilePicker
+          name="featured"
+          label="Add image"
+          buttonLabel="Upload image"
+          existingValue={p.featuredImage ?? ""}
+        />
         {p.featuredImage ? (
           <AdminLightboxThumb src={p.featuredImage} alt={p.title} caption={`${p.title} — featured image`}>
             <div className="relative h-28 w-44 overflow-hidden border border-line bg-black/[0.03]">

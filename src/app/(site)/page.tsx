@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { AdminArtworkSiteEdit } from "@/components/AdminArtworkSiteEdit";
 import { ArtCaption, captionSubtitle } from "@/components/ArtCaption";
 import { HeroSlideshow } from "@/components/HeroSlideshow";
 import { HomeJournalSlider } from "@/components/HomeJournalSlider";
@@ -12,7 +13,9 @@ import {
   getResolvedJournalPostsForHome,
   getResolvedSelectedWorks,
 } from "@/lib/homePage";
+import { getAdminSession } from "@/lib/auth";
 import { toHeroSlide } from "@/lib/heroSlides";
+import { getArtworkGalleryMeta, listMediumGalleries, listPortfolioSeries } from "@/lib/queries";
 
 export const metadata: Metadata = {
   title: "Marcy Bergeron-Noa | Abstract Artist Portfolio",
@@ -21,7 +24,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [hero, featuredSec, journalSec, artistSec, selectedSec, featuredSeries, journalPostsRaw, selectedPicks, slides] =
+  const [hero, featuredSec, journalSec, artistSec, selectedSec, featuredSeries, journalPostsRaw, selectedPicks, slides, session] =
     await Promise.all([
       getResolvedHomeSection("hero"),
       getResolvedHomeSection("featured_series"),
@@ -32,7 +35,15 @@ export default async function HomePage() {
       getResolvedJournalPostsForHome(),
       getResolvedSelectedWorks(),
       getResolvedHeroSlides(),
+      getAdminSession(),
     ]);
+
+  const [galleryMeta, adminLists] = session
+    ? await Promise.all([
+        getArtworkGalleryMeta(selectedPicks.map(({ piece }) => piece.id)),
+        Promise.all([listMediumGalleries(), listPortfolioSeries()]),
+      ])
+    : [null, null];
 
   const journalPosts = journalPostsRaw.map((p) => ({
     slug: p.slug,
@@ -71,7 +82,7 @@ export default async function HomePage() {
                 href="/art"
                 className="inline-flex items-center border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90 focus-ring"
               >
-                View all art
+                View portfolio
               </Link>
               <Link
                 href="/contact"
@@ -192,12 +203,25 @@ export default async function HomePage() {
                     sizes="(max-width: 768px) 100vw, 33vw"
                   />
                 </div>
-                <ArtCaption
-                  title={piece.title}
-                  subtitle={captionSubtitle({ medium: piece.medium, size: piece.size, year: piece.year })}
-                  status={piece.status}
-                />
               </Link>
+              <ArtCaption
+                title={piece.title}
+                subtitle={captionSubtitle({ medium: piece.medium, size: piece.size })}
+                status={piece.status}
+                artworkId={piece.id}
+              />
+              {session && adminLists && galleryMeta ? (
+                <AdminArtworkSiteEdit
+                  artworkId={piece.id}
+                  title={piece.title}
+                  mediumSeriesId={piece.mediumSeriesId}
+                  selectedSeriesIds={(galleryMeta.get(piece.id)?.portfolioSeries ?? []).map((ser) => ser.id)}
+                  portfolioSeries={adminLists[1]}
+                  mediumGalleries={adminLists[0]}
+                  status={piece.status}
+                  returnPath="/"
+                />
+              ) : null}
             </figure>
           ))}
         </div>

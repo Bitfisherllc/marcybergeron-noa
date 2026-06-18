@@ -1,18 +1,30 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { reorderArtwork, upsertArtwork, upsertSeries } from "@/app/admin/actions";
+import { reorderArtwork, upsertArtwork, upsertSeries, deleteSeries } from "@/app/admin/actions";
+import { AdminDeleteSeriesForm } from "@/components/AdminDeleteSeriesForm";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
+import { AdminGalleryPrivacyPanel } from "@/components/AdminGalleryPrivacyPanel";
 import { AdminLightboxProvider, AdminLightboxThumb, AdminLightboxTrigger } from "@/components/AdminImageLightbox";
-import { AdminLink } from "@/components/AdminLink";
+import { AdminLink, adminBtnDanger } from "@/components/AdminLink";
+import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
+import { AdminPortfolioSeriesField } from "@/components/AdminPortfolioSeriesField";
 import { AdminReorderButtons } from "@/components/AdminReorderButtons";
 import { AdminDirtySave } from "@/components/AdminSectionSave";
-import { getSeriesById, listArtworksForSeries } from "@/lib/queries";
+import { isMediumGallerySlug } from "@/lib/mediumGalleries";
+import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
+import { getSeriesById, listAdminSeriesMembershipOptions, listArtworksForPublicGallery, listMediumGalleries } from "@/lib/queries";
 
 export default async function EditSeriesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await getSeriesById(id);
   if (!s) notFound();
-  const arts = await listArtworksForSeries(s.id);
+  const isMediumGallery = isMediumGallerySlug(s.slug);
+  const [arts, mediumGalleries, portfolioSeries, deleteImpact] = await Promise.all([
+    listArtworksForPublicGallery(s),
+    listMediumGalleries(),
+    listAdminSeriesMembershipOptions(),
+    isMediumGallery ? Promise.resolve(null) : getSeriesDeleteImpact(s.id),
+  ]);
   const artworkSlides = arts.map((a) => ({
     src: a.image,
     alt: a.alt || a.title,
@@ -23,11 +35,29 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
     <div className="space-y-12">
       <div>
         <h1 className="font-serif text-3xl tracking-tight">Edit gallery</h1>
+        {!isMediumGallery ? (
+          <a href="#delete" className={`${adminBtnDanger} mt-4`}>
+            Delete gallery
+          </a>
+        ) : null}
         <p className="mt-3 text-sm text-muted">
-          Public page: <span className="text-ink/80">/art/{s.slug}</span> · {arts.length}{" "}
-          {arts.length === 1 ? "painting" : "paintings"}
+          {s.isPrivate ? (
+            <>
+              Private gallery · {arts.length} {arts.length === 1 ? "painting" : "paintings"} · not listed on{" "}
+              <span className="text-ink/80">/art</span>
+            </>
+          ) : (
+            <>
+              Public page: <span className="text-ink/80">/art/{s.slug}</span> · {arts.length}{" "}
+              {arts.length === 1 ? "painting" : "paintings"}
+            </>
+          )}
         </p>
       </div>
+
+      {!isMediumGallery ? (
+        <AdminGalleryPrivacyPanel seriesId={s.id} isPrivate={s.isPrivate} accessToken={s.accessToken} />
+      ) : null}
 
       <form id="series-edit" action={upsertSeries} className="space-y-6 border border-line bg-white/50 p-6">
         <input type="hidden" name="id" value={s.id} />
@@ -43,7 +73,7 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
         </div>
         <label className="block text-sm text-muted">
           Excerpt
-          <textarea name="excerpt" required rows={4} defaultValue={s.excerpt} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+          <textarea name="excerpt" rows={4} defaultValue={s.excerpt} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
         </label>
         <label className="block text-sm text-muted">
           Full statement (Markdown)
@@ -54,9 +84,8 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
             Sort order
             <input name="sortOrder" defaultValue={String(s.sortOrder)} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
           </label>
-          <AdminFilePicker name="featured" label="Featured image" buttonLabel="Choose image" />
+          <AdminFilePicker name="featured" label="Featured image" buttonLabel="Upload image" existingValue={s.featuredImage} />
         </div>
-        <input type="hidden" name="featuredExisting" value={s.featuredImage} />
         <div className="flex items-center gap-4">
           <AdminLightboxThumb src={s.featuredImage} alt={s.title} caption={`${s.title} — featured image`}>
             <div className="relative h-24 w-36 cursor-zoom-in overflow-hidden border border-line bg-black/[0.03]">
@@ -102,8 +131,8 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
                   <td className="px-4 py-3">
                     <div className="font-medium">{a.title}</div>
                     <div className="text-xs text-muted">
-                      {a.medium} · {a.size}
-                      {a.year ? ` · ${a.year}` : ""}
+                      {a.medium}
+                      {a.size ? ` · ${a.size}` : ""}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-muted">{a.sortOrder}</td>
@@ -126,11 +155,11 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
         </AdminLightboxProvider>
       </div>
 
-      <div className="border border-line bg-white/50 p-6">
+      <div id="add-artwork" className="border border-line bg-white/50 p-6">
         <h3 className="font-serif text-xl tracking-tight">Add artwork</h3>
         <form id="series-add-artwork" action={upsertArtwork} className="mt-6 space-y-4">
           <input type="hidden" name="id" value="" />
-          <input type="hidden" name="seriesId" value={s.id} />
+          <input type="hidden" name="contextSeriesId" value={s.id} />
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block text-sm text-muted">
               Title
@@ -145,20 +174,24 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
               </select>
             </label>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <label className="block text-sm text-muted">
-              Medium
+              Material
               <input name="medium" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
             </label>
             <label className="block text-sm text-muted">
               Size
               <input name="size" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
             </label>
-            <label className="block text-sm text-muted">
-              Year
-              <input name="year" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
-            </label>
           </div>
+          <AdminMediumGalleryField
+            galleries={mediumGalleries}
+            value={isMediumGallery ? s.id : null}
+          />
+          <AdminPortfolioSeriesField
+            series={portfolioSeries}
+            selectedIds={isMediumGallery ? [] : [s.id]}
+          />
           <label className="block text-sm text-muted">
             Description (optional)
             <textarea name="description" rows={3} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
@@ -168,7 +201,7 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
             <input name="alt" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
           </label>
           <div className="grid gap-4 md:grid-cols-2">
-            <AdminFilePicker name="image" label="Add image" buttonLabel="Choose image" required />
+            <AdminFilePicker name="image" label="Add image" buttonLabel="Upload image" required />
             <label className="block text-sm text-muted">
               Sort order
               <input name="sortOrder" defaultValue={String((arts[arts.length - 1]?.sortOrder ?? -1) + 1)} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
@@ -177,6 +210,31 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           <AdminDirtySave formId="series-add-artwork" />
         </form>
       </div>
+
+      {!isMediumGallery ? (
+        <div id="delete" className="border border-line bg-white/50 p-6">
+          <h3 className="font-serif text-xl tracking-tight text-ink">Delete gallery</h3>
+          <p className="mt-2 max-w-prose text-sm text-muted">
+            Remove this gallery from the site. Paintings that only appear here via portfolio checkboxes will stay in their
+            other galleries.
+          </p>
+          <div className="mt-4">
+            {deleteImpact ? (
+              <AdminDeleteSeriesForm
+                action={deleteSeries}
+                impact={deleteImpact}
+                portfolioOptions={portfolioSeries
+                  .filter((row) => row.id !== s.id)
+                  .map((row) => ({ id: row.id, title: row.title }))}
+                mediumOptions={mediumGalleries
+                  .filter((row) => row.id !== s.id)
+                  .map((row) => ({ id: row.id, title: row.title }))}
+                returnTo={`/admin/series/${s.id}`}
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
+import { cwd } from "node:process";
+
+const onNetworkVolume = cwd().startsWith("/Volumes/");
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["postgres"],
+  experimental: {
+    serverActions: {
+      /** Art uploads via admin forms (default is 1mb). */
+      bodySizeLimit: "12mb",
+    },
+  },
   /** Allow same-origin Geolocation API (some hosts default to a restrictive policy). */
   async headers() {
     return [
@@ -26,6 +35,17 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
     ],
+  },
+  webpack: (config, { dev }) => {
+    if (dev && onNetworkVolume) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        poll: 2000,
+        aggregateTimeout: 500,
+        ignored: ["**/node_modules/**", "**/.git/**", "**/.next/**"],
+      };
+    }
+    return config;
   },
 };
 

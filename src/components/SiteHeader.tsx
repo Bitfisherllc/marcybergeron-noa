@@ -1,22 +1,16 @@
 import Link from "next/link";
-import { listSeries } from "@/lib/queries";
-import type { Series } from "@/db";
+import { listMediumGalleries, listSeries } from "@/lib/queries";
+import {
+  portfolioDropdownItems,
+} from "@/lib/portfolioGalleries";
 import { SITE_NAME } from "@/lib/site";
+import { artSeriesHref } from "@/lib/routeSlug";
 
 const navLinks = [
   { href: "/about", label: "About" },
   { href: "/news", label: "News" },
   { href: "/contact", label: "Contact" },
 ] as const;
-
-/** Art menu: New Work first, then all other series A–Z by title. */
-function seriesForArtNav(series: Series[]): Series[] {
-  const nw = series.find((s) => s.slug === "new-work");
-  const rest = series
-    .filter((s) => s.slug !== "new-work")
-    .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
-  return nw ? [nw, ...rest] : [...rest].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
-}
 
 function ChevronDown({ className }: { className?: string }) {
   return (
@@ -26,30 +20,39 @@ function ChevronDown({ className }: { className?: string }) {
   );
 }
 
-function ArtDropdownPanel({ series }: { series: Series[] }) {
+const dropdownPanelClass =
+  "invisible absolute left-0 top-full z-50 pt-2 opacity-0 transition-[opacity,visibility] duration-150 ease-out group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100";
+
+function NavDropdownPanel({
+  ariaLabel,
+  overviewHref,
+  overviewLabel,
+  items,
+}: {
+  ariaLabel: string;
+  overviewHref: string;
+  overviewLabel: string;
+  items: { href: string; label: string }[];
+}) {
   return (
-    <div
-      className="invisible absolute left-0 top-full z-50 pt-2 opacity-0 transition-[opacity,visibility] duration-150 ease-out group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
-      role="region"
-      aria-label="Art and series"
-    >
+    <div className={dropdownPanelClass} role="region" aria-label={ariaLabel}>
       <ul className="min-w-[14.5rem] border border-line bg-paper py-1.5 shadow-[0_8px_30px_rgba(31,31,31,0.08)]">
         <li>
           <Link
-            href="/art"
+            href={overviewHref}
             className="block px-4 py-2.5 text-sm text-ink/90 transition-colors hover:bg-black/[0.04] hover:text-ink focus-visible:bg-black/[0.04] focus-visible:outline-none"
           >
-            All series
+            {overviewLabel}
           </Link>
         </li>
         <li className="mx-3 my-1 h-px bg-line" role="separator" />
-        {series.map((s) => (
-          <li key={s.id}>
+        {items.map((item) => (
+          <li key={item.href}>
             <Link
-              href={`/art/${s.slug}`}
+              href={item.href}
               className="block px-4 py-2 text-[0.8125rem] leading-snug text-ink/75 transition-colors hover:bg-black/[0.04] hover:text-ink focus-visible:bg-black/[0.04] focus-visible:outline-none"
             >
-              {s.title}
+              {item.label}
             </Link>
           </li>
         ))}
@@ -58,20 +61,43 @@ function ArtDropdownPanel({ series }: { series: Series[] }) {
   );
 }
 
-function MobileArtSection({ series }: { series: Series[] }) {
+function NavDropdownLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1.5 rounded-sm hover:text-ink focus-ring"
+      aria-haspopup="true"
+    >
+      {label}
+      <ChevronDown className="opacity-45 transition-[opacity,transform] duration-150 group-hover:translate-y-px group-hover:opacity-70" />
+    </Link>
+  );
+}
+
+function MobileNavSection({
+  title,
+  overviewHref,
+  overviewLabel,
+  items,
+}: {
+  title: string;
+  overviewHref: string;
+  overviewLabel: string;
+  items: { href: string; label: string }[];
+}) {
   return (
     <li className="border-b border-line/60 pb-2">
-      <div className="px-2 py-2 text-[0.65rem] tracking-[0.2em] text-muted uppercase">Art</div>
+      <div className="px-2 py-2 text-[0.65rem] tracking-[0.2em] text-muted uppercase">{title}</div>
       <ul className="mt-0.5 space-y-0.5">
         <li>
-          <Link className="block rounded-sm px-2 py-2 text-sm text-ink hover:bg-black/[0.03]" href="/art">
-            All series
+          <Link className="block rounded-sm px-2 py-2 text-sm text-ink hover:bg-black/[0.03]" href={overviewHref}>
+            {overviewLabel}
           </Link>
         </li>
-        {series.map((s) => (
-          <li key={s.id}>
-            <Link className="block rounded-sm px-2 py-2 text-sm text-ink/85 hover:bg-black/[0.03] hover:text-ink" href={`/art/${s.slug}`}>
-              {s.title}
+        {items.map((item) => (
+          <li key={item.href}>
+            <Link className="block rounded-sm px-2 py-2 text-sm text-ink/85 hover:bg-black/[0.03] hover:text-ink" href={item.href}>
+              {item.label}
             </Link>
           </li>
         ))}
@@ -81,8 +107,9 @@ function MobileArtSection({ series }: { series: Series[] }) {
 }
 
 export async function SiteHeader() {
-  const seriesRaw = await listSeries();
-  const series = seriesForArtNav(seriesRaw);
+  const [seriesRaw, mediumGalleries] = await Promise.all([listSeries(), listMediumGalleries()]);
+  const portfolioItems = portfolioDropdownItems(seriesRaw);
+  const mediumItems = mediumGalleries.map((s) => ({ href: artSeriesHref(s.slug), label: s.title }));
 
   return (
     <header className="border-b border-line">
@@ -93,15 +120,22 @@ export async function SiteHeader() {
         <nav aria-label="Primary" className="hidden md:block">
           <ul className="flex items-center gap-8 text-sm tracking-wide text-ink/80">
             <li className="group relative">
-              <Link
-                href="/art"
-                className="inline-flex items-center gap-1.5 rounded-sm hover:text-ink focus-ring"
-                aria-haspopup="true"
-              >
-                Art
-                <ChevronDown className="opacity-45 transition-[opacity,transform] duration-150 group-hover:translate-y-px group-hover:opacity-70" />
-              </Link>
-              <ArtDropdownPanel series={series} />
+              <NavDropdownLink href="/art" label="Portfolio" />
+              <NavDropdownPanel
+                ariaLabel="Portfolio and series"
+                overviewHref="/art"
+                overviewLabel="View portfolio"
+                items={portfolioItems}
+              />
+            </li>
+            <li className="group relative">
+              <NavDropdownLink href="/medium" label="Medium" />
+              <NavDropdownPanel
+                ariaLabel="Browse by medium"
+                overviewHref="/medium"
+                overviewLabel="All mediums"
+                items={mediumItems}
+              />
             </li>
             {navLinks.map((l) => (
               <li key={l.href}>
@@ -126,7 +160,8 @@ export async function SiteHeader() {
           </summary>
           <div className="absolute right-0 z-50 mt-2 w-[min(100vw-2.5rem,16rem)] border border-line bg-paper py-2 shadow-[0_8px_30px_rgba(31,31,31,0.08)]">
             <ul className="text-sm">
-              <MobileArtSection series={series} />
+              <MobileNavSection title="Portfolio" overviewHref="/art" overviewLabel="View portfolio" items={portfolioItems} />
+              <MobileNavSection title="Medium" overviewHref="/medium" overviewLabel="All mediums" items={mediumItems} />
               {navLinks.map((l) => (
                 <li key={l.href}>
                   <Link className="block rounded-sm px-3 py-2.5 hover:bg-black/[0.03]" href={l.href}>

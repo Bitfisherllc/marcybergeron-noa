@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Series } from "@/db";
+import { artSeriesHref } from "@/lib/routeSlug";
 
 export function SeriesCard({ s }: { s: Series }) {
   return (
     <article className="group flex flex-col border border-line bg-white/40">
-      <Link href={`/art/${s.slug}`} className="focus-ring block">
+      <Link href={artSeriesHref(s.slug)} className="focus-ring block">
         <div className="relative aspect-[4/3] overflow-hidden bg-black/[0.03]">
           <Image
             src={s.featuredImage}

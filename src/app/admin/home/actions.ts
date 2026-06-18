@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { readExistingImageField } from "@/lib/resolveAdminImage";
 import { saveUpload } from "@/lib/save-upload";
 import {
   homeFeaturedPostSlot,
@@ -186,7 +187,7 @@ export async function saveHomeSlideshowSlideAction(formData: FormData) {
 export async function addHomeSlideshowAction(formData: FormData) {
   try {
     const file = formData.get("slide") as File | null;
-    const rel = await saveUpload(file, "home-slideshow");
+    const rel = (await saveUpload(file, "home-slideshow")) || readExistingImageField(formData, "slideExisting");
     if (!rel) redirect("/admin/home?error=slide");
 
     const db = getDb();
@@ -219,7 +220,7 @@ export async function addHomeSlideshowFromArtworkAction(formData: FormData) {
   if (!piece) redirect("/admin/home?error=slide");
 
   const title = piece.title;
-  const subtitle = captionSubtitle({ medium: piece.medium, size: piece.size, year: piece.year });
+  const subtitle = captionSubtitle({ medium: piece.medium, size: piece.size });
 
   const db = getDb();
   const rows = await db.select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder));
@@ -259,11 +260,15 @@ export async function reorderHomeSlideshowAction(formData: FormData) {
   const swapWith = dir === "up" ? idx - 1 : idx + 1;
   if (swapWith < 0 || swapWith >= rows.length) redirect("/admin/home");
 
-  const a = rows[idx]!;
-  const b = rows[swapWith]!;
+  const ordered = [...rows];
+  [ordered[idx], ordered[swapWith]] = [ordered[swapWith]!, ordered[idx]!];
   const t = now();
-  await db.update(homeSlideshow).set({ sortOrder: b.sortOrder, updatedAt: t }).where(eq(homeSlideshow.id, a.id));
-  await db.update(homeSlideshow).set({ sortOrder: a.sortOrder, updatedAt: t }).where(eq(homeSlideshow.id, b.id));
+  for (let i = 0; i < ordered.length; i++) {
+    await db
+      .update(homeSlideshow)
+      .set({ sortOrder: i, updatedAt: t })
+      .where(eq(homeSlideshow.id, ordered[i]!.id));
+  }
 
   revalidatePath("/");
   redirect("/admin/home?saved=1");

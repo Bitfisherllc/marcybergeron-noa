@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 
 export const series = pgTable("series", {
   id: text("id").primaryKey(),
@@ -8,15 +8,21 @@ export const series = pgTable("series", {
   content: text("content").notNull().default(""),
   featuredImage: text("featured_image").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
+  /** Hidden from portfolio nav; viewable only via `/private/[accessToken]`. */
+  isPrivate: boolean("is_private").notNull().default(false),
+  accessToken: text("access_token").unique(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });
 
 export const artwork = pgTable("artwork", {
   id: text("id").primaryKey(),
+  /** Primary portfolio, or medium gallery when the piece is medium-only. */
   seriesId: text("series_id")
     .notNull()
     .references(() => series.id, { onDelete: "cascade" }),
+  /** Medium nav gallery (Oil & Cold Wax, Encaustic, …). Nullable when not assigned. */
+  mediumSeriesId: text("medium_series_id").references(() => series.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   medium: text("medium").notNull().default(""),
   size: text("size").notNull().default(""),
@@ -29,6 +35,20 @@ export const artwork = pgTable("artwork", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });
+
+/** Portfolio series membership — a painting may appear in multiple series. */
+export const artworkSeries = pgTable(
+  "artwork_series",
+  {
+    artworkId: text("artwork_id")
+      .notNull()
+      .references(() => artwork.id, { onDelete: "cascade" }),
+    seriesId: text("series_id")
+      .notNull()
+      .references(() => series.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.artworkId, t.seriesId] })],
+);
 
 export const post = pgTable("post", {
   id: text("id").primaryKey(),
@@ -51,6 +71,7 @@ export const contactMessage = pgTable("contact_message", {
   email: text("email").notNull(),
   message: text("message").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+  readAt: timestamp("read_at", { withTimezone: true, mode: "date" }),
 });
 
 /** Public mailing-list signups; admin-only until an ESP (e.g. Mailchimp) is wired in. */

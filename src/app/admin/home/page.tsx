@@ -21,6 +21,7 @@ import {
   listHomeSectionsForAdmin,
   listHomeSlideshowForAdmin,
 } from "@/lib/homePage";
+import { isPublicPortfolioSeries } from "@/lib/privateGalleries";
 import { listAllPostsAdmin, listArtworksWithSeriesForPicker, listSeries } from "@/lib/queries";
 
 const sectionLabels: Record<HomeSectionKey, { heading: string; hint: string }> = {
@@ -73,6 +74,7 @@ export default async function AdminHomePage({
     listArtworksWithSeriesForPicker(),
   ]);
 
+  const featuredSeriesOptions = allSeries.filter((s) => isPublicPortfolioSeries(s));
   const savedLabel = sp.saved ? savedLabels[sp.saved] ?? sp.saved : null;
   const slideshowLightbox = slides.map((s, i) => ({
     src: s.image,
@@ -128,7 +130,7 @@ export default async function AdminHomePage({
           </button>
         </form>
         <form action={addHomeSlideshowAction} className="mt-6 flex flex-wrap items-end gap-4 border-t border-line pt-6">
-          <AdminFilePicker name="slide" label="Add image" />
+          <AdminFilePicker name="slide" label="Add image" buttonLabel="Upload image" />
           <button
             type="submit"
             className="border border-ink bg-ink px-4 py-3 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90"
@@ -170,7 +172,7 @@ export default async function AdminHomePage({
                       <input
                         name="subtitle"
                         defaultValue={s.subtitle}
-                        placeholder="Medium · size · year"
+                        placeholder="Medium · size"
                         className="mt-1.5 w-full border border-line bg-paper px-3 py-2 text-sm text-ink"
                       />
                     </label>
@@ -269,7 +271,7 @@ export default async function AdminHomePage({
                   className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
                 >
                   <option value="">— Auto —</option>
-                  {allSeries.map((s) => (
+                  {featuredSeriesOptions.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.title}
                     </option>

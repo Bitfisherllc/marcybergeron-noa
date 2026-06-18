@@ -1,5 +1,6 @@
 import type { Artwork, Series } from "@/db";
 import { captionSubtitle } from "@/components/ArtCaption";
+import type { GallerySeriesLink } from "@/components/ArtworkGalleryCaption";
 import { getPublicImageDimensions } from "@/lib/imageDimensions";
 
 export type GallerySlide = {
@@ -8,20 +9,33 @@ export type GallerySlide = {
   alt: string;
   title: string;
   subtitle: string;
+  medium?: string;
+  size?: string;
+  portfolioSeries?: GallerySeriesLink[];
+  mediumGallery?: GallerySeriesLink | null;
+  artworkId?: string;
   status?: string;
   description?: string;
   width?: number;
   height?: number;
 };
 
-export async function slideFromArtwork(piece: Artwork): Promise<GallerySlide> {
+export async function slideFromArtwork(
+  piece: Artwork,
+  meta?: { portfolioSeries: GallerySeriesLink[]; mediumGallery: GallerySeriesLink | null },
+): Promise<GallerySlide> {
   const dim = piece.image.startsWith("/") ? await getPublicImageDimensions(piece.image) : null;
   return {
     id: piece.id,
     src: piece.image,
     alt: piece.alt,
     title: piece.title,
-    subtitle: captionSubtitle({ medium: piece.medium, size: piece.size, year: piece.year }),
+    subtitle: captionSubtitle({ medium: piece.medium, size: piece.size }),
+    medium: piece.medium,
+    size: piece.size,
+    portfolioSeries: meta?.portfolioSeries ?? [],
+    mediumGallery: meta?.mediumGallery ?? null,
+    artworkId: piece.id,
     status: piece.status,
     description: piece.description || undefined,
     width: dim?.width,

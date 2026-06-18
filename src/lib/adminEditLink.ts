@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { artwork, post, series } from "@/db/schema";
 import { getDb } from "@/db";
+import { artSeriesHref } from "@/lib/routeSlug";
 
 export type AdminEditTarget = {
   href: string;
@@ -18,6 +19,8 @@ export async function resolveAdminEditTarget(pathname: string): Promise<AdminEdi
   if (path === "/") return { href: "/admin/home", label: "Edit home page" };
   if (path === "/about") return { href: "/admin/about", label: "Edit about page" };
   if (path === "/art") return { href: "/admin/series", label: "Edit galleries" };
+  if (path === "/art/all-work") return { href: "/admin/series", label: "Edit galleries" };
+  if (path === "/medium") return { href: "/admin/series", label: "Edit medium galleries" };
   if (path === "/news") return { href: "/admin/posts", label: "Edit posts" };
   if (path === "/mailing-list") return { href: "/admin/mailing-list", label: "View mailing list" };
 
@@ -55,6 +58,7 @@ export async function resolveLiveViewTarget(pathname: string): Promise<AdminEdit
   if (path === "/admin" || path === "/admin/home") return { href: "/", label: "View home page" };
   if (path === "/admin/about") return { href: "/about", label: "View about page" };
   if (path === "/admin/series" || path === "/admin/series/new") return { href: "/art", label: "View galleries" };
+  if (path === "/admin/artworks/new") return { href: "/art", label: "View galleries" };
   if (path === "/admin/posts" || path === "/admin/posts/new") return { href: "/news", label: "View news" };
   if (path === "/admin/mailing-list") return { href: "/mailing-list", label: "View signup page" };
 
@@ -66,7 +70,7 @@ export async function resolveLiveViewTarget(pathname: string): Promise<AdminEdit
       .from(series)
       .where(eq(series.id, id))
       .then((r) => r[0]);
-    if (row) return { href: `/art/${row.slug}`, label: `View “${row.title}”` };
+    if (row) return { href: artSeriesHref(row.slug), label: `View “${row.title}”` };
     return { href: "/art", label: "View galleries" };
   }
 
@@ -91,11 +95,37 @@ export async function resolveLiveViewTarget(pathname: string): Promise<AdminEdit
       .innerJoin(series, eq(artwork.seriesId, series.id))
       .where(eq(artwork.id, id))
       .then((r) => r[0]);
-    if (row) return { href: `/art/${row.slug}`, label: `View “${row.seriesTitle}”` };
+    if (row) return { href: artSeriesHref(row.slug), label: `View “${row.seriesTitle}”` };
     return { href: "/art", label: "View galleries" };
   }
 
   return { href: "/", label: "View live site" };
+}
+
+/** Map the current path to the best “add artwork” admin screen. */
+export async function resolveAdminAddArtTarget(pathname: string): Promise<AdminEditTarget> {
+  const path = normalizePath(pathname);
+
+  const seriesMatch = path.match(/^\/admin\/series\/([^/]+)$/);
+  if (seriesMatch && seriesMatch[1] !== "new") {
+    const id = decodeURIComponent(seriesMatch[1]!);
+    return { href: `/admin/artworks/new?gallery=${encodeURIComponent(id)}`, label: "Add art" };
+  }
+
+  const artMatch = path.match(/^\/art\/([^/]+)$/);
+  if (artMatch) {
+    const slug = decodeURIComponent(artMatch[1]!);
+    const row = await getDb()
+      .select({ id: series.id, title: series.title })
+      .from(series)
+      .where(eq(series.slug, slug))
+      .then((r) => r[0]);
+    if (row) {
+      return { href: `/admin/artworks/new?gallery=${encodeURIComponent(row.id)}`, label: "Add art" };
+    }
+  }
+
+  return { href: "/admin/artworks/new", label: "Add art" };
 }
 
 /** Context-aware bar action: edit on the public site, preview on admin screens. */

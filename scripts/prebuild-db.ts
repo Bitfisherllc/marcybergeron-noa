@@ -43,6 +43,16 @@ function main() {
     process.exit(1);
   }
 
+  try {
+    execSync("npx tsx scripts/migrate-private-galleries.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] private gallery column migration failed.", e);
+    process.exit(1);
+  }
+
   console.log("[prebuild] Postgres schema push OK.");
 }
 

@@ -1,3 +1,5 @@
+"use client";
+
 type AdminReorderButtonsProps = {
   action: (formData: FormData) => void | Promise<void>;
   fields: Record<string, string>;

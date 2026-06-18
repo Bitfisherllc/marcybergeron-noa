@@ -1,5 +1,6 @@
 import { AdminExternalLink } from "@/components/AdminLink";
-import { listContactMessages } from "@/lib/queries";
+import { AdminContactMessageActions } from "@/components/AdminContactMessageActions";
+import { listContactMessages } from "@/lib/contactMessages";
 
 export const dynamic = "force-dynamic";
 
@@ -26,28 +27,55 @@ export default async function AdminContactPage() {
       {rows.length === 0 ? (
         <p className="border border-line bg-white/50 p-6 text-sm text-muted">No messages yet.</p>
       ) : (
-        <ul className="space-y-4">
-          {rows.map((r) => (
-            <li key={r.id} className="border border-line bg-white/50 p-5 md:p-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <div className="text-xs tracking-[0.18em] text-muted uppercase">{formatDate(r.createdAt)}</div>
-                  <div className="mt-2 font-medium text-ink">{r.name}</div>
-                  <div className="mt-1">
-                    <AdminExternalLink href={`mailto:${r.email}`}>{r.email}</AdminExternalLink>
-                  </div>
-                </div>
-                <AdminExternalLink
-                  href={`mailto:${r.email}?subject=${encodeURIComponent(`Re: your message to Marcy Bergeron-Noa`)}`}
-                  className="shrink-0 self-start"
-                >
-                  Reply
-                </AdminExternalLink>
-              </div>
-              <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-muted">{r.message}</p>
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-x-auto border border-line bg-white/50">
+          <table className="min-w-full text-left text-sm">
+            <thead className="border-b border-line bg-white/80 text-xs tracking-[0.18em] text-muted uppercase">
+              <tr>
+                <th className="px-4 py-3 font-medium">Received</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Email</th>
+                <th className="px-4 py-3 font-medium">Message</th>
+                <th className="px-4 py-3 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const read = r.readAt != null;
+                return (
+                  <tr
+                    key={r.id}
+                    className={`border-b border-line align-top last:border-b-0 ${read ? "bg-white/30" : "bg-white/70"}`}
+                  >
+                    <td className="whitespace-nowrap px-4 py-3 text-muted">{formatDate(r.createdAt)}</td>
+                    <td className="px-4 py-3">
+                      {read ? (
+                        <span className="text-xs tracking-wide text-muted uppercase">Read</span>
+                      ) : (
+                        <span className="text-xs font-medium tracking-wide text-ink uppercase">New</span>
+                      )}
+                    </td>
+                    <td className={`px-4 py-3 ${read ? "text-muted" : "font-medium"}`}>{r.name}</td>
+                    <td className="px-4 py-3">
+                      <AdminExternalLink href={`mailto:${r.email}`}>{r.email}</AdminExternalLink>
+                    </td>
+                    <td className="max-w-md px-4 py-3 whitespace-pre-wrap text-muted">{r.message}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex flex-col items-end gap-2">
+                        <AdminExternalLink
+                          href={`mailto:${r.email}?subject=${encodeURIComponent(`Re: your message to Marcy Bergeron-Noa`)}`}
+                        >
+                          Reply
+                        </AdminExternalLink>
+                        <AdminContactMessageActions id={r.id} name={r.name} read={read} />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

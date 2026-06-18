@@ -106,7 +106,12 @@ export default async function AdminAboutPage({
               </div>
             </AdminLightboxThumb>
             <div className="min-w-0 flex-1 space-y-4">
-              <AdminFilePicker name="portrait" label="Add image" buttonLabel="Choose image" />
+              <AdminFilePicker
+                name="portrait"
+                label="Add image"
+                buttonLabel="Upload image"
+                existingValue={portrait.image}
+              />
               <label className="block text-sm text-muted">
                 Alt text (accessibility)
                 <input

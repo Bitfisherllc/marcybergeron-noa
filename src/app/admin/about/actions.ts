@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { aboutPortrait, aboutSection } from "@/db/schema";
 import { getDb } from "@/db";
 import { ABOUT_SECTION_KEYS, type AboutSectionKey } from "@/lib/aboutDefaults";
+import { readExistingImageField } from "@/lib/resolveAdminImage";
 import { saveUpload } from "@/lib/save-upload";
 
 const PORTRAIT_ID = "default";
@@ -46,20 +47,21 @@ export async function saveAboutPortraitAction(formData: FormData) {
   const t = now();
   const portraitFile = formData.get("portrait") as File | null;
   const portraitAlt = String(formData.get("portrait_alt") ?? "").trim();
+  const portraitExisting = readExistingImageField(formData, "portraitExisting");
+  const portraitImage =
+    (portraitFile && portraitFile.size > 0 ? await saveUpload(portraitFile, "about-portrait") : null) ||
+    portraitExisting;
 
-  if (portraitFile && portraitFile.size > 0) {
+  if (portraitImage) {
     try {
-      const rel = await saveUpload(portraitFile, "about-portrait");
-      if (!rel) redirect("/admin/about?error=portrait");
-
       const rows = await db.select().from(aboutPortrait).where(eq(aboutPortrait.id, PORTRAIT_ID));
       const alt = portraitAlt || rows[0]?.alt || "Portrait of Marcy Bergeron-Noa";
       await db
         .insert(aboutPortrait)
-        .values({ id: PORTRAIT_ID, image: rel, alt, updatedAt: t })
+        .values({ id: PORTRAIT_ID, image: portraitImage, alt, updatedAt: t })
         .onConflictDoUpdate({
           target: aboutPortrait.id,
-          set: { image: rel, alt, updatedAt: t },
+          set: { image: portraitImage, alt, updatedAt: t },
         });
     } catch (e) {
       console.error("[saveAboutPortraitAction]", e);

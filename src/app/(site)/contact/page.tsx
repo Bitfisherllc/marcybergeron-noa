@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { submitContact } from "@/app/(site)/contact/actions";
+import { buildArtworkInquiryMessage } from "@/lib/artworkInquiry";
+import { buildSeriesInquiryMessage } from "@/lib/seriesInquiry";
+import { getArtwork, getArtworkGalleryMeta, getSeriesBySlug } from "@/lib/queries";
+import { normalizeRouteSlug } from "@/lib/routeSlug";
 import { CONTACT, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -13,10 +17,23 @@ export const metadata: Metadata = {
 export default async function ContactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string; error?: string }>;
+  searchParams: Promise<{ sent?: string; error?: string; artwork?: string; series?: string }>;
 }) {
   const sp = await searchParams;
   const formError = sp.error === "send" ? "send" : sp.error ? "fields" : null;
+  const artworkId = String(sp.artwork ?? "").trim();
+  const seriesSlug = normalizeRouteSlug(String(sp.series ?? ""));
+
+  let defaultMessage = "";
+  const inquiryPiece = artworkId ? await getArtwork(artworkId) : null;
+  const inquirySeries = !inquiryPiece && seriesSlug ? await getSeriesBySlug(seriesSlug) : null;
+
+  if (inquiryPiece) {
+    const meta = await getArtworkGalleryMeta([artworkId]);
+    defaultMessage = buildArtworkInquiryMessage(inquiryPiece, meta.get(artworkId));
+  } else if (inquirySeries) {
+    defaultMessage = buildSeriesInquiryMessage(inquirySeries);
+  }
 
   return (
     <div>
@@ -116,6 +133,19 @@ export default async function ContactPage({
                 requests, email directly.
               </p>
 
+              {inquiryPiece ? (
+                <p className="mt-4 text-sm text-muted">
+                  Inquiring about <span className="text-ink/90">{inquiryPiece.title}</span>. The message below is a
+                  starting point—you can edit it before sending.
+                </p>
+              ) : null}
+              {inquirySeries ? (
+                <p className="mt-4 text-sm text-muted">
+                  Inquiring about the <span className="text-ink/90">{inquirySeries.title}</span> series. The message
+                  below is a starting point—you can edit it before sending.
+                </p>
+              ) : null}
+
               {sp.sent ? <p className="mt-4 text-sm text-ink">Thank you—your message was sent.</p> : null}
               {formError === "fields" ? (
                 <p className="mt-4 text-sm text-red-700">Please complete all fields and try again.</p>
@@ -127,6 +157,8 @@ export default async function ContactPage({
               ) : null}
 
               <form action={submitContact} className="mt-6 space-y-4">
+                {artworkId && inquiryPiece ? <input type="hidden" name="artwork" value={artworkId} /> : null}
+                {seriesSlug && inquirySeries ? <input type="hidden" name="series" value={seriesSlug} /> : null}
                 <label className="block text-sm text-muted">
                   Name
                   <input name="name" required className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
@@ -137,7 +169,13 @@ export default async function ContactPage({
                 </label>
                 <label className="block text-sm text-muted">
                   Message
-                  <textarea name="message" required rows={6} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+                  <textarea
+                    name="message"
+                    required
+                    rows={6}
+                    defaultValue={defaultMessage}
+                    className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
+                  />
                 </label>
                 <button className="border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase" type="submit">
                   Send

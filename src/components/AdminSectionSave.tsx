@@ -2,8 +2,19 @@
 
 import { useEffect, useState } from "react";
 
+function getCheckboxGroupSnapshot(form: HTMLFormElement, name: string): string {
+  const boxes = form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${CSS.escape(name)}"]`);
+  return Array.from(boxes)
+    .filter((el) => el.checked)
+    .map((el) => el.value)
+    .sort()
+    .join("\x1e");
+}
+
 function getFormSnapshot(form: HTMLFormElement): Record<string, string> {
   const data: Record<string, string> = {};
+  const checkboxNames = new Set<string>();
+
   for (const el of form.elements) {
     if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement)) {
       continue;
@@ -14,11 +25,16 @@ function getFormSnapshot(form: HTMLFormElement): Record<string, string> {
     if (el instanceof HTMLInputElement && el.type === "file") {
       data[name] = el.files?.length ? `file:${el.files[0]!.name}` : "";
     } else if (el instanceof HTMLInputElement && el.type === "checkbox") {
-      data[name] = el.checked ? "on" : "";
+      checkboxNames.add(name);
     } else {
       data[name] = el.value;
     }
   }
+
+  for (const name of checkboxNames) {
+    data[name] = getCheckboxGroupSnapshot(form, name);
+  }
+
   return data;
 }
 
