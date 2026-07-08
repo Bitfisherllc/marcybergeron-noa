@@ -15,7 +15,7 @@ import {
 } from "@/lib/homePage";
 import { getAdminSession } from "@/lib/auth";
 import { toHeroSlide } from "@/lib/heroSlides";
-import { getArtworkGalleryMeta, listMediumGalleries, listPortfolioSeries } from "@/lib/queries";
+import { getArtworkGalleryMeta, listMediumGalleries } from "@/lib/queries";
 
 export const metadata: Metadata = {
   title: "Marcy Bergeron-Noa | Abstract Artist Portfolio",
@@ -41,7 +41,7 @@ export default async function HomePage() {
   const [galleryMeta, adminLists] = session
     ? await Promise.all([
         getArtworkGalleryMeta(selectedPicks.map(({ piece }) => piece.id)),
-        Promise.all([listMediumGalleries(), listPortfolioSeries()]),
+        listMediumGalleries(),
       ])
     : [null, null];
 
@@ -79,7 +79,7 @@ export default async function HomePage() {
             <p className="mt-6 max-w-prose text-base leading-relaxed text-muted">{hero.body}</p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
-                href="/art"
+                href="/medium"
                 className="inline-flex items-center border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90 focus-ring"
               >
                 View portfolio
@@ -186,7 +186,7 @@ export default async function HomePage() {
             <h2 className="font-serif text-3xl tracking-tight">{selectedSec.title}</h2>
             <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">{selectedSec.body}</p>
           </div>
-          <Link href="/art" className="link-quiet text-sm tracking-wide">
+          <Link href="/medium" className="link-quiet text-sm tracking-wide">
             Browse the full archive →
           </Link>
         </div>
@@ -215,9 +215,7 @@ export default async function HomePage() {
                   artworkId={piece.id}
                   title={piece.title}
                   mediumSeriesId={piece.mediumSeriesId}
-                  selectedSeriesIds={(galleryMeta.get(piece.id)?.portfolioSeries ?? []).map((ser) => ser.id)}
-                  portfolioSeries={adminLists[1]}
-                  mediumGalleries={adminLists[0]}
+                  mediumGalleries={adminLists}
                   status={piece.status}
                   returnPath="/"
                 />

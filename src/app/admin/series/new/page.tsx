@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { upsertSeries } from "@/app/admin/actions";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminLink, adminBtnPrimary } from "@/components/AdminLink";
@@ -10,16 +11,15 @@ export default async function NewSeriesPage({
   const sp = await searchParams;
   const isPrivate = sp.private === "1";
 
+  if (!isPrivate) redirect("/admin/series");
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-serif text-3xl tracking-tight">
-          {isPrivate ? "New private gallery" : "New series"}
-        </h1>
+        <h1 className="font-serif text-3xl tracking-tight">New private gallery</h1>
         <p className="mt-3 text-sm text-muted">
-          {isPrivate
-            ? "Private galleries are shared by link only—ideal for exhibition submissions. They do not appear on the public portfolio."
-            : "Slug becomes the public URL under /art/[slug]."}
+          Private galleries are shared by link only—ideal for exhibition submissions. They do not appear on the public
+          portfolio.
         </p>
       </div>
       <form action={upsertSeries} className="space-y-6 border border-line bg-white/50 p-6">
@@ -34,7 +34,7 @@ export default async function NewSeriesPage({
             <input
               name="slug"
               required
-              placeholder={isPrivate ? "e.g. porter-mill-2026-submission" : undefined}
+              placeholder="e.g. porter-mill-2026-submission"
               className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
             />
           </label>
@@ -71,7 +71,7 @@ export default async function NewSeriesPage({
         </label>
         <div className="flex flex-wrap gap-3">
           <button className={adminBtnPrimary} type="submit">
-            {isPrivate ? "Create private gallery" : "Create series"}
+            Create private gallery
           </button>
           <AdminLink variant="back" href="/admin/series">
             Back

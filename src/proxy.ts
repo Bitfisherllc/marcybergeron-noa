@@ -8,7 +8,7 @@ export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (pathname === "/gallery" || pathname === "/gallery/") {
-    return NextResponse.redirect(new URL("/art", req.url));
+    return NextResponse.redirect(new URL("/medium", req.url));
   }
 
   if (!pathname.startsWith("/admin")) return NextResponse.next();

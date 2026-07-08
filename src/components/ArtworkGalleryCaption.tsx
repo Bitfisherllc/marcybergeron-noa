@@ -66,7 +66,6 @@ export function ArtworkGalleryCaption({
       ) : null}
       {mediumGallery ? (
         <div className={`text-sm ${textClass}`}>
-          <span className={labelClass}>Medium </span>
           <Link href={artSeriesHref(mediumGallery.slug)} className={linkClass}>
             {mediumGallery.title}
           </Link>

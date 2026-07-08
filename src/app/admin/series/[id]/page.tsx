@@ -7,7 +7,6 @@ import { AdminGalleryPrivacyPanel } from "@/components/AdminGalleryPrivacyPanel"
 import { AdminLightboxProvider, AdminLightboxThumb, AdminLightboxTrigger } from "@/components/AdminImageLightbox";
 import { AdminLink, adminBtnDanger } from "@/components/AdminLink";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
-import { AdminPortfolioSeriesField } from "@/components/AdminPortfolioSeriesField";
 import { AdminReorderButtons } from "@/components/AdminReorderButtons";
 import { AdminDirtySave } from "@/components/AdminSectionSave";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
@@ -19,7 +18,7 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
   const s = await getSeriesById(id);
   if (!s) notFound();
   const isMediumGallery = isMediumGallerySlug(s.slug);
-  const [arts, mediumGalleries, portfolioSeries, deleteImpact] = await Promise.all([
+  const [arts, mediumGalleries, membershipOptions, deleteImpact] = await Promise.all([
     listArtworksForPublicGallery(s),
     listMediumGalleries(),
     listAdminSeriesMembershipOptions(),
@@ -43,8 +42,13 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
         <p className="mt-3 text-sm text-muted">
           {s.isPrivate ? (
             <>
-              Private gallery · {arts.length} {arts.length === 1 ? "painting" : "paintings"} · not listed on{" "}
-              <span className="text-ink/80">/art</span>
+              Private gallery · {arts.length} {arts.length === 1 ? "painting" : "paintings"} · not listed on the
+              public portfolio
+            </>
+          ) : isMediumGallery ? (
+            <>
+              Portfolio gallery · <span className="text-ink/80">/art/{s.slug}</span> · {arts.length}{" "}
+              {arts.length === 1 ? "painting" : "paintings"}
             </>
           ) : (
             <>
@@ -188,10 +192,6 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
             galleries={mediumGalleries}
             value={isMediumGallery ? s.id : null}
           />
-          <AdminPortfolioSeriesField
-            series={portfolioSeries}
-            selectedIds={isMediumGallery ? [] : [s.id]}
-          />
           <label className="block text-sm text-muted">
             Description (optional)
             <textarea name="description" rows={3} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
@@ -223,7 +223,7 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
               <AdminDeleteSeriesForm
                 action={deleteSeries}
                 impact={deleteImpact}
-                portfolioOptions={portfolioSeries
+                portfolioOptions={membershipOptions
                   .filter((row) => row.id !== s.id)
                   .map((row) => ({ id: row.id, title: row.title }))}
                 mediumOptions={mediumGalleries

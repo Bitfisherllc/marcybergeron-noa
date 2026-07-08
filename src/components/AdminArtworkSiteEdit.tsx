@@ -4,14 +4,11 @@ import { AdminLink } from "@/components/AdminLink";
 import { AdminDeleteArtworkForm } from "@/components/AdminDeleteArtworkForm";
 import { AdminDirtySave } from "@/components/AdminSectionSave";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
-import { AdminPortfolioSeriesField } from "@/components/AdminPortfolioSeriesField";
 
 type AdminArtworkSiteEditProps = {
   artworkId: string;
   title: string;
   mediumSeriesId: string | null;
-  selectedSeriesIds: string[];
-  portfolioSeries: Series[];
   mediumGalleries: Series[];
   status: string;
   returnPath: string;
@@ -21,8 +18,6 @@ export function AdminArtworkSiteEdit({
   artworkId,
   title,
   mediumSeriesId,
-  selectedSeriesIds,
-  portfolioSeries,
   mediumGalleries,
   status,
   returnPath,
@@ -38,7 +33,6 @@ export function AdminArtworkSiteEdit({
       <form id={formId} action={updateArtworkMembershipFromSite} className="space-y-4 border-t border-line pt-4">
         <input type="hidden" name="id" value={artworkId} />
         <input type="hidden" name="returnPath" value={returnPath} />
-        <AdminPortfolioSeriesField series={portfolioSeries} selectedIds={selectedSeriesIds} />
         <AdminMediumGalleryField galleries={mediumGalleries} value={mediumSeriesId} />
         <label className="block text-sm text-muted">
           Status

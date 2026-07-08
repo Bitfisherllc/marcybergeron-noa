@@ -4,8 +4,6 @@ import { artwork, artworkSeries, mailingListSignup, post, series } from "@/db/sc
 import { getDb } from "@/db";
 import { toHeroSlide, type HeroSlide } from "@/lib/heroSlides";
 import { isMediumGallerySlug, MEDIUM_GALLERY_SLUGS } from "@/lib/mediumGalleries";
-import { isPublicPortfolioSeries } from "@/lib/privateGalleries";
-import { seriesForPortfolioNav } from "@/lib/portfolioGalleries";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 
 export async function listSeries() {
@@ -19,21 +17,17 @@ export async function listMediumGalleries(): Promise<Series[]> {
   return MEDIUM_GALLERY_SLUGS.map((slug) => bySlug.get(slug)).filter((s): s is Series => Boolean(s));
 }
 
-/** Portfolio series for admin checkboxes (excludes medium galleries and private galleries). */
+/** @deprecated Thematic portfolio series are no longer managed in admin. */
 export async function listPortfolioSeries(): Promise<Series[]> {
-  const all = await listSeries();
-  return seriesForPortfolioNav(all.filter((s) => isPublicPortfolioSeries(s)));
+  return [];
 }
 
-/** Admin artwork membership options — public portfolio series plus private galleries. */
+/** Admin artwork membership options — private galleries only. */
 export async function listAdminSeriesMembershipOptions(): Promise<Series[]> {
   const all = await listSeries();
-  const eligible = all.filter((s) => !isMediumGallerySlug(s.slug));
-  const publicRows = seriesForPortfolioNav(eligible);
-  const privateRows = eligible
-    .filter((s) => s.isPrivate)
+  return all
+    .filter((s) => s.isPrivate && !isMediumGallerySlug(s.slug))
     .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
-  return [...publicRows, ...privateRows];
 }
 
 export async function getSeriesById(id: string) {
@@ -92,7 +86,7 @@ export async function getArtwork(id: string) {
 
 export async function getSeriesNeighbors(slug: string) {
   const normalized = normalizeRouteSlug(slug);
-  const all = await listSeries().then((rows) => rows.filter((s) => isPublicPortfolioSeries(s)));
+  const all = await listMediumGalleries();
   const idx = all.findIndex((s) => s.slug === normalized);
   if (idx === -1) return { prev: null as null | (typeof all)[number], next: null as null | (typeof all)[number] };
   return {
@@ -102,10 +96,9 @@ export async function getSeriesNeighbors(slug: string) {
 }
 
 export async function featuredHomePieces(): Promise<{ series: Series; piece: Artwork }[]> {
-  const sers = await listSeries();
+  const sers = await listMediumGalleries();
   const out: { series: Series; piece: Artwork }[] = [];
   for (const s of sers) {
-    if (!isPublicPortfolioSeries(s)) continue;
     const arts = await listArtworksForSeries(s.id);
     const first = arts[0];
     if (first) out.push({ series: s, piece: first });

@@ -66,9 +66,7 @@ async function revalidateArtworkPaths(
   previousPortfolioSeriesIds?: string[],
 ) {
   revalidatePath("/");
-  revalidatePath("/art");
   revalidatePath("/medium");
-  revalidatePath("/art/all-work");
 
   const portfolioIds = new Set([...portfolioSeriesIds, ...(previousPortfolioSeriesIds ?? [])]);
   for (const id of portfolioIds) {
@@ -149,7 +147,7 @@ export async function upsertSeries(formData: FormData) {
       updatedAt: now(),
     });
     revalidatePath("/");
-    revalidatePath("/art");
+    revalidatePath("/medium");
     if (isPrivate) {
       revalidatePath("/admin/series");
       redirect(`/admin/series/${newId}`);
@@ -157,7 +155,7 @@ export async function upsertSeries(formData: FormData) {
   }
 
   revalidatePath("/");
-  revalidatePath("/art");
+  revalidatePath("/medium");
   revalidatePath(`/art/${slug}`);
   if (accessToken) revalidatePath(`/private/${accessToken}`);
   redirect(id ? `/admin/series/${id}` : "/admin/series");
@@ -189,7 +187,7 @@ export async function setSeriesPrivacy(formData: FormData) {
     .where(eq(series.id, id));
 
   revalidatePath("/");
-  revalidatePath("/art");
+  revalidatePath("/medium");
   revalidatePath(`/art/${row.slug}`);
   if (previousToken) revalidatePath(`/private/${previousToken}`);
   if (accessToken) revalidatePath(`/private/${accessToken}`);
@@ -260,7 +258,7 @@ export async function deleteSeries(formData: FormData) {
   }
 
   revalidatePath("/");
-  revalidatePath("/art");
+  revalidatePath("/medium");
   revalidatePath("/medium");
   if (deletedRow?.accessToken) revalidatePath(`/private/${deletedRow.accessToken}`);
   redirect(redirectAfter);
@@ -289,7 +287,7 @@ export async function reorderSeries(formData: FormData) {
   }
 
   revalidatePath("/");
-  revalidatePath("/art");
+  revalidatePath("/medium");
   revalidatePath("/admin/series");
   redirect("/admin/series");
 }
@@ -395,7 +393,7 @@ export async function updateArtworkMembershipFromSite(formData: FormData) {
   await requireAdminSession();
 
   const id = String(formData.get("id") ?? "");
-  const returnPath = String(formData.get("returnPath") ?? "/art").trim() || "/art";
+  const returnPath = String(formData.get("returnPath") ?? "/medium").trim() || "/medium";
   if (!id) redirect(returnPath);
 
   let portfolioSeriesIds = await parsePortfolioSeriesIdsFromForm(formData);
@@ -439,7 +437,7 @@ export async function deleteArtworkFromSite(formData: FormData) {
   await requireAdminSession();
 
   const id = String(formData.get("id") ?? "");
-  const returnPath = String(formData.get("returnPath") ?? "/art").trim() || "/art";
+  const returnPath = String(formData.get("returnPath") ?? "/medium").trim() || "/medium";
   if (!id) redirect(returnPath);
 
   const db = getDb();
@@ -453,7 +451,6 @@ export async function deleteArtworkFromSite(formData: FormData) {
   await revalidateArtworkPaths(portfolioSeriesIds, piece?.mediumSeriesId ?? null);
   revalidatePath(returnPath);
   revalidatePath("/");
-  revalidatePath("/art/all-work");
   redirect(returnPath);
 }
 

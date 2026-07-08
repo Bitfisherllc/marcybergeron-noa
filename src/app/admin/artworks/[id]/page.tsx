@@ -7,32 +7,25 @@ import { AdminLightboxThumb } from "@/components/AdminImageLightbox";
 import { AdminLink, adminBtnDanger } from "@/components/AdminLink";
 import { AdminDirtySave } from "@/components/AdminSectionSave";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
-import { AdminPortfolioSeriesField } from "@/components/AdminPortfolioSeriesField";
-import { getArtworkPortfolioOnlySeriesIds, getArtworkPortfolioSeriesIds } from "@/lib/artworkMembership";
 import { resolveMediumSeriesId, isMediumGallerySlug } from "@/lib/mediumGalleries";
-import { getArtwork, getSeriesById, listMediumGalleries, listPortfolioSeries } from "@/lib/queries";
+import { getArtwork, getSeriesById, listMediumGalleries } from "@/lib/queries";
 
 export default async function EditArtworkPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const a = await getArtwork(id);
   if (!a) notFound();
-  const [portfolioSeries, mediumGalleries, selectedSeriesIds, storageSeries] = await Promise.all([
-    listPortfolioSeries(),
+  const [mediumGalleries, storageSeries] = await Promise.all([
     listMediumGalleries(),
-    getArtworkPortfolioOnlySeriesIds(a.id),
     getSeriesById(a.seriesId),
   ]);
   if (!storageSeries) notFound();
 
   const mediumAssignment = resolveMediumSeriesId(a, isMediumGallerySlug(storageSeries.slug) ? null : storageSeries);
-  const contextSeriesId = selectedSeriesIds[0] ?? mediumAssignment ?? a.seriesId;
-  const backHref = selectedSeriesIds[0]
-    ? `/admin/series/${selectedSeriesIds[0]}`
-    : mediumAssignment
-      ? `/admin/series/${mediumAssignment}`
-      : `/admin/series/${a.seriesId}`;
+  const contextSeriesId = mediumAssignment ?? a.seriesId;
+  const backHref = mediumAssignment ? `/admin/series/${mediumAssignment}` : `/admin/series/${a.seriesId}`;
 
   const liveSubtitle = captionSubtitle({ medium: a.medium, size: a.size });
+  const portfolioGallery = mediumGalleries.find((g) => g.id === mediumAssignment);
 
   return (
     <div className="space-y-8">
@@ -40,20 +33,9 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
         <p className="text-xs tracking-[0.18em] text-muted uppercase">Artwork</p>
         <h1 className="mt-2 font-serif text-3xl tracking-tight">{a.title}</h1>
         <p className="mt-3 text-sm text-muted">
-          Portfolio series:{" "}
-          {selectedSeriesIds.length > 0 ? (
-            selectedSeriesIds.map((id, i) => {
-              const ser = portfolioSeries.find((s) => s.id === id);
-              if (!ser) return null;
-              return (
-                <span key={id}>
-                  {i > 0 ? ", " : null}
-                  <AdminLink href={`/admin/series/${ser.id}`}>{ser.title}</AdminLink>
-                </span>
-              );
-            })
-          ) : mediumAssignment ? (
-            <span className="text-muted">None — listed under medium only</span>
+          Portfolio gallery:{" "}
+          {portfolioGallery ? (
+            <AdminLink href={`/admin/series/${portfolioGallery.id}`}>{portfolioGallery.title}</AdminLink>
           ) : (
             <span className="text-muted">None</span>
           )}
@@ -85,7 +67,6 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
               Title
               <input name="title" required defaultValue={a.title} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
             </label>
-            <AdminPortfolioSeriesField series={portfolioSeries} selectedIds={selectedSeriesIds} />
             <AdminMediumGalleryField galleries={mediumGalleries} value={mediumAssignment} />
             <fieldset className="space-y-3">
               <legend className="text-sm text-muted">Material and size</legend>

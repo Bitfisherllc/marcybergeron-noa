@@ -2,9 +2,8 @@ import { upsertArtwork } from "@/app/admin/actions";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminLink, adminBtnPrimary } from "@/components/AdminLink";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
-import { AdminPortfolioSeriesField } from "@/components/AdminPortfolioSeriesField";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
-import { getSeriesById, listMediumGalleries, listPortfolioSeries } from "@/lib/queries";
+import { getSeriesById, listMediumGalleries } from "@/lib/queries";
 
 export default async function NewArtworkPage({
   searchParams,
@@ -12,15 +11,13 @@ export default async function NewArtworkPage({
   searchParams: Promise<{ gallery?: string }>;
 }) {
   const { gallery: contextSeriesId } = await searchParams;
-  const [portfolioSeries, mediumGalleries, contextSeries] = await Promise.all([
-    listPortfolioSeries(),
+  const [mediumGalleries, contextSeries] = await Promise.all([
     listMediumGalleries(),
     contextSeriesId ? getSeriesById(contextSeriesId) : Promise.resolve(null),
   ]);
 
-  const isMediumContext = contextSeries ? isMediumGallerySlug(contextSeries.slug) : false;
-  const defaultMediumId = isMediumContext ? contextSeries!.id : null;
-  const defaultPortfolioIds = contextSeries && !isMediumContext ? [contextSeries.id] : [];
+  const defaultMediumId =
+    contextSeries && (isMediumGallerySlug(contextSeries.slug) || contextSeries.isPrivate) ? contextSeries.id : null;
 
   return (
     <div className="space-y-8">
@@ -31,11 +28,11 @@ export default async function NewArtworkPage({
           {contextSeries ? (
             <>
               Adding to{" "}
-              <AdminLink href={`/admin/series/${contextSeries.id}`}>{contextSeries.title}</AdminLink>. Choose a
-              portfolio series, a medium gallery, or both.
+              <AdminLink href={`/admin/series/${contextSeries.id}`}>{contextSeries.title}</AdminLink>. Choose which
+              portfolio gallery includes this painting.
             </>
           ) : (
-            <>Upload a new painting and assign it to a portfolio series, a medium gallery, or both.</>
+            <>Upload a new painting and assign it to a portfolio gallery.</>
           )}
         </p>
       </div>
@@ -49,7 +46,6 @@ export default async function NewArtworkPage({
           <input name="title" required className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
         </label>
 
-        <AdminPortfolioSeriesField series={portfolioSeries} selectedIds={defaultPortfolioIds} />
         <AdminMediumGalleryField galleries={mediumGalleries} value={defaultMediumId} />
 
         <fieldset className="space-y-3">

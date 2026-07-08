@@ -1,10 +1,7 @@
 import Link from "next/link";
-import { listMediumGalleries, listSeries } from "@/lib/queries";
-import {
-  portfolioDropdownItems,
-} from "@/lib/portfolioGalleries";
+import { listMediumGalleries } from "@/lib/queries";
+import { portfolioNavDropdownItems } from "@/lib/mediumGalleries";
 import { SITE_NAME } from "@/lib/site";
-import { artSeriesHref } from "@/lib/routeSlug";
 
 const navLinks = [
   { href: "/about", label: "About" },
@@ -107,9 +104,8 @@ function MobileNavSection({
 }
 
 export async function SiteHeader() {
-  const [seriesRaw, mediumGalleries] = await Promise.all([listSeries(), listMediumGalleries()]);
-  const portfolioItems = portfolioDropdownItems(seriesRaw);
-  const mediumItems = mediumGalleries.map((s) => ({ href: artSeriesHref(s.slug), label: s.title }));
+  const portfolioGalleries = await listMediumGalleries();
+  const portfolioItems = portfolioNavDropdownItems(portfolioGalleries);
 
   return (
     <header className="border-b border-line">
@@ -120,21 +116,12 @@ export async function SiteHeader() {
         <nav aria-label="Primary" className="hidden md:block">
           <ul className="flex items-center gap-8 text-sm tracking-wide text-ink/80">
             <li className="group relative">
-              <NavDropdownLink href="/art" label="Portfolio" />
+              <NavDropdownLink href="/medium" label="Portfolio" />
               <NavDropdownPanel
-                ariaLabel="Portfolio and series"
-                overviewHref="/art"
+                ariaLabel="Portfolio galleries"
+                overviewHref="/medium"
                 overviewLabel="View portfolio"
                 items={portfolioItems}
-              />
-            </li>
-            <li className="group relative">
-              <NavDropdownLink href="/medium" label="Medium" />
-              <NavDropdownPanel
-                ariaLabel="Browse by medium"
-                overviewHref="/medium"
-                overviewLabel="All mediums"
-                items={mediumItems}
               />
             </li>
             {navLinks.map((l) => (
@@ -160,8 +147,7 @@ export async function SiteHeader() {
           </summary>
           <div className="absolute right-0 z-50 mt-2 w-[min(100vw-2.5rem,16rem)] border border-line bg-paper py-2 shadow-[0_8px_30px_rgba(31,31,31,0.08)]">
             <ul className="text-sm">
-              <MobileNavSection title="Portfolio" overviewHref="/art" overviewLabel="View portfolio" items={portfolioItems} />
-              <MobileNavSection title="Medium" overviewHref="/medium" overviewLabel="All mediums" items={mediumItems} />
+              <MobileNavSection title="Portfolio" overviewHref="/medium" overviewLabel="View portfolio" items={portfolioItems} />
               {navLinks.map((l) => (
                 <li key={l.href}>
                   <Link className="block rounded-sm px-3 py-2.5 hover:bg-black/[0.03]" href={l.href}>

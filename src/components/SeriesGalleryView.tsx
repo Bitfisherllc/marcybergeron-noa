@@ -9,7 +9,8 @@ import { IntrinsicGalleryImage } from "@/components/IntrinsicGalleryImage";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
 import { getAdminSession } from "@/lib/auth";
 import { slideFromArtwork, slideFromSeriesHero } from "@/lib/gallerySlides";
-import { isPublicPortfolioSeries } from "@/lib/privateGalleries";
+import { isMediumGallerySlug } from "@/lib/mediumGalleries";
+import { isPrivateGallery } from "@/lib/privateGalleries";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
 import {
   getArtworkGalleryMeta,
@@ -17,7 +18,6 @@ import {
   listArtworksForPublicGallery,
   listAdminSeriesMembershipOptions,
   listMediumGalleries,
-  listPortfolioSeries,
 } from "@/lib/queries";
 import { artSeriesHref } from "@/lib/routeSlug";
 import { seriesInquiryHref } from "@/lib/seriesInquiry";
@@ -29,17 +29,14 @@ type SeriesGalleryViewProps = {
 
 export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryViewProps) {
   const pieces = await listArtworksForPublicGallery(s);
-  const isPortfolioGallery = isPublicPortfolioSeries(s);
+  const isDeletableGallery = isPrivateGallery(s);
   const session = await getAdminSession();
   const galleryMeta = await getArtworkGalleryMeta(pieces.map((p) => p.id));
   const adminLists = session
-    ? await Promise.all([
-        listMediumGalleries(),
-        variant === "private" ? listAdminSeriesMembershipOptions() : listPortfolioSeries(),
-      ])
+    ? await Promise.all([listMediumGalleries(), listAdminSeriesMembershipOptions()])
     : null;
-  const deleteImpact = session && isPortfolioGallery ? await getSeriesDeleteImpact(s.id) : null;
-  const { prev, next } = variant === "public" ? await getSeriesNeighbors(s.slug) : { prev: null, next: null };
+  const deleteImpact = session && isDeletableGallery ? await getSeriesDeleteImpact(s.id) : null;
+  const { prev, next } = variant === "public" && isMediumGallerySlug(s.slug) ? await getSeriesNeighbors(s.slug) : { prev: null, next: null };
   const returnPath = variant === "private" && s.accessToken ? `/private/${s.accessToken}` : artSeriesHref(s.slug);
 
   const heroSlide = await slideFromSeriesHero(s);
@@ -59,7 +56,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       <header className="border-b border-line">
         <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
           <p className="text-xs tracking-[0.22em] text-muted uppercase">
-            {variant === "private" ? "Private gallery" : "Series"}
+            {variant === "private" ? "Private gallery" : "Portfolio"}
           </p>
           <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
           <p className="mt-6 max-w-3xl text-base leading-relaxed text-muted">{s.excerpt}</p>
@@ -124,8 +121,6 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                         artworkId={p.id}
                         title={p.title}
                         mediumSeriesId={p.mediumSeriesId}
-                        selectedSeriesIds={(meta?.portfolioSeries ?? []).map((ser) => ser.id)}
-                        portfolioSeries={adminLists[1]}
                         mediumGalleries={adminLists[0]}
                         status={p.status}
                         returnPath={returnPath}
@@ -180,7 +175,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                   .filter((row) => row.id !== s.id)
                   .map((row) => ({ id: row.id, title: row.title }))}
                 returnTo={returnPath}
-                redirectAfter={variant === "private" ? "/admin/series" : "/art"}
+                redirectAfter={variant === "private" ? "/admin/series" : "/medium"}
                 explainBelow
               />
             </div>
@@ -191,7 +186,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       {variant === "public" ? (
         <section className="border-t border-line">
           <div className="mx-auto max-w-6xl px-5 py-10 md:px-8">
-            <Link href="/art" className="text-sm tracking-wide text-muted hover:text-ink">
+            <Link href="/medium" className="text-sm tracking-wide text-muted hover:text-ink">
               ← Back to portfolio
             </Link>
           </div>

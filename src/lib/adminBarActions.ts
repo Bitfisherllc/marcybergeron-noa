@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { destroyAdminSession, getAdminSession } from "@/lib/auth";
 import { countContactMessages } from "@/lib/contactMessages";
 import { resolveAdminBarTarget, resolveAdminAddArtTarget, type AdminEditTarget } from "@/lib/adminEditLink";
+import { isMediumGallerySlug } from "@/lib/mediumGalleries";
 import { listSeries } from "@/lib/queries";
 
 export type AdminGallerySwitcherOption = {
@@ -48,7 +49,11 @@ export async function getAdminSiteBarStateAction(pathname: string): Promise<Admi
     resolveAdminBarTarget(pathname),
     resolveAdminAddArtTarget(pathname),
     needsGallerySwitcher(pathname)
-      ? listSeries().then((rows) => rows.map((s) => ({ id: s.id, title: s.title })))
+      ? listSeries().then((rows) =>
+          rows
+            .filter((s) => isMediumGallerySlug(s.slug) || s.isPrivate)
+            .map((s) => ({ id: s.id, title: s.title })),
+        )
       : Promise.resolve([] as AdminGallerySwitcherOption[]),
   ]);
 

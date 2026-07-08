@@ -21,8 +21,7 @@ import {
   listHomeSectionsForAdmin,
   listHomeSlideshowForAdmin,
 } from "@/lib/homePage";
-import { isPublicPortfolioSeries } from "@/lib/privateGalleries";
-import { listAllPostsAdmin, listArtworksWithSeriesForPicker, listSeries } from "@/lib/queries";
+import { listMediumGalleries, listAllPostsAdmin, listArtworksWithSeriesForPicker } from "@/lib/queries";
 
 const sectionLabels: Record<HomeSectionKey, { heading: string; hint: string }> = {
   hero: {
@@ -65,16 +64,16 @@ export default async function AdminHomePage({
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const sp = await searchParams;
-  const [sections, slides, picks, allSeries, allPosts, artworkOptions] = await Promise.all([
+  const [sections, slides, picks, portfolioGalleries, allPosts, artworkOptions] = await Promise.all([
     listHomeSectionsForAdmin(),
     listHomeSlideshowForAdmin(),
     getHomePickStateForAdmin(),
-    listSeries(),
+    listMediumGalleries(),
     listAllPostsAdmin(),
     listArtworksWithSeriesForPicker(),
   ]);
 
-  const featuredSeriesOptions = allSeries.filter((s) => isPublicPortfolioSeries(s));
+  const featuredSeriesOptions = portfolioGalleries;
   const savedLabel = sp.saved ? savedLabels[sp.saved] ?? sp.saved : null;
   const slideshowLightbox = slides.map((s, i) => ({
     src: s.image,

@@ -70,7 +70,7 @@ export function AdminSiteBar({ contactCount = 0 }: AdminSiteBarProps) {
           <AdminLink variant="bar" href={addArt?.href ?? "/admin/artworks/new"}>
             ADD ART
           </AdminLink>
-          <AdminLink variant="bar" href="/art/all-work">
+          <AdminLink variant="bar" href="/medium">
             ORGANIZE ART
           </AdminLink>
           <AdminLink variant="bar" href="/admin/series">
