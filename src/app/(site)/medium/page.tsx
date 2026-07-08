@@ -7,7 +7,7 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Portfolio",
   description:
-    "Browse Marcy Bergeron-Noa’s portfolio—oil and cold wax, works on paper, encaustic, mixed medium and collage, sculpture, and three-dimensional works.",
+    "Browse Marcy Bergeron-Noa’s portfolio—oil and cold wax, works on paper, encaustic, collage, and sculpture.",
   alternates: { canonical: `${SITE_URL}/medium` },
 };
 

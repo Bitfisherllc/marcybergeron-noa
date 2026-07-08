@@ -3,7 +3,7 @@ import type { Artwork, Series } from "@/db";
 import { artwork, artworkSeries, mailingListSignup, post, series } from "@/db/schema";
 import { getDb } from "@/db";
 import { toHeroSlide, type HeroSlide } from "@/lib/heroSlides";
-import { isMediumGallerySlug, MEDIUM_GALLERY_SLUGS } from "@/lib/mediumGalleries";
+import { isMediumGallerySlug, MEDIUM_GALLERY_SLUGS, withMediumGalleryTitle } from "@/lib/mediumGalleries";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 
 export async function listSeries() {
@@ -14,7 +14,9 @@ export async function listSeries() {
 export async function listMediumGalleries(): Promise<Series[]> {
   const all = await listSeries();
   const bySlug = new Map(all.map((s) => [s.slug, s]));
-  return MEDIUM_GALLERY_SLUGS.map((slug) => bySlug.get(slug)).filter((s): s is Series => Boolean(s));
+  return MEDIUM_GALLERY_SLUGS.map((slug) => bySlug.get(slug))
+    .filter((s): s is Series => Boolean(s))
+    .map(withMediumGalleryTitle);
 }
 
 /** @deprecated Thematic portfolio series are no longer managed in admin. */
@@ -32,13 +34,15 @@ export async function listAdminSeriesMembershipOptions(): Promise<Series[]> {
 
 export async function getSeriesById(id: string) {
   const rows = await getDb().select().from(series).where(eq(series.id, id));
-  return rows[0] ?? null;
+  const row = rows[0];
+  return row ? withMediumGalleryTitle(row) : null;
 }
 
 export async function getSeriesBySlug(slug: string) {
   const normalized = normalizeRouteSlug(slug);
   const rows = await getDb().select().from(series).where(eq(series.slug, normalized));
-  return rows[0] ?? null;
+  const row = rows[0];
+  return row ? withMediumGalleryTitle(row) : null;
 }
 
 export async function getSeriesByAccessToken(token: string) {
@@ -308,7 +312,8 @@ export async function listSeriesAdminOverview() {
     mediumCounts.map((r) => [r.mediumSeriesId!, Number(r.artworkCount)]),
   );
 
-  return rows.map((row) =>
-    isMediumGallerySlug(row.slug) ? { ...row, artworkCount: mediumMap.get(row.id) ?? 0 } : row,
-  );
+  return rows.map((row) => {
+    const withCount = isMediumGallerySlug(row.slug) ? { ...row, artworkCount: mediumMap.get(row.id) ?? 0 } : row;
+    return withMediumGalleryTitle(withCount);
+  });
 }

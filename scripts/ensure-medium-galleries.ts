@@ -3,20 +3,11 @@ import { nanoid } from "nanoid";
 import { series } from "@/db/schema";
 import { closeDb, getDb } from "@/db";
 import { GALLERY_PLACEHOLDER_IMAGE } from "@/lib/galleryDefaults";
-import { MEDIUM_GALLERY_SLUGS } from "@/lib/mediumGalleries";
+import { MEDIUM_GALLERY_SLUGS, MEDIUM_GALLERY_TITLES, mediumGalleryTitle } from "@/lib/mediumGalleries";
 
 const MEDIUM_COPY: Partial<
   Record<(typeof MEDIUM_GALLERY_SLUGS)[number], { title: string; excerpt: string; content: string; featuredImage: string }>
-> = {
-  "3 Dimensional Works": {
-    title: "3 Dimensional Works",
-    excerpt:
-      "Relief and dimensional pieces where encaustic and oil lift away from the plane—objects that hold shadow, edge, and weight.",
-    content:
-      "Three-dimensional works where material builds into form—oil and encaustic mounted on board, shaped to catch light and cast quiet shadow.",
-    featuredImage: "/uploads/3-dimensional-works/featured.jpg",
-  },
-};
+> = {};
 
 /** Create any missing Medium nav gallery rows (`series` table). Safe to run multiple times. */
 async function main() {
@@ -26,22 +17,30 @@ async function main() {
 
   for (let i = 0; i < MEDIUM_GALLERY_SLUGS.length; i++) {
     const slug = MEDIUM_GALLERY_SLUGS[i]!;
-    const existing = await db.select({ id: series.id }).from(series).where(eq(series.slug, slug)).then((r) => r[0]);
-    if (existing) continue;
+    const existing = await db.select({ id: series.id, title: series.title }).from(series).where(eq(series.slug, slug)).then((r) => r[0]);
+    if (existing) {
+      const desiredTitle = MEDIUM_GALLERY_TITLES[slug] ?? mediumGalleryTitle({ slug, title: slug });
+      if (desiredTitle !== existing.title) {
+        await db.update(series).set({ title: desiredTitle, updatedAt: t }).where(eq(series.id, existing.id));
+        console.log(`Updated medium gallery title: ${existing.title} → ${desiredTitle}`);
+      }
+      continue;
+    }
 
     const copy = MEDIUM_COPY[slug];
+    const title = MEDIUM_GALLERY_TITLES[slug] ?? copy?.title ?? slug;
     await db.insert(series).values({
       id: nanoid(),
       slug,
-      title: copy?.title ?? slug,
-      excerpt: copy?.excerpt ?? `Works in ${copy?.title ?? slug}.`,
+      title,
+      excerpt: copy?.excerpt ?? `Works in ${title}.`,
       content: copy?.content ?? "",
       featuredImage: copy?.featuredImage ?? GALLERY_PLACEHOLDER_IMAGE,
       sortOrder: i,
       createdAt: t,
       updatedAt: t,
     });
-    console.log(`Created medium gallery: ${copy?.title ?? slug}`);
+    console.log(`Created medium gallery: ${title}`);
     created++;
   }
 

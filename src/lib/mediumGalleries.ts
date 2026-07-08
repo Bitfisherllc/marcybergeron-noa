@@ -8,10 +8,24 @@ export const MEDIUM_GALLERY_SLUGS = [
   "Encaustic",
   "Mixed Medium-Collage",
   "Sculpture",
-  "3 Dimensional Works",
 ] as const;
 
 export type MediumGallerySlug = (typeof MEDIUM_GALLERY_SLUGS)[number];
+
+/** Public titles for portfolio galleries (slug stays stable in the database). */
+export const MEDIUM_GALLERY_TITLES: Partial<Record<MediumGallerySlug, string>> = {
+  "Mixed Medium-Collage": "Collage",
+};
+
+export function mediumGalleryTitle(series: Pick<Series, "slug" | "title">): string {
+  if (!isMediumGallerySlug(series.slug)) return series.title;
+  return MEDIUM_GALLERY_TITLES[series.slug as MediumGallerySlug] ?? series.title;
+}
+
+export function withMediumGalleryTitle<T extends Series>(series: T): T {
+  const title = mediumGalleryTitle(series);
+  return title === series.title ? series : { ...series, title };
+}
 
 const mediumSlugSet = new Set<string>(MEDIUM_GALLERY_SLUGS);
 

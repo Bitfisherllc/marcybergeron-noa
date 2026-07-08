@@ -81,7 +81,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
               />
             </GalleryLightboxTrigger>
             <div className="space-y-8">
-              <h2 className="font-serif text-2xl tracking-tight">Series statement</h2>
+              <h2 className="font-serif text-2xl tracking-tight">Portfolio statement</h2>
               <ProseMarkdown content={s.content} />
               <div className="border-t border-line pt-8">
                 <Link href={seriesInquiryHref(s.slug)} className="link-quiet text-sm tracking-wide">
