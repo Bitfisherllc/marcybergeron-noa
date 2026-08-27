@@ -20,7 +20,7 @@ export type HomeSectionCopy = {
 export const HOME_SECTION_DEFAULTS: Record<HomeSectionKey, HomeSectionCopy> = {
   hero: {
     eyebrow: "Abstract paintings",
-    title: "Paintings that listen beneath the surface.",
+    title: "Paintings that listen beneath the surface....",
     quote: "",
     body: `${SITE_NAME} works in layers—color, mark, and silence—searching for direction, solace, and connection. This portfolio is organized as a set of doorways: each series is a room with its own light?`,
   },
