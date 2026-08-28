@@ -499,7 +499,7 @@ type BlogDef = {
   tags: string;
   intro: string;
   outro?: string;
-  galleryOffset: number;
+  galleryOffset?: number;
   publishedAt: Date;
   /** When set, used instead of the first artwork in the gallery slice. */
   featuredImage?: string;
@@ -664,18 +664,15 @@ For announcements and news, follow **[@yellowchairsalon](https://www.instagram.c
 
 ## About the building
 
-The history and visitor information below are summarized from **Porter Mill Studios’** own “About Porter Mill” page: [About Porter Mill | Porter Mill Studios](https://www.portermillstudios.com/about-porter-mill).
+The history and visitor information below are summarized from **Porter Mill Studios'** own "About Porter Mill" page: [About Porter Mill | Porter Mill Studios](https://www.portermillstudios.com/about-porter-mill).
 
-**Porter Mill** was first occupied in **1895** and was associated with Beverly’s famous shoe industry. Through the years, the building has housed Decron Plastics, Superior Hat Company, Superior Real Estate, Criterion Shoe Company, Lion Leather and Plastic, and Porter Sewing Machine Corporation.
+**Porter Mill** was first occupied in **1895** and was associated with Beverly's famous shoe industry. Through the years, the building has housed Decron Plastics, Superior Hat Company, Superior Real Estate, Criterion Shoe Company, Lion Leather and Plastic, and Porter Sewing Machine Corporation.
 
 Today Porter Mill is home to a wide range of artists working in a variety of styles and media. Offerings include **drawing, painting, ceramics, glass work, photography, jewelry, fashion**, and more. The building hosts **biannual open studios**, allowing the public to tour studios, meet the artists, and purchase art where it is created. The lobby and first-floor vitrine feature **rotating exhibitions** of Porter Mill artists.
 
-For current exhibitions and events, follow Porter Mill on **[Facebook](https://www.facebook.com/PorterMillBeverly/)** and on Instagram **@porter_mill_studios** (see Porter Mill’s site for the latest handle and links).
+For current exhibitions and events, follow Porter Mill on **[Facebook](https://www.facebook.com/PorterMillBeverly/)** and on Instagram **@porter_mill_studios** (see Porter Mill's site for the latest handle and links).
 
 To inquire about **studio availability** at the building, email [studios.portermill@gmail.com](mailto:studios.portermill@gmail.com).`,
-    outro:
-      "A few in-progress pieces from the shelves—color tests, surfaces still deciding what they want to become.",
-    galleryOffset: 19,
     publishedAt: new Date("2025-08-12T15:00:00.000Z"),
   };
 
@@ -686,8 +683,13 @@ To inquire about **studio availability** at the building, email [studios.porterm
       slug: p.slug,
       title: p.title,
       excerpt: p.excerpt,
-      content: `${p.intro}${markdownGallery(pick(p.galleryOffset, 4))}${p.outro ? `\n\n${p.outro}` : ""}`,
-      featuredImage: p.featuredImage ?? artRows[p.galleryOffset % artRows.length]!.image,
+      content:
+        p.slug === "studio-porter-mill-beverly"
+          ? p.intro
+          : `${p.intro}${markdownGallery(pick(p.galleryOffset ?? 0, 4))}${p.outro ? `\n\n${p.outro}` : ""}`,
+      featuredImage:
+        p.featuredImage ??
+        (p.galleryOffset != null ? artRows[p.galleryOffset % artRows.length]!.image : artRows[0]!.image),
       published: true,
       publishedAt: p.publishedAt,
       category: p.category,

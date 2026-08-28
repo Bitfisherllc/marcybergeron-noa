@@ -16,6 +16,7 @@
     "db:backfill-medium": "dotenv -e .env.local -- tsx scripts/backfill-medium-series-id.ts",
     "db:backfill-artwork-series": "dotenv -e .env.local -- tsx scripts/backfill-artwork-series.ts",
     "db:ensure-medium-galleries": "dotenv -e .env.local -- tsx scripts/ensure-medium-galleries.ts",
+    "db:ensure-oil-cold-wax-series": "dotenv -e .env.local -- tsx scripts/ensure-oil-cold-wax-series.ts",
     "db:ensure-private-galleries": "dotenv -e .env.local -- tsx scripts/migrate-private-galleries.ts",
     "import:gallery": "dotenv -e .env.local -- tsx scripts/import-gallery-artworks.ts",
     "db:backup": "mkdir -p data/backups && cp data/site.db \"data/backups/site-$(date +%Y%m%d-%H%M%S).db\" && echo \"Backed up to data/backups/\"",

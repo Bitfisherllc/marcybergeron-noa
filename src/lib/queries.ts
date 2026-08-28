@@ -4,6 +4,12 @@ import { artwork, artworkSeries, mailingListSignup, post, series } from "@/db/sc
 import { getDb } from "@/db";
 import { toHeroSlide, type HeroSlide } from "@/lib/heroSlides";
 import { isMediumGallerySlug, MEDIUM_GALLERY_SLUGS, resolveMediumGalleryRow, withMediumGalleryTitle } from "@/lib/mediumGalleries";
+import {
+  isOilColdWaxChildSlug,
+  isOilColdWaxParentSlug,
+  OIL_COLD_WAX_CHILD_SLUGS,
+  oilColdWaxChildTitle,
+} from "@/lib/oilColdWaxSeries";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 
 export async function listSeries() {
@@ -57,6 +63,25 @@ export async function listPrivateGalleries(): Promise<Series[]> {
   return all.filter((s) => s.isPrivate);
 }
 
+/** Oil and Cold Wax child series, in display order. */
+export async function listOilColdWaxChildSeries(): Promise<Series[]> {
+  const all = await listSeries();
+  const bySlug = new Map(all.map((s) => [s.slug, s]));
+  return OIL_COLD_WAX_CHILD_SLUGS.map((slug) => bySlug.get(slug))
+    .filter((s): s is Series => Boolean(s))
+    .map((s) => (s.title !== oilColdWaxChildTitle(s.slug) ? { ...s, title: oilColdWaxChildTitle(s.slug) ?? s.title } : s));
+}
+
+export async function getOilColdWaxChildNeighbors(slug: string) {
+  const all = await listOilColdWaxChildSeries();
+  const idx = all.findIndex((s) => s.slug === slug);
+  if (idx === -1) return { prev: null as null | Series, next: null as null | Series };
+  return {
+    prev: idx > 0 ? all[idx - 1]! : null,
+    next: idx < all.length - 1 ? all[idx + 1]! : null,
+  };
+}
+
 export async function listArtworksForSeries(seriesId: string) {
   const rows = await getDb()
     .select({ piece: artwork })
@@ -77,9 +102,9 @@ export async function listArtworksForMediumGallery(mediumSeriesId: string) {
 }
 
 export async function listArtworksForPublicGallery(series: Pick<Series, "id" | "slug">) {
-  if (isMediumGallerySlug(series.slug)) {
-    return listArtworksForMediumGallery(series.id);
-  }
+  if (isOilColdWaxParentSlug(series.slug)) return [];
+  if (isOilColdWaxChildSlug(series.slug)) return listArtworksForSeries(series.id);
+  if (isMediumGallerySlug(series.slug)) return listArtworksForMediumGallery(series.id);
   return listArtworksForSeries(series.id);
 }
 

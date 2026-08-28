@@ -46,7 +46,7 @@ function extractSizeAndTitle(withoutExt: string): { titlePart: string; sizeRaw: 
 
 /**
  * `{order}-{title} {width}x{height}.{ext}` — tolerant of common filename quirks:
- * optional dash after order, letter suffixes (1a, 2b), spaces around ×,
+ * optional dash or underscore after order, letter suffixes (1a, 2b), spaces around ×,
  * decimal sizes, parenthetical notes (framed, detail, diptych), and `WxH framed`.
  */
 export function parseGalleryImportFilename(filename: string): ParsedGalleryImportFilename | null {
@@ -65,8 +65,8 @@ export function parseGalleryImportFilename(filename: string): ParsedGalleryImpor
   const sizeRaw = normalizeSizeRaw(extracted.sizeRaw);
   const beforeSize = extracted.titlePart;
 
-  const dashed = beforeSize.match(/^(\d+)([a-z])-(.+)$/i);
-  const legacy = dashed ? null : beforeSize.match(/^(\d+)-?\s*(.+)$/);
+  const dashed = beforeSize.match(/^(\d+)([a-z])[-_](.+)$/i);
+  const legacy = dashed ? null : beforeSize.match(/^(\d+)[-_]\s*(.+)$/);
   const headMatch = dashed ?? legacy;
   if (!headMatch) return null;
 
@@ -81,6 +81,35 @@ export function parseGalleryImportFilename(filename: string): ParsedGalleryImpor
     title,
     sizeRaw,
     size: formatGalleryImportSize(sizeRaw),
+    extension,
+  };
+}
+
+/** Studio / photo imports: `IMG_0918.webp` or any image basename (no size required). */
+export function parsePhotoImportFilename(
+  filename: string,
+  fallbackIndex: number,
+): ParsedGalleryImportFilename | null {
+  const base = filename.replace(/^.*[/\\]/, "").trim();
+  if (!base) return null;
+
+  const extMatch = base.match(/\s*\.(webp|jpe?g|png|gif)$/i);
+  if (!extMatch) return null;
+
+  const extension = extMatch[1].toLowerCase() === "jpeg" ? "jpg" : extMatch[1].toLowerCase();
+  const stem = base.slice(0, -extMatch[0].length).trimEnd();
+  if (!stem) return null;
+
+  const imgMatch = stem.match(/^IMG[_-]?(\d+)(?:-(\d+))?$/i);
+  const sortOrder = imgMatch
+    ? Number(imgMatch[1]) * 1000 + Number(imgMatch[2] ?? 0)
+    : (fallbackIndex + 1) * 100;
+
+  return {
+    sortOrder,
+    title: stem,
+    sizeRaw: "",
+    size: "",
     extension,
   };
 }

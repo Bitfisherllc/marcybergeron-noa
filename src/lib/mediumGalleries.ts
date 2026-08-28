@@ -8,6 +8,7 @@ export const MEDIUM_GALLERY_SLUGS = [
   "Wax Based Collage on Panel",
   "Encaustic Monotypes",
   "Sculpture",
+  "The Studio",
 ] as const;
 
 export type MediumGallerySlug = (typeof MEDIUM_GALLERY_SLUGS)[number];
@@ -26,6 +27,7 @@ export const MEDIUM_GALLERY_IMPORT_FOLDERS: Record<MediumGallerySlug, string> = 
   "Wax Based Collage on Panel": "wax-based-collage-on-panel",
   "Encaustic Monotypes": "encaustic-monotypes",
   Sculpture: "sculpture",
+  "The Studio": "the-studio",
 };
 
 export function mediumGalleryImportFolder(slug: MediumGallerySlug): string {

@@ -1,13 +1,16 @@
 import Image from "next/image";
+import { Fragment } from "react";
 import { setSeriesPrivacy } from "@/app/admin/actions";
 import { AdminLink } from "@/components/AdminLink";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
+import { isOilColdWaxParentSlug } from "@/lib/oilColdWaxSeries";
 import { privateGalleryHref } from "@/lib/privateGalleries";
-import { listSeriesAdminOverview } from "@/lib/queries";
+import { listOilColdWaxChildSeries, listSeriesAdminOverview } from "@/lib/queries";
 
 export default async function AdminSeriesIndexPage() {
   const rows = await listSeriesAdminOverview();
   const portfolioRows = rows.filter((s) => isMediumGallerySlug(s.slug));
+  const oilColdWaxChildren = await listOilColdWaxChildSeries();
   const privateRows = rows.filter((s) => s.isPrivate);
   const totalArtworks = rows.reduce((n, s) => n + s.artworkCount, 0);
 
@@ -62,21 +65,47 @@ export default async function AdminSeriesIndexPage() {
                   </thead>
                   <tbody>
                     {portfolioRows.map((s) => (
-                      <tr key={s.id} className="border-b border-line last:border-b-0">
-                        <td className="px-4 py-3">
-                          <div className="relative h-16 w-24 overflow-hidden border border-line bg-black/[0.03]">
-                            <Image src={s.featuredImage} alt="" fill className="object-cover" sizes="96px" />
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="font-medium">{s.title}</div>
-                          <div className="text-xs text-muted">/art/{s.slug}</div>
-                        </td>
-                        <td className="px-4 py-3 text-muted">{s.artworkCount}</td>
-                        <td className="px-4 py-3 text-right">
-                          <AdminLink href={`/admin/series/${s.id}`}>Manage paintings</AdminLink>
-                        </td>
-                      </tr>
+                      <Fragment key={s.id}>
+                        <tr className="border-b border-line last:border-b-0">
+                          <td className="px-4 py-3">
+                            <div className="relative h-16 w-24 overflow-hidden border border-line bg-black/[0.03]">
+                              <Image src={s.featuredImage} alt="" fill className="object-cover" sizes="96px" />
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-medium">{s.title}</div>
+                            <div className="text-xs text-muted">/art/{s.slug}</div>
+                          </td>
+                          <td className="px-4 py-3 text-muted">{s.artworkCount}</td>
+                          <td className="px-4 py-3 text-right">
+                            <AdminLink href={`/admin/series/${s.id}`}>
+                              {isOilColdWaxParentSlug(s.slug) ? "Manage portfolio" : "Manage paintings"}
+                            </AdminLink>
+                          </td>
+                        </tr>
+                        {isOilColdWaxParentSlug(s.slug)
+                          ? oilColdWaxChildren.map((child) => {
+                              const childOverview = rows.find((row) => row.id === child.id);
+                              return (
+                                <tr key={child.id} className="border-b border-line bg-black/[0.015] last:border-b-0">
+                                  <td className="px-4 py-3 pl-8">
+                                    <div className="relative h-14 w-20 overflow-hidden border border-line bg-black/[0.03]">
+                                      <Image src={child.featuredImage} alt="" fill className="object-cover" sizes="80px" />
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="font-medium text-ink/90">{child.title}</div>
+                                    <div className="text-xs text-muted">/art/{child.slug} · series</div>
+                                  </td>
+                                  <td className="px-4 py-3 text-muted">{childOverview?.artworkCount ?? 0}</td>
+                                  <td className="px-4 py-3 text-right">
+                                    <AdminLink href={`/admin/series/${child.id}`}>Manage series</AdminLink>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          : null}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>

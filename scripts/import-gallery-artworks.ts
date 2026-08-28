@@ -25,7 +25,7 @@ import {
   type MediumGallerySlug,
 } from "@/lib/mediumGalleries";
 import { uploadFolderForSlug } from "@/lib/save-upload";
-import { parseGalleryImportFilename } from "./lib/parseGalleryImportFilename";
+import { parseGalleryImportFilename, parsePhotoImportFilename } from "./lib/parseGalleryImportFilename";
 
 const IMAGE_EXT = new Set([".webp", ".jpg", ".jpeg", ".png", ".gif"]);
 
@@ -35,6 +35,7 @@ const GALLERY_DEFAULTS: Record<string, { medium: string }> = {
   "Encaustic Monotypes": { medium: "Encaustic on board" },
   "Wax Based Collage on Panel": { medium: "Wax based collage on panel" },
   Sculpture: { medium: "Sculpture" },
+  "The Studio": { medium: "" },
 };
 
 type ImportRow = {
@@ -83,7 +84,10 @@ async function copyImageToUploads(
   return rel;
 }
 
-async function listImportRows(folder: string): Promise<{ rows: ImportRow[]; skipped: string[] }> {
+async function listImportRows(
+  folder: string,
+  options?: { allowPhotos?: boolean },
+): Promise<{ rows: ImportRow[]; skipped: string[] }> {
   const absFolder = path.resolve(folder);
   let entries: string[];
   try {
@@ -94,6 +98,7 @@ async function listImportRows(folder: string): Promise<{ rows: ImportRow[]; skip
 
   const rows: ImportRow[] = [];
   const skipped: string[] = [];
+  let photoIndex = 0;
 
   for (const name of entries) {
     if (name.startsWith(".")) continue;
@@ -103,7 +108,10 @@ async function listImportRows(folder: string): Promise<{ rows: ImportRow[]; skip
       continue;
     }
 
-    const parsed = parseGalleryImportFilename(name);
+    let parsed = parseGalleryImportFilename(name);
+    if (!parsed && options?.allowPhotos) {
+      parsed = parsePhotoImportFilename(name, photoIndex++);
+    }
     if (!parsed) {
       skipped.push(`${name} (name must be like 1-Gut Feeling 24x18.webp)`);
       continue;
@@ -163,7 +171,7 @@ async function main() {
     process.exit(1);
   }
 
-  const { rows, skipped } = await listImportRows(folder);
+  const { rows, skipped } = await listImportRows(folder, { allowPhotos: gallerySlug === "The Studio" });
   if (rows.length === 0) {
     console.error(`No importable images in ${path.resolve(folder)}`);
     if (skipped.length) {

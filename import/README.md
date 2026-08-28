@@ -11,6 +11,7 @@ Drop image files into a gallery folder and run one command. Everything is read f
 | Wax Based Collage on Panel | `npm run import:gallery -- "Wax Based Collage on Panel"` | `import/wax-based-collage-on-panel/` |
 | Encaustic Monotypes | `npm run import:gallery -- "Encaustic Monotypes"` | `import/encaustic-monotypes/` |
 | Sculpture | `npm run import:gallery -- Sculpture` | `import/sculpture/` |
+| The Studio | `npm run import:gallery -- "The Studio"` | `import/the-studio/` |
 
 Gallery names match the public URLs (e.g. `/art/Oil and Cold Wax`).
 

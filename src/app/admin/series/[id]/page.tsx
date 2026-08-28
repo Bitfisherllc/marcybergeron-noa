@@ -10,6 +10,7 @@ import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
 import { AdminReorderButtons } from "@/components/AdminReorderButtons";
 import { AdminDirtySave } from "@/components/AdminSectionSave";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
+import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
 import { getSeriesById, listAdminSeriesMembershipOptions, listArtworksForPublicGallery, listMediumGalleries } from "@/lib/queries";
 
@@ -18,12 +19,15 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
   const s = await getSeriesById(id);
   if (!s) notFound();
   const isMediumGallery = isMediumGallerySlug(s.slug);
+  const isOilColdWaxChild = isOilColdWaxChildSlug(s.slug);
+  const isOilColdWaxHub = isOilColdWaxParentSlug(s.slug);
   const [arts, mediumGalleries, membershipOptions, deleteImpact] = await Promise.all([
     listArtworksForPublicGallery(s),
     listMediumGalleries(),
     listAdminSeriesMembershipOptions(),
-    isMediumGallery ? Promise.resolve(null) : getSeriesDeleteImpact(s.id),
+    isMediumGallery || isOilColdWaxChild ? Promise.resolve(null) : getSeriesDeleteImpact(s.id),
   ]);
+  const oilColdWaxParent = mediumGalleries.find((g) => g.slug === OIL_COLD_WAX_PARENT_SLUG) ?? null;
   const artworkSlides = arts.map((a) => ({
     src: a.image,
     alt: a.alt || a.title,
@@ -34,7 +38,7 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
     <div className="space-y-12">
       <div>
         <h1 className="font-serif text-3xl tracking-tight">Edit gallery</h1>
-        {!isMediumGallery ? (
+        {!isMediumGallery && !isOilColdWaxChild ? (
           <a href="#delete" className={`${adminBtnDanger} mt-4`}>
             Delete gallery
           </a>
@@ -44,6 +48,16 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
             <>
               Private gallery · {arts.length} {arts.length === 1 ? "painting" : "paintings"} · not listed on the
               public portfolio
+            </>
+          ) : isOilColdWaxHub ? (
+            <>
+              Oil and Cold Wax hub · <span className="text-ink/80">/art/{s.slug}</span> · paintings are managed in each
+              series below
+            </>
+          ) : isOilColdWaxChild ? (
+            <>
+              Oil and Cold Wax series · <span className="text-ink/80">/art/{s.slug}</span> · {arts.length}{" "}
+              {arts.length === 1 ? "painting" : "paintings"}
             </>
           ) : isMediumGallery ? (
             <>
@@ -59,7 +73,7 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
         </p>
       </div>
 
-      {!isMediumGallery ? (
+      {!isMediumGallery && !isOilColdWaxChild ? (
         <AdminGalleryPrivacyPanel seriesId={s.id} isPrivate={s.isPrivate} accessToken={s.accessToken} />
       ) : null}
 
@@ -101,6 +115,7 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
         <AdminDirtySave formId="series-edit" />
       </form>
 
+      {!isOilColdWaxHub ? (
       <div className="space-y-4">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -158,7 +173,14 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
         </div>
         </AdminLightboxProvider>
       </div>
+      ) : (
+        <p className="border border-line bg-white/50 p-6 text-sm text-muted">
+          This portfolio is organized into series. Edit the portfolio statement above, then manage paintings in each
+          series from the Galleries list.
+        </p>
+      )}
 
+      {!isOilColdWaxHub ? (
       <div id="add-artwork" className="border border-line bg-white/50 p-6">
         <h3 className="font-serif text-xl tracking-tight">Add artwork</h3>
         <form id="series-add-artwork" action={upsertArtwork} className="mt-6 space-y-4">
@@ -190,7 +212,7 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           </div>
           <AdminMediumGalleryField
             galleries={mediumGalleries}
-            value={isMediumGallery ? s.id : null}
+            value={isMediumGallery ? s.id : isOilColdWaxChild ? oilColdWaxParent?.id ?? null : null}
           />
           <label className="block text-sm text-muted">
             Description (optional)
@@ -210,8 +232,9 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           <AdminDirtySave formId="series-add-artwork" />
         </form>
       </div>
+      ) : null}
 
-      {!isMediumGallery ? (
+      {!isMediumGallery && !isOilColdWaxChild ? (
         <div id="delete" className="border border-line bg-white/50 p-6">
           <h3 className="font-serif text-xl tracking-tight text-ink">Delete gallery</h3>
           <p className="mt-2 max-w-prose text-sm text-muted">

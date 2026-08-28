@@ -10,10 +10,12 @@ import { ProseMarkdown } from "@/components/ProseMarkdown";
 import { getAdminSession } from "@/lib/auth";
 import { slideFromArtwork, slideFromSeriesHero } from "@/lib/gallerySlides";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
+import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
 import { isPrivateGallery } from "@/lib/privateGalleries";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
 import {
   getArtworkGalleryMeta,
+  getOilColdWaxChildNeighbors,
   getSeriesNeighbors,
   listArtworksForPublicGallery,
   listAdminSeriesMembershipOptions,
@@ -35,8 +37,16 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
   const adminLists = session
     ? await Promise.all([listMediumGalleries(), listAdminSeriesMembershipOptions()])
     : null;
+  const isChildSeries = isOilColdWaxChildSlug(s.slug);
   const deleteImpact = session && isDeletableGallery ? await getSeriesDeleteImpact(s.id) : null;
-  const { prev, next } = variant === "public" && isMediumGallerySlug(s.slug) ? await getSeriesNeighbors(s.slug) : { prev: null, next: null };
+  const { prev, next } =
+    variant === "public"
+      ? isChildSeries
+        ? await getOilColdWaxChildNeighbors(s.slug)
+        : isMediumGallerySlug(s.slug) && !isOilColdWaxParentSlug(s.slug)
+          ? await getSeriesNeighbors(s.slug)
+          : { prev: null, next: null }
+      : { prev: null, next: null };
   const returnPath = variant === "private" && s.accessToken ? `/private/${s.accessToken}` : artSeriesHref(s.slug);
 
   const heroSlide = await slideFromSeriesHero(s);
@@ -56,10 +66,17 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       <header className="border-b border-line">
         <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
           <p className="text-xs tracking-[0.22em] text-muted uppercase">
-            {variant === "private" ? "Private gallery" : "Portfolio"}
+            {variant === "private" ? "Private gallery" : isChildSeries ? "Oil and Cold Wax" : "Portfolio"}
           </p>
           <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
           <p className="mt-6 max-w-3xl text-base leading-relaxed text-muted">{s.excerpt}</p>
+          {isChildSeries ? (
+            <p className="mt-4">
+              <Link href={artSeriesHref(OIL_COLD_WAX_PARENT_SLUG)} className="link-quiet text-sm tracking-wide">
+                ← All Oil and Cold Wax series
+              </Link>
+            </p>
+          ) : null}
           {variant === "private" ? (
             <p className="mt-4 max-w-3xl text-sm text-muted">
               This gallery is shared privately for review—it is not listed on the public portfolio.
@@ -186,9 +203,18 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       {variant === "public" ? (
         <section className="border-t border-line">
           <div className="mx-auto max-w-6xl px-5 py-10 md:px-8">
-            <Link href="/medium" className="text-sm tracking-wide text-muted hover:text-ink">
-              ← Back to portfolio
-            </Link>
+            {isChildSeries ? (
+              <Link
+                href={artSeriesHref(OIL_COLD_WAX_PARENT_SLUG)}
+                className="text-sm tracking-wide text-muted hover:text-ink"
+              >
+                ← Back to Oil and Cold Wax
+              </Link>
+            ) : (
+              <Link href="/medium" className="text-sm tracking-wide text-muted hover:text-ink">
+                ← Back to portfolio
+              </Link>
+            )}
           </div>
         </section>
       ) : null}

@@ -3,6 +3,7 @@ import { artwork, artworkSeries, series } from "@/db/schema";
 import { getDb } from "@/db";
 import { getArtworkPortfolioOnlySeriesIds, setArtworkPortfolioSeriesIds } from "@/lib/artworkMembership";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
+import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
 import { getSeriesById } from "@/lib/queries";
 
 export type SeriesDeleteArtworkRef = { id: string; title: string };
@@ -40,7 +41,7 @@ export async function getSeriesDeleteImpact(seriesId: string): Promise<SeriesDel
   if (!ser) return null;
 
   const db = getDb();
-  const isMediumGallery = isMediumGallerySlug(ser.slug);
+  const isMediumGallery = isMediumGallerySlug(ser.slug) || isOilColdWaxChildSlug(ser.slug);
 
   const primaryRows = await db
     .select({ id: artwork.id, title: artwork.title })

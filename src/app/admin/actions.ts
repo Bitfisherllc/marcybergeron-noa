@@ -17,8 +17,9 @@ import { readExistingImageField } from "@/lib/resolveAdminImage";
 import { saveUpload } from "@/lib/save-upload";
 import { GALLERY_PLACEHOLDER_IMAGE } from "@/lib/galleryDefaults";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
+import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
 import { generatePrivateGalleryAccessToken } from "@/lib/privateGalleries";
-import { getSeriesById, listArtworksForMediumGallery, listArtworksForSeries } from "@/lib/queries";
+import { getSeriesById, getSeriesBySlug, listArtworksForMediumGallery, listArtworksForSeries } from "@/lib/queries";
 import {
   getSeriesDeleteImpact,
   reassignArtworksBeforeSeriesDelete,
@@ -173,7 +174,7 @@ export async function setSeriesPrivacy(formData: FormData) {
     .from(series)
     .where(eq(series.id, id))
     .then((r) => r[0]);
-  if (!row || isMediumGallerySlug(row.slug)) redirect("/admin/series");
+  if (!row || isMediumGallerySlug(row.slug) || isOilColdWaxChildSlug(row.slug)) redirect("/admin/series");
 
   const isPrivate = privacy === "private";
   const previousToken = row.accessToken;
@@ -303,13 +304,22 @@ export async function upsertArtwork(formData: FormData) {
   const sortOrder = Number(String(formData.get("sortOrder") ?? "0")) || 0;
   const imageFile = formData.get("image") as File | null;
   const existingImage = readExistingImageField(formData, "imageExisting");
-  const mediumSeriesId = await parseMediumSeriesId(String(formData.get("mediumSeriesId") ?? ""));
+  const mediumSeriesIdRaw = await parseMediumSeriesId(String(formData.get("mediumSeriesId") ?? ""));
+  let mediumSeriesId = mediumSeriesIdRaw;
 
   let portfolioSeriesIds = await parsePortfolioSeriesIdsFromForm(formData);
   if (contextSeriesId && !portfolioSeriesIds.includes(contextSeriesId)) {
     const context = await getSeriesById(contextSeriesId);
     if (context && !isMediumGallerySlug(context.slug)) {
       portfolioSeriesIds = [...portfolioSeriesIds, contextSeriesId];
+    }
+  }
+
+  if (!mediumSeriesId && contextSeriesId) {
+    const context = await getSeriesById(contextSeriesId);
+    if (context && isOilColdWaxChildSlug(context.slug)) {
+      const parent = await getSeriesBySlug(OIL_COLD_WAX_PARENT_SLUG);
+      if (parent) mediumSeriesId = parent.id;
     }
   }
 

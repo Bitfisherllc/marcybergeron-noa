@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { artwork, post, series } from "@/db/schema";
 import { getDb } from "@/db";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
+import { isOilColdWaxChildSlug } from "@/lib/oilColdWaxSeries";
 import { artSeriesHref } from "@/lib/routeSlug";
 
 export type AdminEditTarget = {
@@ -72,7 +73,10 @@ export async function resolveLiveViewTarget(pathname: string): Promise<AdminEdit
       .where(eq(series.id, id))
       .then((r) => r[0]);
     if (row) {
-      const href = isMediumGallerySlug(row.slug) ? artSeriesHref(row.slug) : "/medium";
+      const href =
+        isMediumGallerySlug(row.slug) || isOilColdWaxChildSlug(row.slug)
+          ? artSeriesHref(row.slug)
+          : "/medium";
       return { href, label: `View “${row.title}”` };
     }
     return { href: "/medium", label: "View portfolio" };

@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { OilColdWaxHubView } from "@/components/OilColdWaxHubView";
 import { SeriesGalleryView } from "@/components/SeriesGalleryView";
 import { getAdminSession } from "@/lib/auth";
 import { isMediumGallerySlug, legacyMediumGalleryRedirect } from "@/lib/mediumGalleries";
+import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, OIL_COLD_WAX_CHILD_SLUGS } from "@/lib/oilColdWaxSeries";
 import { isAllWorkSlug } from "@/lib/portfolioGalleries";
 import { isPrivateGallery } from "@/lib/privateGalleries";
-import { getSeriesBySlug, listMediumGalleries } from "@/lib/queries";
+import { getSeriesBySlug, listMediumGalleries, listOilColdWaxChildSeries } from "@/lib/queries";
 import { SITE_URL } from "@/lib/site";
 import { artSeriesHref, normalizeRouteSlug } from "@/lib/routeSlug";
 
@@ -13,7 +15,10 @@ import { artSeriesHref, normalizeRouteSlug } from "@/lib/routeSlug";
 export async function generateStaticParams() {
   try {
     const rows = await listMediumGalleries();
-    return rows.map((s) => ({ slug: s.slug }));
+    return [
+      ...rows.map((s) => ({ slug: s.slug })),
+      ...OIL_COLD_WAX_CHILD_SLUGS.map((slug) => ({ slug })),
+    ];
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.warn("[art/[slug]] generateStaticParams: could not list series —", msg);
@@ -48,13 +53,18 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
   const s = await getSeriesBySlug(slug);
   if (!s) notFound();
 
-  if (isAllWorkSlug(slug) || (!isMediumGallerySlug(slug) && !isPrivateGallery(s))) {
+  if (isAllWorkSlug(slug) || (!isMediumGallerySlug(slug) && !isOilColdWaxChildSlug(slug) && !isPrivateGallery(s))) {
     redirect("/medium");
   }
 
   if (isPrivateGallery(s)) {
     const session = await getAdminSession();
     if (!session) notFound();
+  }
+
+  if (isOilColdWaxParentSlug(slug)) {
+    const childSeries = await listOilColdWaxChildSeries();
+    return <OilColdWaxHubView parent={s} childSeries={childSeries} />;
   }
 
   return <SeriesGalleryView series={s} variant="public" />;
