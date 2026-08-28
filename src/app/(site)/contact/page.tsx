@@ -7,6 +7,8 @@ import { getArtwork, getArtworkGalleryMeta, getSeriesBySlug } from "@/lib/querie
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 import { CONTACT, SITE_URL } from "@/lib/site";
 
+export const revalidate = 300;
+
 export const metadata: Metadata = {
   title: "Contact Marcy Bergeron-Noa",
   description:

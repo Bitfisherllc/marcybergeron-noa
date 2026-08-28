@@ -1,7 +1,7 @@
 import type { Artwork, Series } from "@/db";
 import { captionSubtitle } from "@/components/ArtCaption";
 import type { GallerySeriesLink } from "@/components/ArtworkGalleryCaption";
-import { getPublicImageDimensions } from "@/lib/imageDimensions";
+import { artworkStoredDimensions, getPublicImageDimensions, resolveArtworkImageDimensions } from "@/lib/imageDimensions";
 
 export type GallerySlide = {
   id: string;
@@ -24,7 +24,7 @@ export async function slideFromArtwork(
   piece: Artwork,
   meta?: { portfolioSeries: GallerySeriesLink[]; mediumGallery: GallerySeriesLink | null },
 ): Promise<GallerySlide> {
-  const dim = piece.image.startsWith("/") ? await getPublicImageDimensions(piece.image) : null;
+  const dim = await resolveArtworkImageDimensions(piece);
   return {
     id: piece.id,
     src: piece.image,
@@ -68,6 +68,30 @@ export async function slideFromSeriesHero(
     alt: `${ser.title} — featured artwork`,
     title: ser.title,
     subtitle: opts?.subtitle ?? "Featured work",
+    width: dim?.width,
+    height: dim?.height,
+  };
+}
+
+/** Sync slide builder when artwork dimensions are already loaded from the DB. */
+export function slideFromArtworkCached(
+  piece: Artwork,
+  meta?: { portfolioSeries: GallerySeriesLink[]; mediumGallery: GallerySeriesLink | null },
+): GallerySlide {
+  const dim = artworkStoredDimensions(piece);
+  return {
+    id: piece.id,
+    src: piece.image,
+    alt: piece.alt,
+    title: piece.title,
+    subtitle: captionSubtitle({ medium: piece.medium, size: piece.size }),
+    medium: piece.medium,
+    size: piece.size,
+    portfolioSeries: meta?.portfolioSeries ?? [],
+    mediumGallery: meta?.mediumGallery ?? null,
+    artworkId: piece.id,
+    status: piece.status,
+    description: piece.description || undefined,
     width: dim?.width,
     height: dim?.height,
   };

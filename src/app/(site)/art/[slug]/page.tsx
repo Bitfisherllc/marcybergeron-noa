@@ -11,6 +11,8 @@ import { getSeriesBySlug, listMediumGalleries, listOilColdWaxChildSeries } from 
 import { SITE_URL } from "@/lib/site";
 import { artSeriesHref, normalizeRouteSlug } from "@/lib/routeSlug";
 
+export const revalidate = 300;
+
 /** Build-time paths for SSG; if Postgres is unreachable (e.g. no local Docker), skip rather than fail `next build`. */
 export async function generateStaticParams() {
   try {

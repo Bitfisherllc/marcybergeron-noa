@@ -7,6 +7,9 @@ export const series = pgTable("series", {
   excerpt: text("excerpt").notNull(),
   content: text("content").notNull().default(""),
   featuredImage: text("featured_image").notNull(),
+  /** `random` picks from gallery works on each page load; `static` uses `featuredArtworkId`. */
+  featuredArtworkMode: text("featured_artwork_mode").notNull().default("random"),
+  featuredArtworkId: text("featured_artwork_id"),
   sortOrder: integer("sort_order").notNull().default(0),
   /** Hidden from portfolio nav; viewable only via `/private/[accessToken]`. */
   isPrivate: boolean("is_private").notNull().default(false),
@@ -30,6 +33,8 @@ export const artwork = pgTable("artwork", {
   description: text("description").notNull().default(""),
   image: text("image").notNull(),
   alt: text("alt").notNull(),
+  imageWidth: integer("image_width"),
+  imageHeight: integer("image_height"),
   status: text("status").notNull().default("unknown"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),

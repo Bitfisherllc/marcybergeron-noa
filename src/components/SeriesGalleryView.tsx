@@ -8,7 +8,9 @@ import { GalleryLightboxProvider, GalleryLightboxTrigger } from "@/components/Ga
 import { IntrinsicGalleryImage } from "@/components/IntrinsicGalleryImage";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
 import { getAdminSession } from "@/lib/auth";
-import { slideFromArtwork, slideFromSeriesHero } from "@/lib/gallerySlides";
+import { resolveStatementArtwork } from "@/lib/featuredArtwork";
+import { slideFromArtwork, slideFromArtworkCached, slideFromSeriesHero } from "@/lib/gallerySlides";
+import { artworkStoredDimensions } from "@/lib/imageDimensions";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
 import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
 import { isPrivateGallery } from "@/lib/privateGalleries";
@@ -49,14 +51,28 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       : { prev: null, next: null };
   const returnPath = variant === "private" && s.accessToken ? `/private/${s.accessToken}` : artSeriesHref(s.slug);
 
-  const heroSlide = await slideFromSeriesHero(s);
+  const statementArtwork = resolveStatementArtwork(s, pieces);
+  const heroMeta = statementArtwork.artwork ? galleryMeta.get(statementArtwork.artwork.id) : null;
+  const heroSlide = statementArtwork.artwork
+    ? artworkStoredDimensions(statementArtwork.artwork)
+      ? slideFromArtworkCached(statementArtwork.artwork, {
+          portfolioSeries: heroMeta?.portfolioSeries ?? [],
+          mediumGallery: heroMeta?.mediumSeries ?? null,
+        })
+      : await slideFromArtwork(statementArtwork.artwork, {
+          portfolioSeries: heroMeta?.portfolioSeries ?? [],
+          mediumGallery: heroMeta?.mediumSeries ?? null,
+        })
+    : await slideFromSeriesHero(s, { subtitle: "Featured work" });
   const pieceSlides = await Promise.all(
     pieces.map((p) => {
       const meta = galleryMeta.get(p.id);
-      return slideFromArtwork(p, {
+      const slideMeta = {
         portfolioSeries: meta?.portfolioSeries ?? [],
         mediumGallery: meta?.mediumSeries ?? null,
-      });
+      };
+      if (artworkStoredDimensions(p)) return slideFromArtworkCached(p, slideMeta);
+      return slideFromArtwork(p, slideMeta);
     }),
   );
   const lightboxSlides = [heroSlide, ...pieceSlides];
@@ -88,10 +104,15 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       <GalleryLightboxProvider slides={lightboxSlides}>
         <section className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
           <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
-            <GalleryLightboxTrigger index={0} label={`Enlarge featured image: ${s.title}`}>
+            <GalleryLightboxTrigger
+              index={0}
+              label={`Enlarge featured image: ${statementArtwork.title}`}
+            >
               <IntrinsicGalleryImage
-                src={s.featuredImage}
-                alt={`${s.title} — featured artwork`}
+                src={statementArtwork.image}
+                alt={statementArtwork.alt}
+                width={statementArtwork.artwork?.imageWidth}
+                height={statementArtwork.artwork?.imageHeight}
                 priority
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 frameClassName="border border-line"
@@ -121,7 +142,13 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                 return (
                   <figure key={p.id} className="border border-line bg-white/30 p-4">
                     <GalleryLightboxTrigger index={i + 1} label={`Enlarge: ${p.title}`}>
-                      <IntrinsicGalleryImage src={p.image} alt={p.alt} sizes="(max-width: 768px) 100vw, 50vw" />
+                      <IntrinsicGalleryImage
+                        src={p.image}
+                        alt={p.alt}
+                        width={p.imageWidth}
+                        height={p.imageHeight}
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                      />
                     </GalleryLightboxTrigger>
                     <ArtworkGalleryCaption
                       title={p.title}

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { listPublishedPosts } from "@/lib/queries";
 import { SITE_URL } from "@/lib/site";
 
+export const revalidate = 300;
+
 export const metadata: Metadata = {
   title: "News",
   description: "Exhibitions, studio updates, and announcements from Marcy Bergeron-Noa.",

@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { IntrinsicGalleryImage } from "@/components/IntrinsicGalleryImage";
-import { listMediumGalleries } from "@/lib/queries";
+import { resolveStatementArtwork } from "@/lib/featuredArtwork";
+import { listArtworksGroupedForMediumGalleries, listMediumGalleries } from "@/lib/queries";
 import { SITE_URL } from "@/lib/site";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Portfolio",
@@ -13,6 +16,12 @@ export const metadata: Metadata = {
 
 export default async function MediumPage() {
   const galleries = await listMediumGalleries();
+  const piecesByGallery = await listArtworksGroupedForMediumGalleries(galleries);
+  const cards = galleries.map((s) => {
+    const pieces = piecesByGallery.get(s.id) ?? [];
+    const featured = resolveStatementArtwork(s, pieces);
+    return { series: s, featured };
+  });
 
   return (
     <div>
@@ -29,16 +38,18 @@ export default async function MediumPage() {
 
       <section className="border-t border-line bg-white/35">
         <div className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">
-          {galleries.length === 0 ? (
+          {cards.length === 0 ? (
             <p className="text-center text-sm text-muted">Portfolio galleries will appear here once they are published.</p>
           ) : (
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {galleries.map((s) => (
+              {cards.map(({ series: s, featured }) => (
                 <article key={s.id} className="group border border-line bg-white/40">
                   <Link href={`/art/${s.slug}`} className="focus-ring block">
                     <IntrinsicGalleryImage
-                      src={s.featuredImage}
-                      alt={`${s.title} — featured artwork`}
+                      src={featured.image}
+                      alt={featured.alt}
+                      width={featured.artwork?.imageWidth}
+                      height={featured.artwork?.imageHeight}
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       imageClassName="transition duration-500 group-hover:scale-[1.01]"
                     />

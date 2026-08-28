@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Series } from "@/db";
 import { IntrinsicGalleryImage } from "@/components/IntrinsicGalleryImage";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
-import { getSeriesNeighbors } from "@/lib/queries";
+import { resolveStatementArtwork } from "@/lib/featuredArtwork";
+import { listArtworksForMediumGallery, getSeriesNeighbors } from "@/lib/queries";
 import { artSeriesHref } from "@/lib/routeSlug";
 import { seriesInquiryHref } from "@/lib/seriesInquiry";
 
@@ -12,7 +13,11 @@ type OilColdWaxHubViewProps = {
 };
 
 export async function OilColdWaxHubView({ parent, childSeries }: OilColdWaxHubViewProps) {
-  const { prev, next } = await getSeriesNeighbors(parent.slug);
+  const [{ prev, next }, portfolioPieces] = await Promise.all([
+    getSeriesNeighbors(parent.slug),
+    listArtworksForMediumGallery(parent.id),
+  ]);
+  const statementArtwork = resolveStatementArtwork(parent, portfolioPieces);
 
   return (
     <article>
@@ -29,8 +34,8 @@ export async function OilColdWaxHubView({ parent, childSeries }: OilColdWaxHubVi
       <section className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
         <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
           <IntrinsicGalleryImage
-            src={parent.featuredImage}
-            alt={`${parent.title} — featured artwork`}
+            src={statementArtwork.image}
+            alt={statementArtwork.alt}
             priority
             sizes="(max-width: 1024px) 100vw, 50vw"
             frameClassName="border border-line"

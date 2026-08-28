@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
+import { artSeriesHref } from "@/lib/routeSlug";
 import { SITE_URL } from "@/lib/site";
 import { getResolvedAboutPortrait, getResolvedAboutSection } from "@/lib/aboutPage";
+
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "About Marcy Bergeron-Noa",
@@ -62,6 +66,12 @@ export default async function AboutPage() {
                 priority
               />
             </div>
+            <Link
+              href={artSeriesHref("The Studio")}
+              className="focus-ring mt-6 inline-flex w-full items-center justify-center border border-line bg-transparent px-5 py-3 text-xs tracking-[0.18em] text-ink uppercase transition-colors hover:bg-black/[0.03]"
+            >
+              View The Studio →
+            </Link>
           </div>
           <div className="space-y-12 lg:col-span-7">
             <AboutBlock title={artistStatement.title} content={artistStatement.body} />

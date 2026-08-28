@@ -3,6 +3,8 @@ import Link from "next/link";
 import { submitMailingListSignup } from "@/app/(site)/mailing-list/actions";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
+export const revalidate = 300;
+
 export const metadata: Metadata = {
   title: `Mailing list — ${SITE_NAME}`,
   description: `Join ${SITE_NAME}'s mailing list for studio news, exhibitions, and occasional updates.`,

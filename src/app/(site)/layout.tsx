@@ -1,15 +1,9 @@
 import type { ReactNode } from "react";
-import { AdminSiteBar } from "@/components/AdminSiteBar";
+import { AdminSiteBarGate } from "@/components/AdminSiteBarGate";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
-import { getAdminSession } from "@/lib/auth";
 
-/** Public pages read Turso/SQLite at request time so content updates without a stale static shell from an empty build. */
-export const dynamic = "force-dynamic";
-
-export default async function SiteLayout({ children }: { children: ReactNode }) {
-  const session = await getAdminSession();
-
+export default function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <a
@@ -18,7 +12,7 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
       >
         Skip to content
       </a>
-      {session ? <AdminSiteBar /> : null}
+      <AdminSiteBarGate />
       <SiteHeader />
       <main id="main" className="flex-1">
         {children}

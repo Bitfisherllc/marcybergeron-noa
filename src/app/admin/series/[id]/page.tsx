@@ -2,6 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { reorderArtwork, upsertArtwork, upsertSeries, deleteSeries } from "@/app/admin/actions";
 import { AdminDeleteSeriesForm } from "@/components/AdminDeleteSeriesForm";
+import { AdminFeaturedArtworkField } from "@/components/AdminFeaturedArtworkField";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminGalleryPrivacyPanel } from "@/components/AdminGalleryPrivacyPanel";
 import { AdminLightboxProvider, AdminLightboxThumb, AdminLightboxTrigger } from "@/components/AdminImageLightbox";
@@ -12,7 +13,7 @@ import { AdminDirtySave } from "@/components/AdminSectionSave";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
 import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
-import { getSeriesById, listAdminSeriesMembershipOptions, listArtworksForPublicGallery, listMediumGalleries } from "@/lib/queries";
+import { getSeriesById, listAdminSeriesMembershipOptions, listArtworksForMediumGallery, listArtworksForPublicGallery, listMediumGalleries } from "@/lib/queries";
 
 export default async function EditSeriesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,11 +22,12 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
   const isMediumGallery = isMediumGallerySlug(s.slug);
   const isOilColdWaxChild = isOilColdWaxChildSlug(s.slug);
   const isOilColdWaxHub = isOilColdWaxParentSlug(s.slug);
-  const [arts, mediumGalleries, membershipOptions, deleteImpact] = await Promise.all([
+  const [arts, mediumGalleries, membershipOptions, deleteImpact, statementPieceOptions] = await Promise.all([
     listArtworksForPublicGallery(s),
     listMediumGalleries(),
     listAdminSeriesMembershipOptions(),
     isMediumGallery || isOilColdWaxChild ? Promise.resolve(null) : getSeriesDeleteImpact(s.id),
+    isOilColdWaxHub ? listArtworksForMediumGallery(s.id) : listArtworksForPublicGallery(s),
   ]);
   const oilColdWaxParent = mediumGalleries.find((g) => g.slug === OIL_COLD_WAX_PARENT_SLUG) ?? null;
   const artworkSlides = arts.map((a) => ({
@@ -102,15 +104,25 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
             Sort order
             <input name="sortOrder" defaultValue={String(s.sortOrder)} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
           </label>
-          <AdminFilePicker name="featured" label="Featured image" buttonLabel="Upload image" existingValue={s.featuredImage} />
+          <AdminFilePicker
+            name="featured"
+            label="Portfolio card image"
+            buttonLabel="Upload image"
+            existingValue={s.featuredImage}
+          />
         </div>
+        <AdminFeaturedArtworkField
+          mode={s.featuredArtworkMode}
+          artworkId={s.featuredArtworkId}
+          pieces={statementPieceOptions}
+        />
         <div className="flex items-center gap-4">
-          <AdminLightboxThumb src={s.featuredImage} alt={s.title} caption={`${s.title} — featured image`}>
+          <AdminLightboxThumb src={s.featuredImage} alt={s.title} caption={`${s.title} — portfolio card image`}>
             <div className="relative h-24 w-36 cursor-zoom-in overflow-hidden border border-line bg-black/[0.03]">
               <Image src={s.featuredImage} alt="" fill className="object-cover" />
             </div>
           </AdminLightboxThumb>
-          <p className="text-xs text-muted">Click image to enlarge. Leave file empty to keep the current featured image.</p>
+          <p className="text-xs text-muted">Used on the portfolio overview page. Leave empty to keep the current image.</p>
         </div>
         <AdminDirtySave formId="series-edit" />
       </form>

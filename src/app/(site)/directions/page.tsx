@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { StudioDirectionsLinks, StudioLocationPanel } from "@/components/StudioDirectionsClient";
 import { CONTACT, SITE_URL, STUDIO } from "@/lib/site";
 
+export const revalidate = 300;
+
 export const metadata: Metadata = {
   title: "Directions — Porter Mill Studios",
   description:

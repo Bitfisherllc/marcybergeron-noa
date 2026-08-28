@@ -24,6 +24,11 @@ function extractSizeAndTitle(withoutExt: string): { titlePart: string; sizeRaw: 
     return { titlePart: framedSuffix[1]!.trimEnd(), sizeRaw: framedSuffix[2]! };
   }
 
+  const parenFramed = withoutExt.match(new RegExp(`^(.+?)\\s+(${SIZE_PATTERN})\\s*\\(framed\\)\\s*$`, "i"));
+  if (parenFramed) {
+    return { titlePart: parenFramed[1]!.trimEnd(), sizeRaw: parenFramed[2]! };
+  }
+
   const parenSuffix = withoutExt.match(/\(([^)]*)\)\s*$/);
   if (parenSuffix) {
     const sizes = [...parenSuffix[1]!.matchAll(new RegExp(SIZE_PATTERN, "gi"))];
@@ -35,7 +40,7 @@ function extractSizeAndTitle(withoutExt: string): { titlePart: string; sizeRaw: 
     }
   }
 
-  const sizeMatch = withoutExt.match(new RegExp(`[ \\t-]+(${SIZE_PATTERN})\\s*$`, "i"));
+  const sizeMatch = withoutExt.match(new RegExp(`[ \\t_-]+(${SIZE_PATTERN})_?\\s*$`, "i"));
   if (!sizeMatch) return null;
 
   return {

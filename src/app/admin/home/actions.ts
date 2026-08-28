@@ -1,8 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
+import { CACHE_REVALIDATE_PROFILE, CACHE_TAGS } from "@/lib/cacheConfig";
 import { nanoid } from "nanoid";
 import { readExistingImageField } from "@/lib/resolveAdminImage";
 import { saveUpload } from "@/lib/save-upload";
@@ -56,6 +57,7 @@ export async function saveHomeTextSectionAction(formData: FormData) {
   const db = getDb();
   const t = now();
   await upsertHomeTextSection(db, key as HomeSectionKey, formData, t);
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   redirect(`/admin/home?saved=${encodeURIComponent(key)}`);
 }
@@ -72,6 +74,7 @@ export async function saveHomeFeaturedSeriesAction(formData: FormData) {
         set: { seriesId },
       });
   }
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   redirect("/admin/home?saved=featured_series_picks");
 }
@@ -88,6 +91,7 @@ export async function saveHomeJournalAction(formData: FormData) {
         set: { postId },
       });
   }
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   redirect("/admin/home?saved=journal_picks");
 }
@@ -104,6 +108,7 @@ export async function saveHomeSelectedWorksAction(formData: FormData) {
         set: { artworkId },
       });
   }
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   redirect("/admin/home?saved=selected_works_picks");
 }
@@ -162,6 +167,7 @@ export async function saveHomeAllAction(formData: FormData) {
         set: { artworkId },
       });
   }
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   redirect("/admin/home?saved=1");
 }
@@ -180,6 +186,7 @@ export async function saveHomeSlideshowSlideAction(formData: FormData) {
     .set({ title, subtitle, alt, updatedAt: t })
     .where(eq(homeSlideshow.id, id));
 
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   redirect("/admin/home?saved=slideshow");
 }
@@ -204,6 +211,7 @@ export async function addHomeSlideshowAction(formData: FormData) {
       createdAt: t,
       updatedAt: t,
     });
+    revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
     revalidatePath("/");
     redirect("/admin/home?saved=1");
   } catch (e) {
@@ -236,6 +244,7 @@ export async function addHomeSlideshowFromArtworkAction(formData: FormData) {
     createdAt: t,
     updatedAt: t,
   });
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   redirect("/admin/home?saved=1");
 }
@@ -244,6 +253,7 @@ export async function deleteHomeSlideshowAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) redirect("/admin/home");
   await getDb().delete(homeSlideshow).where(eq(homeSlideshow.id, id));
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   redirect("/admin/home?saved=1");
 }
@@ -270,6 +280,7 @@ export async function reorderHomeSlideshowAction(formData: FormData) {
       .where(eq(homeSlideshow.id, ordered[i]!.id));
   }
 
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   redirect("/admin/home?saved=1");
 }

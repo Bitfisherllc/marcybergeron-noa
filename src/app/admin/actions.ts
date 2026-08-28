@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
@@ -15,11 +15,20 @@ import {
 import { createAdminSession, destroyAdminSession, requireAdminSession, verifyAdminPassword } from "@/lib/auth";
 import { readExistingImageField } from "@/lib/resolveAdminImage";
 import { saveUpload } from "@/lib/save-upload";
+import { CACHE_REVALIDATE_PROFILE, CACHE_TAGS } from "@/lib/cacheConfig";
+import { measureImageBuffer, measureImageSrc } from "@/lib/imageDimensions";
 import { GALLERY_PLACEHOLDER_IMAGE } from "@/lib/galleryDefaults";
+import { parseFeaturedArtworkMode } from "@/lib/featuredArtwork";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
 import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
 import { generatePrivateGalleryAccessToken } from "@/lib/privateGalleries";
-import { getSeriesById, getSeriesBySlug, listArtworksForMediumGallery, listArtworksForSeries } from "@/lib/queries";
+import {
+  getSeriesById,
+  getSeriesBySlug,
+  listArtworksForMediumGallery,
+  listArtworksForPublicGallery,
+  listArtworksForSeries,
+} from "@/lib/queries";
 import {
   getSeriesDeleteImpact,
   reassignArtworksBeforeSeriesDelete,
@@ -66,6 +75,8 @@ async function revalidateArtworkPaths(
   previousMediumSeriesId?: string | null,
   previousPortfolioSeriesIds?: string[],
 ) {
+  revalidateTag(CACHE_TAGS.series, CACHE_REVALIDATE_PROFILE);
+  revalidateTag(CACHE_TAGS.artwork, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   revalidatePath("/medium");
 
@@ -95,12 +106,19 @@ export async function upsertSeries(formData: FormData) {
   const privacyField = formData.get("isPrivate");
   const featured = formData.get("featured") as File | null;
 
+  const featuredArtworkMode = parseFeaturedArtworkMode(String(formData.get("featuredArtworkMode") ?? ""));
+  const featuredArtworkIdRaw = String(formData.get("featuredArtworkId") ?? "").trim();
+
   if (!slug || !title) redirect("/admin/series?error=1");
 
   const db = getDb();
   const existingRow = id
     ? await db
-        .select({ isPrivate: series.isPrivate, accessToken: series.accessToken })
+        .select({
+          isPrivate: series.isPrivate,
+          accessToken: series.accessToken,
+          featuredImage: series.featuredImage,
+        })
         .from(series)
         .where(eq(series.id, id))
         .then((r) => r[0])
@@ -111,7 +129,20 @@ export async function upsertSeries(formData: FormData) {
 
   const uploaded = await saveUpload(featured, slug);
   const existing = readExistingImageField(formData, "featuredExisting");
-  const featuredImage = uploaded || existing || GALLERY_PLACEHOLDER_IMAGE;
+  const featuredImage = uploaded || existing || existingRow?.featuredImage || GALLERY_PLACEHOLDER_IMAGE;
+
+  let featuredArtworkId: string | null = null;
+  if (featuredArtworkMode === "static" && featuredArtworkIdRaw && id) {
+    const ser = await getSeriesById(id);
+    if (ser) {
+      const pieces = isOilColdWaxParentSlug(ser.slug)
+        ? await listArtworksForMediumGallery(ser.id)
+        : await listArtworksForPublicGallery(ser);
+      if (pieces.some((piece) => piece.id === featuredArtworkIdRaw)) {
+        featuredArtworkId = featuredArtworkIdRaw;
+      }
+    }
+  }
 
   let accessToken = existingRow?.accessToken ?? null;
   if (isPrivate && !accessToken) accessToken = generatePrivateGalleryAccessToken();
@@ -126,6 +157,8 @@ export async function upsertSeries(formData: FormData) {
         excerpt,
         content,
         featuredImage,
+        featuredArtworkMode,
+        featuredArtworkId,
         sortOrder,
         isPrivate,
         accessToken,
@@ -141,12 +174,15 @@ export async function upsertSeries(formData: FormData) {
       excerpt,
       content,
       featuredImage,
+      featuredArtworkMode,
+      featuredArtworkId,
       sortOrder,
       isPrivate,
       accessToken,
       createdAt: now(),
       updatedAt: now(),
     });
+    revalidateTag(CACHE_TAGS.series, CACHE_REVALIDATE_PROFILE);
     revalidatePath("/");
     revalidatePath("/medium");
     if (isPrivate) {
@@ -155,6 +191,7 @@ export async function upsertSeries(formData: FormData) {
     }
   }
 
+  revalidateTag(CACHE_TAGS.series, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   revalidatePath("/medium");
   revalidatePath(`/art/${slug}`);
@@ -346,6 +383,32 @@ export async function upsertArtwork(formData: FormData) {
   const image = (await saveUpload(imageFile, assignment.uploadSlug)) || existingImage;
   if (!image) redirect(failRedirect);
 
+  let imageWidth: number | null = null;
+  let imageHeight: number | null = null;
+  if (imageFile && imageFile.size > 0) {
+    const dim = measureImageBuffer(Buffer.from(await imageFile.arrayBuffer()));
+    imageWidth = dim?.width ?? null;
+    imageHeight = dim?.height ?? null;
+  } else if (id) {
+    const priorDims = await db
+      .select({ imageWidth: artwork.imageWidth, imageHeight: artwork.imageHeight, image: artwork.image })
+      .from(artwork)
+      .where(eq(artwork.id, id))
+      .then((r) => r[0]);
+    if (priorDims && priorDims.image === image) {
+      imageWidth = priorDims.imageWidth;
+      imageHeight = priorDims.imageHeight;
+    } else if (image.startsWith("/")) {
+      const dim = await measureImageSrc(image);
+      imageWidth = dim?.width ?? null;
+      imageHeight = dim?.height ?? null;
+    }
+  } else if (image.startsWith("/")) {
+    const dim = await measureImageSrc(image);
+    imageWidth = dim?.width ?? null;
+    imageHeight = dim?.height ?? null;
+  }
+
   const alt = String(formData.get("alt") ?? "").trim() || `${title} — ${[medium, size].filter(Boolean).join(" · ")}`;
   const artworkId = id || nanoid();
   const t = now();
@@ -362,6 +425,8 @@ export async function upsertArtwork(formData: FormData) {
         description,
         image,
         alt,
+        imageWidth,
+        imageHeight,
         status,
         sortOrder,
         mediumSeriesId: assignment.mediumSeriesId,
@@ -380,6 +445,8 @@ export async function upsertArtwork(formData: FormData) {
       description,
       image,
       alt,
+      imageWidth,
+      imageHeight,
       status,
       sortOrder,
       createdAt: t,

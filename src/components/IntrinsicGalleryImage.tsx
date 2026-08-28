@@ -1,16 +1,24 @@
 import Image from "next/image";
-import { getPublicImageDimensions } from "@/lib/imageDimensions";
+import { resolveImageDimensions, type ImageDimensions } from "@/lib/imageDimensions";
 
 type Props = {
   src: string;
   alt: string;
   sizes: string;
   priority?: boolean;
+  /** When known (e.g. from artwork.imageWidth/Height), skips filesystem dimension reads. */
+  width?: number | null;
+  height?: number | null;
   /** Extra classes on the outer frame (e.g. border). */
   frameClassName?: string;
   /** Applied to the image element when dimensions are known (e.g. hover zoom). */
   imageClassName?: string;
 };
+
+function storedFromProps(width?: number | null, height?: number | null): ImageDimensions | null {
+  if (width && height) return { width, height };
+  return null;
+}
 
 /**
  * Gallery images at their natural aspect ratio for local files under `public/`.
@@ -21,6 +29,8 @@ export async function IntrinsicGalleryImage({
   alt,
   sizes,
   priority,
+  width,
+  height,
   frameClassName = "",
   imageClassName = "",
 }: Props) {
@@ -39,7 +49,7 @@ export async function IntrinsicGalleryImage({
     );
   }
 
-  const dim = await getPublicImageDimensions(src);
+  const dim = await resolveImageDimensions(src, storedFromProps(width, height));
   if (dim) {
     return (
       <div className={`overflow-hidden bg-black/[0.03] ${frameClassName}`}>

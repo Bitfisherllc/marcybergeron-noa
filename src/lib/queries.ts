@@ -1,7 +1,10 @@
-import { asc, and, count, desc, eq, inArray, isNotNull, notInArray } from "drizzle-orm";
+import { asc, and, count, desc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 import type { Artwork, Series } from "@/db";
 import { artwork, artworkSeries, mailingListSignup, post, series } from "@/db/schema";
 import { getDb } from "@/db";
+import { CACHE_TAGS, SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
+import { parseFeaturedArtworkMode } from "@/lib/featuredArtwork";
 import { toHeroSlide, type HeroSlide } from "@/lib/heroSlides";
 import { isMediumGallerySlug, MEDIUM_GALLERY_SLUGS, resolveMediumGalleryRow, withMediumGalleryTitle } from "@/lib/mediumGalleries";
 import {
@@ -12,9 +15,14 @@ import {
 } from "@/lib/oilColdWaxSeries";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 
-export async function listSeries() {
+async function listSeriesUncached() {
   return getDb().select().from(series).orderBy(asc(series.sortOrder), asc(series.title));
 }
+
+export const listSeries = unstable_cache(listSeriesUncached, ["list-series"], {
+  revalidate: SITE_REVALIDATE_SECONDS,
+  tags: [CACHE_TAGS.series],
+});
 
 /** Medium landing page galleries, in nav order. */
 export async function listMediumGalleries(): Promise<Series[]> {
@@ -72,6 +80,95 @@ export async function listOilColdWaxChildSeries(): Promise<Series[]> {
     .map((s) => (s.title !== oilColdWaxChildTitle(s.slug) ? { ...s, title: oilColdWaxChildTitle(s.slug) ?? s.title } : s));
 }
 
+/** Paintings across all Oil and Cold Wax child series (hub card / featured picks). */
+export async function listArtworksForOilColdWaxHub(): Promise<Artwork[]> {
+  const children = await listOilColdWaxChildSeries();
+  const childIds = children.map((c) => c.id);
+  if (childIds.length === 0) return [];
+
+  const rows = await getDb()
+    .select({ piece: artwork })
+    .from(artwork)
+    .innerJoin(artworkSeries, eq(artworkSeries.artworkId, artwork.id))
+    .where(inArray(artworkSeries.seriesId, childIds))
+    .orderBy(asc(artwork.sortOrder), asc(artwork.title));
+
+  return rows.map((r) => r.piece);
+}
+
+/** One round trip: artworks per medium gallery for `/medium` card picks. */
+export async function listArtworksGroupedForMediumGalleries(galleries: Series[]): Promise<Map<string, Artwork[]>> {
+  const grouped = new Map<string, Artwork[]>(galleries.map((g) => [g.id, []]));
+  if (galleries.length === 0) return grouped;
+
+  const db = getDb();
+  const staticArtworkIds: string[] = [];
+  const randomMediumIds: string[] = [];
+  let ocwParent: Series | undefined;
+
+  for (const gallery of galleries) {
+    if (isOilColdWaxParentSlug(gallery.slug)) {
+      ocwParent = gallery;
+      continue;
+    }
+    const mode = parseFeaturedArtworkMode(gallery.featuredArtworkMode);
+    if (mode === "static" && gallery.featuredArtworkId) {
+      staticArtworkIds.push(gallery.featuredArtworkId);
+    } else {
+      randomMediumIds.push(gallery.id);
+    }
+  }
+
+  const [staticPieces, randomPieces, ocwPiece] = await Promise.all([
+    staticArtworkIds.length > 0
+      ? db.select().from(artwork).where(inArray(artwork.id, staticArtworkIds))
+      : Promise.resolve([] as Artwork[]),
+    randomMediumIds.length > 0
+      ? db
+          .select()
+          .from(artwork)
+          .where(
+            sql`${artwork.id} IN (
+              SELECT DISTINCT ON (${artwork.mediumSeriesId}) ${artwork.id}
+              FROM ${artwork}
+              WHERE ${artwork.mediumSeriesId} IN ${randomMediumIds}
+              ORDER BY ${artwork.mediumSeriesId}, random()
+            )`,
+          )
+      : Promise.resolve([] as Artwork[]),
+    ocwParent
+      ? db
+          .select({ piece: artwork })
+          .from(artwork)
+          .innerJoin(artworkSeries, eq(artworkSeries.artworkId, artwork.id))
+          .innerJoin(
+            series,
+            and(eq(artworkSeries.seriesId, series.id), inArray(series.slug, [...OIL_COLD_WAX_CHILD_SLUGS])),
+          )
+          .orderBy(sql`random()`)
+          .limit(1)
+          .then((rows) => rows[0]?.piece ?? null)
+      : Promise.resolve(null),
+  ]);
+
+  const staticById = new Map(staticPieces.map((piece) => [piece.id, piece]));
+  for (const gallery of galleries) {
+    if (isOilColdWaxParentSlug(gallery.slug)) continue;
+    const mode = parseFeaturedArtworkMode(gallery.featuredArtworkMode);
+    if (mode === "static" && gallery.featuredArtworkId) {
+      const piece = staticById.get(gallery.featuredArtworkId);
+      if (piece) grouped.set(gallery.id, [piece]);
+      continue;
+    }
+    const piece = randomPieces.find((p) => p.mediumSeriesId === gallery.id);
+    if (piece) grouped.set(gallery.id, [piece]);
+  }
+
+  if (ocwParent && ocwPiece) grouped.set(ocwParent.id, [ocwPiece]);
+
+  return grouped;
+}
+
 export async function getOilColdWaxChildNeighbors(slug: string) {
   const all = await listOilColdWaxChildSeries();
   const idx = all.findIndex((s) => s.slug === slug);
@@ -126,11 +223,26 @@ export async function getSeriesNeighbors(slug: string) {
 
 export async function featuredHomePieces(): Promise<{ series: Series; piece: Artwork }[]> {
   const sers = await listMediumGalleries();
+  const mediumIds = sers.map((s) => s.id);
+  if (mediumIds.length === 0) return [];
+
+  const rows = await getDb()
+    .select()
+    .from(artwork)
+    .where(inArray(artwork.mediumSeriesId, mediumIds))
+    .orderBy(asc(artwork.sortOrder), asc(artwork.title));
+
+  const firstByMedium = new Map<string, Artwork>();
+  for (const piece of rows) {
+    if (piece.mediumSeriesId && !firstByMedium.has(piece.mediumSeriesId)) {
+      firstByMedium.set(piece.mediumSeriesId, piece);
+    }
+  }
+
   const out: { series: Series; piece: Artwork }[] = [];
   for (const s of sers) {
-    const arts = await listArtworksForSeries(s.id);
-    const first = arts[0];
-    if (first) out.push({ series: s, piece: first });
+    const piece = firstByMedium.get(s.id);
+    if (piece) out.push({ series: s, piece });
   }
   return out;
 }
@@ -304,8 +416,10 @@ export async function listAllArtworksWithSeries() {
   });
 }
 
+export type SeriesAdminOverview = Series & { artworkCount: number };
+
 /** Series list for admin with artwork counts per gallery. */
-export async function listSeriesAdminOverview() {
+export async function listSeriesAdminOverview(): Promise<SeriesAdminOverview[]> {
   const rows = await getDb()
     .select({
       id: series.id,
@@ -314,6 +428,8 @@ export async function listSeriesAdminOverview() {
       excerpt: series.excerpt,
       content: series.content,
       featuredImage: series.featuredImage,
+      featuredArtworkMode: series.featuredArtworkMode,
+      featuredArtworkId: series.featuredArtworkId,
       sortOrder: series.sortOrder,
       isPrivate: series.isPrivate,
       accessToken: series.accessToken,
@@ -338,7 +454,10 @@ export async function listSeriesAdminOverview() {
   );
 
   return rows.map((row) => {
-    const withCount = isMediumGallerySlug(row.slug) ? { ...row, artworkCount: mediumMap.get(row.id) ?? 0 } : row;
-    return withMediumGalleryTitle(withCount);
+    const artworkCount = isMediumGallerySlug(row.slug)
+      ? (mediumMap.get(row.id) ?? 0)
+      : Number(row.artworkCount ?? 0);
+    const withCount = { ...row, artworkCount };
+    return withMediumGalleryTitle(withCount) as SeriesAdminOverview;
   });
 }

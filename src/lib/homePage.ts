@@ -24,16 +24,23 @@ export type HomeSectionResolved = {
 };
 
 export async function getResolvedHomeSection(key: HomeSectionKey): Promise<HomeSectionResolved> {
-  const def = HOME_SECTION_DEFAULTS[key];
-  const rows = await getDb().select().from(homeSection).where(eq(homeSection.section, key));
-  const row = rows[0];
-  if (!row) return { ...def };
-  return {
-    eyebrow: row.eyebrow,
-    title: row.title,
-    quote: row.quote,
-    body: row.body,
-  };
+  const sections = await getResolvedHomeSections();
+  return sections[key];
+}
+
+/** All home copy sections in one query (avoids 5 round trips to remote Postgres). */
+export async function getResolvedHomeSections(): Promise<Record<HomeSectionKey, HomeSectionResolved>> {
+  const rows = await getDb().select().from(homeSection);
+  const byKey = new Map(rows.map((r) => [r.section as HomeSectionKey, r]));
+  const out = {} as Record<HomeSectionKey, HomeSectionResolved>;
+  for (const key of HOME_SECTION_KEYS) {
+    const row = byKey.get(key);
+    const def = HOME_SECTION_DEFAULTS[key];
+    out[key] = row
+      ? { eyebrow: row.eyebrow, title: row.title, quote: row.quote, body: row.body }
+      : { ...def };
+  }
+  return out;
 }
 
 export async function getResolvedHeroSlides(): Promise<HeroSlide[]> {

@@ -9,13 +9,15 @@ import { HomeMarkdown } from "@/components/HomeMarkdown";
 import {
   getResolvedFeaturedSeries,
   getResolvedHeroSlides,
-  getResolvedHomeSection,
+  getResolvedHomeSections,
   getResolvedJournalPostsForHome,
   getResolvedSelectedWorks,
 } from "@/lib/homePage";
 import { getAdminSession } from "@/lib/auth";
 import { toHeroSlide } from "@/lib/heroSlides";
 import { getArtworkGalleryMeta, listMediumGalleries } from "@/lib/queries";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Marcy Bergeron-Noa | Abstract Artist Portfolio",
@@ -24,19 +26,17 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [hero, featuredSec, journalSec, artistSec, selectedSec, featuredSeries, journalPostsRaw, selectedPicks, slides, session] =
-    await Promise.all([
-      getResolvedHomeSection("hero"),
-      getResolvedHomeSection("featured_series"),
-      getResolvedHomeSection("journal"),
-      getResolvedHomeSection("artist_words"),
-      getResolvedHomeSection("selected_works"),
-      getResolvedFeaturedSeries(),
-      getResolvedJournalPostsForHome(),
-      getResolvedSelectedWorks(),
-      getResolvedHeroSlides(),
-      getAdminSession(),
-    ]);
+  const [sections, featuredSeries, journalPostsRaw, selectedPicks, slides, session] = await Promise.all([
+    getResolvedHomeSections(),
+    getResolvedFeaturedSeries(),
+    getResolvedJournalPostsForHome(),
+    getResolvedSelectedWorks(),
+    getResolvedHeroSlides(),
+    getAdminSession(),
+  ]);
+
+  const { hero, featured_series: featuredSec, journal: journalSec, artist_words: artistSec, selected_works: selectedSec } =
+    sections;
 
   const [galleryMeta, adminLists] = session
     ? await Promise.all([

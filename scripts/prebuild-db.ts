@@ -53,6 +53,26 @@ function main() {
     process.exit(1);
   }
 
+  try {
+    execSync("npx tsx scripts/migrate-featured-artwork.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] featured artwork column migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
+    execSync("npx tsx scripts/migrate-image-dimensions.ts --columns-only", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] artwork image dimension column migration failed.", e);
+    process.exit(1);
+  }
+
   console.log("[prebuild] Postgres schema push OK.");
 }
 

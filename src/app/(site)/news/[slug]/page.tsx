@@ -7,6 +7,8 @@ import { ProseMarkdown } from "@/components/ProseMarkdown";
 import { getPostBySlug, getPublishedPostNext } from "@/lib/queries";
 import { SITE_URL } from "@/lib/site";
 
+export const revalidate = 300;
+
 export async function generateMetadata({
   params,
 }: {
