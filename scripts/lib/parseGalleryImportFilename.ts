@@ -6,10 +6,48 @@ export type ParsedGalleryImportFilename = {
   extension: string;
 };
 
+const SIZE_PATTERN = String.raw`\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?`;
+
+function parseSortOrder(digits: string, letter?: string): number {
+  const base = Number(digits) * 100;
+  if (!letter) return base;
+  return base + (letter.toLowerCase().charCodeAt(0) - 97 + 1);
+}
+
+function normalizeSizeRaw(raw: string): string {
+  return raw.replace(/\s/g, "").toLowerCase().replace("×", "x");
+}
+
+function extractSizeAndTitle(withoutExt: string): { titlePart: string; sizeRaw: string } | null {
+  const framedSuffix = withoutExt.match(new RegExp(`^(.+?)\\s+(${SIZE_PATTERN})\\s+framed\\s*$`, "i"));
+  if (framedSuffix) {
+    return { titlePart: framedSuffix[1]!.trimEnd(), sizeRaw: framedSuffix[2]! };
+  }
+
+  const parenSuffix = withoutExt.match(/\(([^)]*)\)\s*$/);
+  if (parenSuffix) {
+    const sizes = [...parenSuffix[1]!.matchAll(new RegExp(SIZE_PATTERN, "gi"))];
+    if (sizes.length > 0) {
+      return {
+        titlePart: withoutExt.slice(0, -parenSuffix[0].length).trimEnd(),
+        sizeRaw: sizes[sizes.length - 1]![0],
+      };
+    }
+  }
+
+  const sizeMatch = withoutExt.match(new RegExp(`[ \\t-]+(${SIZE_PATTERN})\\s*$`, "i"));
+  if (!sizeMatch) return null;
+
+  return {
+    titlePart: withoutExt.slice(0, -sizeMatch[0].length).trimEnd(),
+    sizeRaw: sizeMatch[1]!,
+  };
+}
+
 /**
  * `{order}-{title} {width}x{height}.{ext}` — tolerant of common filename quirks:
- * optional dash after order, spaces around ×, extra spaces before the extension.
- * Example: `1-Gut Feeling 24x18.webp`, `17Born in the USA   22x18 .webp`, `16-Headlights 14 x 12.webp`
+ * optional dash after order, letter suffixes (1a, 2b), spaces around ×,
+ * decimal sizes, parenthetical notes (framed, detail, diptych), and `WxH framed`.
  */
 export function parseGalleryImportFilename(filename: string): ParsedGalleryImportFilename | null {
   const base = filename.replace(/^.*[/\\]/, "").trim();
@@ -21,17 +59,21 @@ export function parseGalleryImportFilename(filename: string): ParsedGalleryImpor
   const extension = extMatch[1].toLowerCase() === "jpeg" ? "jpg" : extMatch[1].toLowerCase();
   const withoutExt = base.slice(0, -extMatch[0].length).trimEnd();
 
-  const sizeMatch = withoutExt.match(/\s+(\d+\s*[x×]\s*\d+)\s*$/i);
-  if (!sizeMatch) return null;
+  const extracted = extractSizeAndTitle(withoutExt);
+  if (!extracted) return null;
 
-  const sizeRaw = sizeMatch[1].replace(/\s/g, "").toLowerCase().replace("×", "x");
-  const beforeSize = withoutExt.slice(0, -sizeMatch[0].length).trimEnd();
+  const sizeRaw = normalizeSizeRaw(extracted.sizeRaw);
+  const beforeSize = extracted.titlePart;
 
-  const headMatch = beforeSize.match(/^(\d+)-?\s*(.+)$/);
+  const dashed = beforeSize.match(/^(\d+)([a-z])-(.+)$/i);
+  const legacy = dashed ? null : beforeSize.match(/^(\d+)-?\s*(.+)$/);
+  const headMatch = dashed ?? legacy;
   if (!headMatch) return null;
 
-  const sortOrder = Number(headMatch[1]);
-  const title = headMatch[2].trim();
+  const sortOrder = dashed
+    ? parseSortOrder(dashed[1]!, dashed[2])
+    : parseSortOrder(legacy![1]!, undefined);
+  const title = (dashed ? dashed[3] : legacy![2]).trim().replace(/\s+-+\s*$/, "");
   if (!title || !Number.isFinite(sortOrder)) return null;
 
   return {
@@ -45,7 +87,7 @@ export function parseGalleryImportFilename(filename: string): ParsedGalleryImpor
 
 export function formatGalleryImportSize(raw: string): string {
   const normalized = raw.trim().replace(/\s/g, "").replace("×", "x");
-  const match = normalized.match(/^(\d+)x(\d+)$/i);
+  const match = normalized.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/i);
   if (!match) return raw.trim();
   return `${match[1]}" × ${match[2]}"`;
 }

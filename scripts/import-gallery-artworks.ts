@@ -6,8 +6,8 @@
  *
  * Usage:
  *   npm run import:gallery -- Encaustic
- *   npm run import:gallery -- Encaustic ./import/encaustic
- *   npm run import:gallery -- Encaustic ./import/encaustic --dry-run
+ *   npm run import:gallery -- Encaustic ./import/encaustic-monotypes
+ *   npm run import:gallery -- Encaustic ./import/encaustic-monotypes --dry-run
  */
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -18,17 +18,23 @@ import { artwork } from "@/db/schema";
 import { closeDb, getDb } from "@/db";
 import { captionSubtitle } from "@/components/ArtCaption";
 import { getSeriesBySlug } from "@/lib/queries";
+import {
+  isMediumGallerySlug,
+  MEDIUM_GALLERY_IMPORT_FOLDERS,
+  mediumGalleryImportFolder,
+  type MediumGallerySlug,
+} from "@/lib/mediumGalleries";
 import { uploadFolderForSlug } from "@/lib/save-upload";
 import { parseGalleryImportFilename } from "./lib/parseGalleryImportFilename";
 
 const IMAGE_EXT = new Set([".webp", ".jpg", ".jpeg", ".png", ".gif"]);
 
-const GALLERY_DEFAULTS: Record<string, { folder: string; medium: string }> = {
-  Encaustic: { folder: "encaustic", medium: "Encaustic on board" },
-  "Oil and Cold Wax Medium": { folder: "oil-and-cold-wax-medium", medium: "Oil & cold wax on board" },
-  "Works on Paper": { folder: "works-on-paper", medium: "Works on paper" },
-  "Mixed Medium-Collage": { folder: "collage", medium: "Mixed medium & collage" },
-  Sculpture: { folder: "sculpture", medium: "Sculpture" },
+const GALLERY_DEFAULTS: Record<string, { medium: string }> = {
+  "Oil and Cold Wax": { medium: "Oil & cold wax on board" },
+  "Encaustic Paintings on Panel": { medium: "Encaustic on panel" },
+  "Encaustic Monotypes": { medium: "Encaustic on board" },
+  "Wax Based Collage on Panel": { medium: "Wax based collage on panel" },
+  Sculpture: { medium: "Sculpture" },
 };
 
 type ImportRow = {
@@ -43,8 +49,11 @@ type ImportRow = {
 function usage(): never {
   console.error(`Usage: npm run import:gallery -- <gallery-slug> [folder] [--dry-run] [--medium "Encaustic on board"]
 
-Gallery slug examples: Encaustic, Sculpture, "Works on Paper"
-Default folder: import/<gallery-folder>/
+Gallery slug examples: "Oil and Cold Wax", "Encaustic Monotypes", Sculpture
+Default folders:
+${Object.entries(MEDIUM_GALLERY_IMPORT_FOLDERS)
+  .map(([slug, folder]) => `  ${slug} → import/${folder}/`)
+  .join("\n")}
 
 Filename format: {order}-{title} {width}x{height}.{ext}
 Example: 1-Gut Feeling 24x18.webp`);
@@ -140,7 +149,12 @@ async function main() {
   const galleryDefaults = GALLERY_DEFAULTS[gallerySlug];
   const folder =
     positional[1]?.trim() ??
-    path.join("import", galleryDefaults?.folder ?? gallerySlug.toLowerCase().replace(/\s+/g, "-"));
+    path.join(
+      "import",
+      isMediumGallerySlug(gallerySlug)
+        ? mediumGalleryImportFolder(gallerySlug as MediumGallerySlug)
+        : gallerySlug.toLowerCase().replace(/\s+/g, "-"),
+    );
   const medium = mediumOverride || galleryDefaults?.medium || "";
 
   const gallery = await getSeriesBySlug(gallerySlug);

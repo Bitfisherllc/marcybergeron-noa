@@ -3,7 +3,7 @@ import type { Artwork, Series } from "@/db";
 import { artwork, artworkSeries, mailingListSignup, post, series } from "@/db/schema";
 import { getDb } from "@/db";
 import { toHeroSlide, type HeroSlide } from "@/lib/heroSlides";
-import { isMediumGallerySlug, MEDIUM_GALLERY_SLUGS, withMediumGalleryTitle } from "@/lib/mediumGalleries";
+import { isMediumGallerySlug, MEDIUM_GALLERY_SLUGS, resolveMediumGalleryRow, withMediumGalleryTitle } from "@/lib/mediumGalleries";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 
 export async function listSeries() {
@@ -14,7 +14,7 @@ export async function listSeries() {
 export async function listMediumGalleries(): Promise<Series[]> {
   const all = await listSeries();
   const bySlug = new Map(all.map((s) => [s.slug, s]));
-  return MEDIUM_GALLERY_SLUGS.map((slug) => bySlug.get(slug))
+  return MEDIUM_GALLERY_SLUGS.map((slug) => resolveMediumGalleryRow(slug, bySlug))
     .filter((s): s is Series => Boolean(s))
     .map(withMediumGalleryTitle);
 }

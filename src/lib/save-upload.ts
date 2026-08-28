@@ -2,13 +2,17 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { put } from "@vercel/blob";
 import { nanoid } from "nanoid";
+import { mediumGalleryUploadFolder } from "@/lib/mediumGalleries";
 
 /** Slug-shaped folder under uploads/ (e.g. standing-tall-as-trees). Fallback: admin. */
 export function uploadFolderForSlug(slug: string | undefined): string {
   if ((slug ?? "").trim().toLowerCase() === "home-slideshow") return "home-slideshow";
   if ((slug ?? "").trim().toLowerCase() === "about-portrait") return "about-portrait";
-  const s = (slug ?? "").trim().toLowerCase();
-  if (s && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s)) return s;
+  const s = (slug ?? "").trim();
+  const mediumFolder = mediumGalleryUploadFolder(s);
+  if (mediumFolder) return mediumFolder;
+  const lower = s.toLowerCase();
+  if (lower && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(lower)) return lower;
   return "admin";
 }
 

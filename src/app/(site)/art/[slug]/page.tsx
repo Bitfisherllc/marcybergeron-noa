@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { SeriesGalleryView } from "@/components/SeriesGalleryView";
 import { getAdminSession } from "@/lib/auth";
-import { isMediumGallerySlug } from "@/lib/mediumGalleries";
+import { isMediumGallerySlug, legacyMediumGalleryRedirect } from "@/lib/mediumGalleries";
 import { isAllWorkSlug } from "@/lib/portfolioGalleries";
 import { isPrivateGallery } from "@/lib/privateGalleries";
 import { getSeriesBySlug, listMediumGalleries } from "@/lib/queries";
@@ -27,7 +27,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug: rawSlug } = await params;
-  const slug = normalizeRouteSlug(rawSlug);
+  let slug = normalizeRouteSlug(rawSlug);
+  const legacyTarget = legacyMediumGalleryRedirect(slug);
+  if (legacyTarget) slug = legacyTarget;
   const s = await getSeriesBySlug(slug);
   if (!s || isPrivateGallery(s)) return {};
   return {
@@ -40,6 +42,9 @@ export async function generateMetadata({
 export default async function SeriesPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug: rawSlug } = await params;
   const slug = normalizeRouteSlug(rawSlug);
+  const legacyTarget = legacyMediumGalleryRedirect(slug);
+  if (legacyTarget) redirect(artSeriesHref(legacyTarget));
+
   const s = await getSeriesBySlug(slug);
   if (!s) notFound();
 
