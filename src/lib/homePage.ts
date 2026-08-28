@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { Artwork, Post, Series } from "@/db";
 import {
@@ -11,9 +12,10 @@ import {
   series,
 } from "@/db/schema";
 import { getDb } from "@/db";
+import { CACHE_TAGS, SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
 import { HOME_SECTION_DEFAULTS, HOME_SECTION_KEYS, type HomeSectionKey } from "@/lib/homeDefaults";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
-import { featuredHomePieces, getPrimarySeriesForArtworks, heroHomeSlides, listMediumGalleries, listPublishedPosts, listSeries } from "@/lib/queries";
+import { featuredHomePieces, getPrimarySeriesForArtworks, heroHomeSlides, listMediumGalleries, listPublishedPosts } from "@/lib/queries";
 import { heroSlideAlt, type HeroSlide, toHeroSlide } from "@/lib/heroSlides";
 
 export type HomeSectionResolved = {
@@ -139,12 +141,16 @@ export async function getResolvedSelectedWorks(): Promise<{ series: Series; piec
     const pieces = await db.select().from(artwork).where(inArray(artwork.id, ids));
     const pieceMap = new Map(pieces.map((a) => [a.id, a]));
     const primarySeries = await getPrimarySeriesForArtworks(ids);
+    const mediumIds = [...new Set(pieces.map((p) => p.mediumSeriesId).filter((id): id is string => Boolean(id)))];
+    const mediumRows =
+      mediumIds.length > 0 ? await db.select().from(series).where(inArray(series.id, mediumIds)) : [];
+    const mediumById = new Map(mediumRows.map((s) => [s.id, s]));
     const ordered: { series: Series; piece: Artwork }[] = [];
     for (const id of slots) {
       if (!id) continue;
       const piece = pieceMap.get(id);
       if (!piece) continue;
-      const s = primarySeries.get(id);
+      const s = primarySeries.get(id) ?? (piece.mediumSeriesId ? mediumById.get(piece.mediumSeriesId) : undefined);
       if (s) ordered.push({ series: s, piece });
     }
     if (ordered.length > 0) return ordered.slice(0, 3);
@@ -157,6 +163,23 @@ export async function getResolvedSelectedWorks(): Promise<{ series: Series; piec
   if (fromFeatured.length >= 3) return fromFeatured.slice(0, 3);
   return picks.slice(0, 3);
 }
+
+async function getPublicHomePayloadUncached() {
+  const [sections, featuredSeries, journalPosts, selectedPicks, slides] = await Promise.all([
+    getResolvedHomeSections(),
+    getResolvedFeaturedSeries(),
+    getResolvedJournalPostsForHome(),
+    getResolvedSelectedWorks(),
+    getResolvedHeroSlides(),
+  ]);
+  return { sections, featuredSeries, journalPosts, selectedPicks, slides };
+}
+
+/** Cached home payload so public visitors don't hit Railway on every request. */
+export const getPublicHomePayload = unstable_cache(getPublicHomePayloadUncached, ["public-home-payload"], {
+  revalidate: SITE_REVALIDATE_SECONDS,
+  tags: [CACHE_TAGS.home, CACHE_TAGS.posts, CACHE_TAGS.artwork, CACHE_TAGS.series],
+});
 
 /** Admin: raw section rows for form (empty strings if row exists with blanks). */
 export async function listHomeSectionsForAdmin(): Promise<Record<HomeSectionKey, HomeSectionResolved>> {

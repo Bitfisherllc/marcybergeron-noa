@@ -313,7 +313,8 @@ export default async function AdminHomePage({
         <form id="home-selected-works" action={saveHomeSelectedWorksAction} className="border border-line bg-white/50 p-6">
           <h2 className="font-serif text-xl tracking-tight">Selected works (up to 3)</h2>
           <p className="mt-2 max-w-prose text-sm text-muted">
-            Leave empty to use the first artwork in each of the three featured series (by series order).
+            Choose three paintings from your galleries. Change them anytime — each card on the home page uses the
+            painting you pick here.
           </p>
           <div className="mt-6 grid gap-6 sm:grid-cols-3">
             {[0, 1, 2].map((slot) => (

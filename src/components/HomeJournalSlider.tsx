@@ -14,7 +14,15 @@ export type HomeJournalPost = {
 
 const AUTO_ADVANCE_MS = 6000;
 
-export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
+export function HomeJournalSlider({
+  posts,
+  ariaLabel = "Journal articles",
+  emptyLabel = "Journal",
+}: {
+  posts: HomeJournalPost[];
+  ariaLabel?: string;
+  emptyLabel?: string;
+}) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const programmaticScrollRef = useRef(false);
   const pausedRef = useRef(false);
@@ -167,7 +175,7 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
         className="flex gap-6 overflow-x-auto overflow-y-visible scroll-smooth pb-2 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] snap-x snap-mandatory scroll-ps-5 scroll-pe-8 ps-5 pe-8 [-webkit-overflow-scrolling:touch] md:scroll-ps-8 md:scroll-pe-10 md:ps-8 md:pe-10 [&::-webkit-scrollbar]:hidden"
         role="region"
         aria-roledescription="carousel"
-        aria-label="Journal articles"
+        aria-label={ariaLabel}
       >
         {posts.map((p) => (
           <article
@@ -187,7 +195,7 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-xs tracking-wide text-muted uppercase">
-                    Journal
+                    {emptyLabel}
                   </div>
                 )}
               </div>

@@ -54,8 +54,8 @@ export async function getSeriesById(id: string) {
 
 export async function getSeriesBySlug(slug: string) {
   const normalized = normalizeRouteSlug(slug);
-  const rows = await getDb().select().from(series).where(eq(series.slug, normalized));
-  const row = rows[0];
+  const all = await listSeries();
+  const row = all.find((s) => s.slug === normalized);
   return row ? withMediumGalleryTitle(row) : null;
 }
 
@@ -179,7 +179,7 @@ export async function getOilColdWaxChildNeighbors(slug: string) {
   };
 }
 
-export async function listArtworksForSeries(seriesId: string) {
+async function listArtworksForSeriesUncached(seriesId: string) {
   const rows = await getDb()
     .select({ piece: artwork })
     .from(artwork)
@@ -189,14 +189,25 @@ export async function listArtworksForSeries(seriesId: string) {
   return rows.map((r) => r.piece);
 }
 
-/** Paintings assigned to a Medium nav gallery via `medium_series_id`. */
-export async function listArtworksForMediumGallery(mediumSeriesId: string) {
+export const listArtworksForSeries = unstable_cache(listArtworksForSeriesUncached, ["list-artworks-for-series"], {
+  revalidate: SITE_REVALIDATE_SECONDS,
+  tags: [CACHE_TAGS.artwork],
+});
+
+async function listArtworksForMediumGalleryUncached(mediumSeriesId: string) {
   return getDb()
     .select()
     .from(artwork)
     .where(eq(artwork.mediumSeriesId, mediumSeriesId))
     .orderBy(asc(artwork.sortOrder), asc(artwork.title));
 }
+
+/** Paintings assigned to a Medium nav gallery via `medium_series_id`. */
+export const listArtworksForMediumGallery = unstable_cache(
+  listArtworksForMediumGalleryUncached,
+  ["list-artworks-medium-gallery"],
+  { revalidate: SITE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.artwork] },
+);
 
 export async function listArtworksForPublicGallery(series: Pick<Series, "id" | "slug">) {
   if (isOilColdWaxParentSlug(series.slug)) return [];
@@ -339,13 +350,18 @@ export async function heroHomeSlides(): Promise<HeroSlide[]> {
   return out.slice(0, 7);
 }
 
-export async function listPublishedPosts() {
+async function listPublishedPostsUncached() {
   return getDb()
     .select()
     .from(post)
     .where(eq(post.published, true))
     .orderBy(desc(post.updatedAt));
 }
+
+export const listPublishedPosts = unstable_cache(listPublishedPostsUncached, ["list-published-posts"], {
+  revalidate: SITE_REVALIDATE_SECONDS,
+  tags: [CACHE_TAGS.posts],
+});
 
 /** Next post in journal order (same sequence as `/news`): newer posts first, so "next" is the following row. */
 export async function getPublishedPostNext(slug: string) {
@@ -356,6 +372,9 @@ export async function getPublishedPostNext(slug: string) {
 }
 
 export async function getPostBySlug(slug: string) {
+  const published = await listPublishedPosts();
+  const cached = published.find((p) => p.slug === slug);
+  if (cached) return cached;
   const rows = await getDb().select().from(post).where(eq(post.slug, slug));
   return rows[0] ?? null;
 }

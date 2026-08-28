@@ -34,7 +34,7 @@ type SeriesGalleryViewProps = {
 export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryViewProps) {
   const pieces = await listArtworksForPublicGallery(s);
   const isDeletableGallery = isPrivateGallery(s);
-  const session = await getAdminSession();
+  const session = variant === "private" ? await getAdminSession() : null;
   const galleryMeta = await getArtworkGalleryMeta(pieces.map((p) => p.id));
   const adminLists = session
     ? await Promise.all([listMediumGalleries(), listAdminSeriesMembershipOptions()])

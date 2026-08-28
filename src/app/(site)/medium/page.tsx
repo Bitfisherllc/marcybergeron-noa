@@ -3,9 +3,10 @@ import Link from "next/link";
 import { IntrinsicGalleryImage } from "@/components/IntrinsicGalleryImage";
 import { resolveStatementArtwork } from "@/lib/featuredArtwork";
 import { listArtworksGroupedForMediumGalleries, listMediumGalleries } from "@/lib/queries";
+import { SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
 import { SITE_URL } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+export const revalidate = SITE_REVALIDATE_SECONDS;
 
 export const metadata: Metadata = {
   title: "Portfolio",

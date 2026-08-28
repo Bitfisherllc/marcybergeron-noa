@@ -7,8 +7,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { nanoid } from "nanoid";
-import { asc, eq, sql } from "drizzle-orm";
-import { captionSubtitle } from "../src/components/ArtCaption";
+import { asc, sql } from "drizzle-orm";
 import * as schema from "../src/db/schema";
 import { artwork, artworkSeries, post, series } from "../src/db/schema";
 import type { AppDb } from "../src/db/index";
@@ -441,56 +440,6 @@ async function downloadTo(url: string, destAbs: string) {
   await fs.writeFile(destAbs, buf);
 }
 
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function escapeHtmlText(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function galleryStatusHtml(status: string): string {
-  if (status === "sold") return `<div class="text-xs tracking-wide text-muted">Sold</div>`;
-  if (status === "available") return `<div class="text-xs tracking-wide text-muted">Available</div>`;
-  if (!status || status === "unknown") return "";
-  return `<div class="text-xs tracking-wide text-muted">${escapeHtmlText(status)}</div>`;
-}
-
-type GallerySeedRow = {
-  image: string;
-  alt: string;
-  title: string;
-  medium: string;
-  size: string;
-  year: string;
-  description: string;
-  status: string;
-  seriesTitle: string;
-};
-
-function markdownGallery(rows: GallerySeedRow[]): string {
-  if (rows.length === 0) return "";
-  const figures = rows
-    .map((r) => {
-      const subtitle = captionSubtitle({ medium: r.medium, size: r.size });
-      const excerptBlock = r.description.trim()
-        ? `<div class="mt-3 text-sm leading-relaxed text-muted">${escapeHtmlText(r.description.trim())}</div>`
-        : `<div class="mt-3 text-sm leading-relaxed text-ink/50 italic">Further notes for this piece appear with the full listing under <strong>${escapeHtmlText(r.seriesTitle)}</strong> in the Art section.</div>`;
-      return `<figure class="post-gallery__card border border-line bg-white/30 p-4">
-  <div class="post-gallery__media border border-line">
-    <img class="post-gallery__thumb" src="${escapeAttr(r.image)}" alt="${escapeAttr(r.alt)}" loading="lazy" decoding="async" />
-  </div>
-  <figcaption class="mt-4 max-w-prose space-y-1">
-    <div class="font-serif text-lg font-medium tracking-tight text-ink">${escapeHtmlText(r.title)}</div>
-    <div class="text-sm font-normal leading-relaxed text-muted">${escapeHtmlText(subtitle || "—")}</div>${galleryStatusHtml(r.status) ? `\n    ${galleryStatusHtml(r.status)}` : ""}
-    ${excerptBlock}
-  </figcaption>
-</figure>`;
-    })
-    .join("\n");
-  return `\n\n<div class="post-gallery">\n${figures}\n</div>\n\n`;
-}
-
 type BlogDef = {
   slug: string;
   title: string;
@@ -507,33 +456,14 @@ type BlogDef = {
 
 async function seedPosts(db: AppDb, t: Date) {
   const artRows = await db
-    .select({
-      image: artwork.image,
-      alt: artwork.alt,
-      title: artwork.title,
-      medium: artwork.medium,
-      size: artwork.size,
-      year: artwork.year,
-      description: artwork.description,
-      status: artwork.status,
-      seriesTitle: series.title,
-    })
+    .select({ image: artwork.image })
     .from(artwork)
-    .innerJoin(series, eq(artwork.seriesId, series.id))
-    .orderBy(asc(series.sortOrder), asc(artwork.sortOrder));
+    .orderBy(asc(artwork.sortOrder));
 
   if (artRows.length === 0) {
     console.log("No artwork rows; skipping blog seed.");
     return;
   }
-
-  const pick = (offset: number, count: number): GallerySeedRow[] => {
-    const out: GallerySeedRow[] = [];
-    for (let i = 0; i < count; i++) {
-      out.push(artRows[(offset + i) % artRows.length]!);
-    }
-    return out;
-  };
 
   const exhibitionPosts: BlogDef[] = [
     {
@@ -683,10 +613,7 @@ To inquire about **studio availability** at the building, email [studios.porterm
       slug: p.slug,
       title: p.title,
       excerpt: p.excerpt,
-      content:
-        p.slug === "studio-porter-mill-beverly"
-          ? p.intro
-          : `${p.intro}${markdownGallery(pick(p.galleryOffset ?? 0, 4))}${p.outro ? `\n\n${p.outro}` : ""}`,
+      content: [p.intro, p.outro].filter(Boolean).join("\n\n"),
       featuredImage:
         p.featuredImage ??
         (p.galleryOffset != null ? artRows[p.galleryOffset % artRows.length]!.image : artRows[0]!.image),

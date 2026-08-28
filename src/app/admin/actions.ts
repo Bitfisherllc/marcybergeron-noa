@@ -636,6 +636,8 @@ export async function upsertPost(formData: FormData) {
     });
   }
 
+  revalidateTag(CACHE_TAGS.posts, CACHE_REVALIDATE_PROFILE);
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/news");
   revalidatePath(`/news/${slug}`);
   revalidatePath("/");
@@ -646,6 +648,8 @@ export async function deletePost(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) redirect("/admin/posts");
   await getDb().delete(post).where(eq(post.id, id));
+  revalidateTag(CACHE_TAGS.posts, CACHE_REVALIDATE_PROFILE);
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/news");
   revalidatePath("/");
   redirect("/admin/posts");

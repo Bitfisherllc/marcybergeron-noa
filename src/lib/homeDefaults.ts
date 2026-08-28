@@ -48,6 +48,6 @@ If you are new here, begin with [Wayfinding](/art/wayfinding), then move through
     eyebrow: "",
     title: "Selected works",
     quote: "",
-    body: `Three pieces from the archive—an invitation to look before you choose a doorway. Pick up to three artworks below; if fewer than three are set, remaining slots use the first-listed artwork from each featured series (by series sort order, then artwork order within the series).`,
+    body: "Three paintings from the studio—an invitation to look closely before you choose a doorway. Each piece holds a pause in the larger search: color, mark, and the quiet that lives between layers.",
   },
 };

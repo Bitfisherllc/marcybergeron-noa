@@ -1,24 +1,16 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { AdminArtworkSiteEdit } from "@/components/AdminArtworkSiteEdit";
 import { ArtCaption, captionSubtitle } from "@/components/ArtCaption";
 import { HeroSlideshow } from "@/components/HeroSlideshow";
 import { HomeJournalSlider } from "@/components/HomeJournalSlider";
 import { HomeMarkdown } from "@/components/HomeMarkdown";
-import {
-  getResolvedFeaturedSeries,
-  getResolvedHeroSlides,
-  getResolvedHomeSections,
-  getResolvedJournalPostsForHome,
-  getResolvedSelectedWorks,
-} from "@/lib/homePage";
+import { getPublicHomePayload } from "@/lib/homePage";
 import { postCategoryLine } from "@/lib/postDisplay";
-import { getAdminSession } from "@/lib/auth";
 import { toHeroSlide } from "@/lib/heroSlides";
-import { getArtworkGalleryMeta, listMediumGalleries } from "@/lib/queries";
+import { SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
 
-export const dynamic = "force-dynamic";
+export const revalidate = SITE_REVALIDATE_SECONDS;
 
 export const metadata: Metadata = {
   title: "Marcy Bergeron-Noa | Abstract Artist Portfolio",
@@ -27,23 +19,9 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [sections, featuredSeries, journalPostsRaw, selectedPicks, slides, session] = await Promise.all([
-    getResolvedHomeSections(),
-    getResolvedFeaturedSeries(),
-    getResolvedJournalPostsForHome(),
-    getResolvedSelectedWorks(),
-    getResolvedHeroSlides(),
-    getAdminSession(),
-  ]);
+  const { sections, featuredSeries, journalPosts: journalPostsRaw, selectedPicks, slides } = await getPublicHomePayload();
 
   const { hero, journal: journalSec, artist_words: artistSec, selected_works: selectedSec } = sections;
-
-  const [galleryMeta, adminLists] = session
-    ? await Promise.all([
-        getArtworkGalleryMeta(selectedPicks.map(({ piece }) => piece.id)),
-        listMediumGalleries(),
-      ])
-    : [null, null];
 
   const journalPosts = journalPostsRaw.map((p) => ({
     slug: p.slug,
@@ -175,16 +153,6 @@ export default async function HomePage() {
                 status={piece.status}
                 artworkId={piece.id}
               />
-              {session && adminLists && galleryMeta ? (
-                <AdminArtworkSiteEdit
-                  artworkId={piece.id}
-                  title={piece.title}
-                  mediumSeriesId={piece.mediumSeriesId}
-                  mediumGalleries={adminLists}
-                  status={piece.status}
-                  returnPath="/"
-                />
-              ) : null}
             </figure>
           ))}
         </div>
