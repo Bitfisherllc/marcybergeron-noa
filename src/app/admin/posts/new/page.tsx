@@ -44,6 +44,10 @@ export default function NewPostPage() {
           <input name="published" type="checkbox" className="h-4 w-4" />
           Published
         </label>
+        <label className="flex items-center gap-3 text-sm text-muted">
+          <input name="showDate" type="checkbox" className="h-4 w-4" />
+          Show publish date on site
+        </label>
         <AdminFilePicker name="featured" label="Add image" buttonLabel="Upload image" />
         <div className="flex flex-wrap gap-3">
           <button className={adminBtnPrimary} type="submit">

@@ -283,9 +283,9 @@ export default async function AdminHomePage({
         </form>
 
         <form id="home-journal" action={saveHomeJournalAction} className="border border-line bg-white/50 p-6">
-          <h2 className="font-serif text-xl tracking-tight">Journal carousel (up to 3)</h2>
+          <h2 className="font-serif text-xl tracking-tight">Journal carousel</h2>
           <p className="mt-2 max-w-prose text-sm text-muted">
-            Only published posts appear on the public site. Leave empty to use the three newest published posts.
+            All published posts appear in the home carousel. Optionally pin up to three posts to show first; the rest follow in date order.
           </p>
           <div className="mt-6 grid gap-6 sm:grid-cols-3">
             {[0, 1, 2].map((slot) => (

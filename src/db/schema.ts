@@ -63,6 +63,8 @@ export const post = pgTable("post", {
   content: text("content").notNull(),
   featuredImage: text("featured_image"),
   published: boolean("published").notNull().default(false),
+  /** When true, show the publish date on news listings and the post page. */
+  showDate: boolean("show_date").notNull().default(false),
   publishedAt: timestamp("published_at", { withTimezone: true, mode: "date" }),
   category: text("category").notNull().default("News"),
   tags: text("tags").notNull().default(""),

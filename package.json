@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "predev": "dotenv -e .env.local -- tsx scripts/migrate-private-galleries.ts && dotenv -e .env.local -- tsx scripts/migrate-featured-artwork.ts && dotenv -e .env.local -- tsx scripts/migrate-image-dimensions.ts",
+    "predev": "dotenv -e .env.local -- tsx scripts/migrate-private-galleries.ts && dotenv -e .env.local -- tsx scripts/migrate-featured-artwork.ts && dotenv -e .env.local -- tsx scripts/migrate-image-dimensions.ts && dotenv -e .env.local -- tsx scripts/migrate-post-show-date.ts",
     "dev:turbo": "next dev",
     "prebuild": "dotenv -e .env.local -- tsx scripts/prebuild-db.ts",
     "build": "next build",
@@ -19,6 +19,7 @@
     "db:ensure-oil-cold-wax-series": "dotenv -e .env.local -- tsx scripts/ensure-oil-cold-wax-series.ts",
     "db:ensure-featured-artwork": "dotenv -e .env.local -- tsx scripts/migrate-featured-artwork.ts",
     "db:ensure-image-dimensions": "dotenv -e .env.local -- tsx scripts/migrate-image-dimensions.ts",
+    "db:ensure-post-show-date": "dotenv -e .env.local -- tsx scripts/migrate-post-show-date.ts",
     "db:ensure-private-galleries": "dotenv -e .env.local -- tsx scripts/migrate-private-galleries.ts",
     "import:gallery": "dotenv -e .env.local -- tsx scripts/import-gallery-artworks.ts",
     "optimize:images": "tsx scripts/optimize-large-images.ts",

@@ -96,11 +96,11 @@ async function slotPostIds(): Promise<(string | null)[]> {
 }
 
 export async function getResolvedJournalPostsForHome(): Promise<Post[]> {
+  const all = await listPublishedPosts();
   const slots = await slotPostIds();
   const ids = slots.filter((id): id is string => Boolean(id));
   if (ids.length === 0) {
-    const all = await listPublishedPosts();
-    return all.slice(0, 3);
+    return all;
   }
   const db = getDb();
   const found = await db.select().from(post).where(inArray(post.id, ids));
@@ -112,10 +112,13 @@ export async function getResolvedJournalPostsForHome(): Promise<Post[]> {
     if (p?.published) ordered.push(p);
   }
   if (ordered.length === 0) {
-    const all = await listPublishedPosts();
-    return all.slice(0, 3);
+    return all;
   }
-  return ordered.slice(0, 3);
+  const seen = new Set(ordered.map((p) => p.id));
+  for (const p of all) {
+    if (!seen.has(p.id)) ordered.push(p);
+  }
+  return ordered;
 }
 
 async function slotArtworkIds(): Promise<(string | null)[]> {

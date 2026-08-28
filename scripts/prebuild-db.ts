@@ -73,6 +73,16 @@ function main() {
     process.exit(1);
   }
 
+  try {
+    execSync("npx tsx scripts/migrate-post-show-date.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] post show_date column migration failed.", e);
+    process.exit(1);
+  }
+
   console.log("[prebuild] Postgres schema push OK.");
 }
 

@@ -41,7 +41,7 @@ export async function OilColdWaxHubView({ parent, childSeries }: OilColdWaxHubVi
             frameClassName="border border-line"
           />
           <div className="space-y-8">
-            <h2 className="font-serif text-2xl tracking-tight">Portfolio statement</h2>
+            <h2 className="font-serif text-2xl tracking-tight">Series statement</h2>
             <ProseMarkdown content={parent.content} />
             <div className="border-t border-line pt-8">
               <Link href={seriesInquiryHref(parent.slug)} className="link-quiet text-sm tracking-wide">

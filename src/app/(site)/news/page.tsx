@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { listPublishedPosts } from "@/lib/queries";
+import { postCategoryLine } from "@/lib/postDisplay";
 import { SITE_URL } from "@/lib/site";
 
 export const revalidate = 300;
@@ -11,11 +12,6 @@ export const metadata: Metadata = {
   description: "Exhibitions, studio updates, and announcements from Marcy Bergeron-Noa.",
   alternates: { canonical: `${SITE_URL}/news` },
 };
-
-function formatDate(d: Date | null | undefined) {
-  if (!d) return "";
-  return new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(d);
-}
 
 export default async function NewsIndexPage() {
   const posts = await listPublishedPosts();
@@ -66,7 +62,7 @@ export default async function NewsIndexPage() {
                   </Link>
                   <div className="space-y-4 px-8 py-10 md:col-span-7">
                     <div className="text-xs tracking-[0.18em] text-muted uppercase">
-                      {p.category} · {formatDate(p.publishedAt ?? p.updatedAt)}
+                      {postCategoryLine(p)}
                     </div>
                     <h2 className="font-serif text-3xl tracking-tight">
                       <Link className="hover:underline" href={`/news/${p.slug}`}>

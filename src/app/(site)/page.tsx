@@ -13,6 +13,7 @@ import {
   getResolvedJournalPostsForHome,
   getResolvedSelectedWorks,
 } from "@/lib/homePage";
+import { postCategoryLine } from "@/lib/postDisplay";
 import { getAdminSession } from "@/lib/auth";
 import { toHeroSlide } from "@/lib/heroSlides";
 import { getArtworkGalleryMeta, listMediumGalleries } from "@/lib/queries";
@@ -35,8 +36,7 @@ export default async function HomePage() {
     getAdminSession(),
   ]);
 
-  const { hero, featured_series: featuredSec, journal: journalSec, artist_words: artistSec, selected_works: selectedSec } =
-    sections;
+  const { hero, journal: journalSec, artist_words: artistSec, selected_works: selectedSec } = sections;
 
   const [galleryMeta, adminLists] = session
     ? await Promise.all([
@@ -49,11 +49,8 @@ export default async function HomePage() {
     slug: p.slug,
     title: p.title,
     excerpt: p.excerpt,
-    category: p.category,
+    category: postCategoryLine(p, "short"),
     featuredImage: p.featuredImage,
-    dateLabel: new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "numeric" }).format(
-      p.publishedAt ?? p.updatedAt,
-    ),
   }));
 
   let heroSlides = slides;
@@ -95,38 +92,6 @@ export default async function HomePage() {
           <div className="order-1 md:order-2">
             <HeroSlideshow slides={heroSlides} />
           </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <h2 className="font-serif text-3xl tracking-tight">{featuredSec.title}</h2>
-          <div className="mx-auto mt-5 h-px w-16 bg-line" />
-          <p className="mt-6 text-sm leading-relaxed text-muted">{featuredSec.body}</p>
-        </div>
-        <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {featuredSeries.map((s) => (
-            <article key={s.id} className="group border border-line bg-white/40">
-              <Link href={`/art/${s.slug}`} className="focus-ring block">
-                <div className="relative aspect-[4/3] overflow-hidden bg-black/[0.03]">
-                  <Image
-                    src={s.featuredImage}
-                    alt={`${s.title} — featured artwork`}
-                    fill
-                    className="object-cover transition duration-500 group-hover:scale-[1.02]"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  />
-                </div>
-                <div className="space-y-3 px-6 py-7">
-                  <h3 className="font-serif text-2xl tracking-tight">{s.title}</h3>
-                  <p className="text-sm leading-relaxed text-muted">{s.excerpt}</p>
-                  <span className="inline-flex text-xs tracking-[0.18em] text-ink/70 uppercase">
-                    Enter series →
-                  </span>
-                </div>
-              </Link>
-            </article>
-          ))}
         </div>
       </section>
 

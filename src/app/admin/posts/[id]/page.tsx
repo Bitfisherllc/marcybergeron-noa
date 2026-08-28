@@ -61,6 +61,10 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
           <input name="published" type="checkbox" defaultChecked={p.published} className="h-4 w-4" />
           Published
         </label>
+        <label className="flex items-center gap-3 text-sm text-muted">
+          <input name="showDate" type="checkbox" defaultChecked={p.showDate} className="h-4 w-4" />
+          Show publish date on site
+        </label>
         <AdminFilePicker
           name="featured"
           label="Add image"

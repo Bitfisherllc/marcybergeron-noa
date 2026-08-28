@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { BlogPostGalleryLightbox } from "@/components/BlogPostGalleryLightbox";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
 import { getPostBySlug, getPublishedPostNext } from "@/lib/queries";
+import { formatPostDate } from "@/lib/postDisplay";
 import { SITE_URL } from "@/lib/site";
 
 export const revalidate = 300;
@@ -36,12 +37,11 @@ export default async function NewsPostPage({ params }: { params: Promise<{ slug:
         <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-20">
           <p className="text-xs tracking-[0.22em] text-muted uppercase">{p.category}</p>
           <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{p.title}</h1>
-          <p className="mt-6 max-w-2xl text-sm leading-relaxed text-muted">
-            Published{" "}
-            {new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(
-              p.publishedAt ?? p.updatedAt,
-            )}
-          </p>
+          {p.showDate ? (
+            <p className="mt-6 max-w-2xl text-sm leading-relaxed text-muted">
+              Published {formatPostDate(p.publishedAt ?? p.updatedAt)}
+            </p>
+          ) : null}
         </div>
       </section>
 

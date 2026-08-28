@@ -591,6 +591,7 @@ export async function upsertPost(formData: FormData) {
   const category = String(formData.get("category") ?? "News").trim();
   const tags = String(formData.get("tags") ?? "").trim();
   const published = String(formData.get("published") ?? "") === "on";
+  const showDate = String(formData.get("showDate") ?? "") === "on";
   const featured = formData.get("featured") as File | null;
   const featuredExisting = readExistingImageField(formData, "featuredExisting");
 
@@ -611,6 +612,7 @@ export async function upsertPost(formData: FormData) {
         category,
         tags,
         published,
+        showDate,
         publishedAt,
         featuredImage,
         updatedAt: now(),
@@ -626,6 +628,7 @@ export async function upsertPost(formData: FormData) {
       category,
       tags,
       published,
+      showDate,
       publishedAt,
       featuredImage,
       createdAt: now(),

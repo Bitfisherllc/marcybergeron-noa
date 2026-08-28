@@ -10,11 +10,15 @@ export type HomeJournalPost = {
   excerpt: string;
   category: string;
   featuredImage: string | null;
-  dateLabel: string;
 };
+
+const AUTO_ADVANCE_MS = 6000;
 
 export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const programmaticScrollRef = useRef(false);
+  const pausedRef = useRef(false);
+  const activeRef = useRef(0);
   const [active, setActive] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
 
@@ -32,7 +36,28 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
     return [...el.querySelectorAll<HTMLElement>("[data-journal-card]")];
   }, []);
 
+  const scrollToIndex = useCallback(
+    (index: number) => {
+      const el = scrollerRef.current;
+      const cards = cardElements();
+      const card = cards[index];
+      if (!el || !card) return;
+
+      programmaticScrollRef.current = true;
+      el.scrollTo({
+        left: card.offsetLeft,
+        behavior: reduceMotion ? "auto" : "smooth",
+      });
+      window.setTimeout(() => {
+        programmaticScrollRef.current = false;
+      }, reduceMotion ? 0 : 450);
+    },
+    [cardElements, reduceMotion],
+  );
+
   const syncActiveFromScroll = useCallback(() => {
+    if (programmaticScrollRef.current) return;
+
     const el = scrollerRef.current;
     const cards = cardElements();
     if (!el || cards.length === 0) return;
@@ -49,30 +74,34 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
       }
     }
     setActive(best);
+    activeRef.current = best;
   }, [cardElements]);
-
-  const scrollToIndex = useCallback(
-    (index: number) => {
-      const cards = cardElements();
-      const card = cards[index];
-      if (!card) return;
-
-      card.scrollIntoView({
-        behavior: reduceMotion ? "auto" : "smooth",
-        inline: "start",
-        block: "nearest",
-      });
-      setActive(index);
-    },
-    [cardElements, reduceMotion],
-  );
 
   const goDelta = useCallback(
     (dir: -1 | 1) => {
-      const next = Math.min(posts.length - 1, Math.max(0, active + dir));
+      pausedRef.current = true;
+      window.setTimeout(() => {
+        pausedRef.current = false;
+      }, AUTO_ADVANCE_MS);
+      const next = (activeRef.current + dir + posts.length) % posts.length;
+      activeRef.current = next;
+      setActive(next);
       scrollToIndex(next);
     },
-    [active, posts.length, scrollToIndex],
+    [posts.length, scrollToIndex],
+  );
+
+  const goTo = useCallback(
+    (index: number) => {
+      pausedRef.current = true;
+      window.setTimeout(() => {
+        pausedRef.current = false;
+      }, AUTO_ADVANCE_MS);
+      activeRef.current = index;
+      setActive(index);
+      scrollToIndex(index);
+    },
+    [scrollToIndex],
   );
 
   useEffect(() => {
@@ -90,8 +119,24 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
   }, [posts.length, syncActiveFromScroll]);
 
   useEffect(() => {
+    if (posts.length <= 1 || reduceMotion) return;
+
+    const id = window.setInterval(() => {
+      if (pausedRef.current) return;
+      const next = (activeRef.current + 1) % posts.length;
+      activeRef.current = next;
+      setActive(next);
+      scrollToIndex(next);
+    }, AUTO_ADVANCE_MS);
+
+    return () => window.clearInterval(id);
+  }, [posts.length, reduceMotion, scrollToIndex]);
+
+  useEffect(() => {
     if (posts.length === 0) return;
-    setActive((i) => Math.min(posts.length - 1, i));
+    const clamped = Math.min(posts.length - 1, activeRef.current);
+    activeRef.current = clamped;
+    setActive(clamped);
   }, [posts.length]);
 
   if (posts.length === 0) return null;
@@ -100,10 +145,29 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
   const canScroll = n > 1;
 
   return (
-    <div className="mt-10 min-w-0">
+    <div
+      className="mt-10 min-w-0"
+      onMouseEnter={() => {
+        pausedRef.current = true;
+      }}
+      onMouseLeave={() => {
+        pausedRef.current = false;
+      }}
+      onFocusCapture={() => {
+        pausedRef.current = true;
+      }}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          pausedRef.current = false;
+        }
+      }}
+    >
       <div
         ref={scrollerRef}
         className="flex gap-6 overflow-x-auto overflow-y-visible scroll-smooth pb-2 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] snap-x snap-mandatory scroll-ps-5 scroll-pe-8 ps-5 pe-8 [-webkit-overflow-scrolling:touch] md:scroll-ps-8 md:scroll-pe-10 md:ps-8 md:pe-10 [&::-webkit-scrollbar]:hidden"
+        role="region"
+        aria-roledescription="carousel"
+        aria-label="Journal articles"
       >
         {posts.map((p) => (
           <article
@@ -128,9 +192,7 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
                 )}
               </div>
               <div className="flex flex-1 flex-col gap-3 px-5 py-6">
-                <div className="text-[0.65rem] tracking-[0.2em] text-muted uppercase">
-                  {p.category} · {p.dateLabel}
-                </div>
+                <div className="text-[0.65rem] tracking-[0.2em] text-muted uppercase">{p.category}</div>
                 <h3 className="font-serif text-xl leading-snug tracking-tight text-ink">{p.title}</h3>
                 <p className="line-clamp-3 flex-1 text-sm leading-relaxed text-muted">{p.excerpt}</p>
                 <span className="text-[0.65rem] tracking-[0.18em] text-ink/70 uppercase">Read →</span>
@@ -145,8 +207,7 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
           <button
             type="button"
             onClick={() => goDelta(-1)}
-            disabled={active === 0}
-            className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-line text-ink/55 transition hover:border-ink/25 hover:text-ink disabled:pointer-events-none disabled:opacity-30"
+            className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-line text-ink/55 transition hover:border-ink/25 hover:text-ink"
             aria-label="Previous article"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="-translate-x-px">
@@ -161,7 +222,7 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
                 type="button"
                 aria-label={`Go to article ${i + 1} of ${n}`}
                 aria-current={i === active ? "true" : undefined}
-                onClick={() => scrollToIndex(i)}
+                onClick={() => goTo(i)}
                 className={`h-1.5 rounded-full transition-all duration-300 focus-ring ${
                   i === active ? "w-6 bg-ink" : "w-1.5 bg-ink/20 hover:bg-ink/35"
                 }`}
@@ -172,8 +233,7 @@ export function HomeJournalSlider({ posts }: { posts: HomeJournalPost[] }) {
           <button
             type="button"
             onClick={() => goDelta(1)}
-            disabled={active === n - 1}
-            className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-line text-ink/55 transition hover:border-ink/25 hover:text-ink disabled:pointer-events-none disabled:opacity-30"
+            className="focus-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-line text-ink/55 transition hover:border-ink/25 hover:text-ink"
             aria-label="Next article"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="translate-x-px">
