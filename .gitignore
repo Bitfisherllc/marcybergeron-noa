@@ -33,6 +33,10 @@ yarn-error.log*
 # sqlite (local only; production uses Turso — see .env.example)
 /data/
 
+# local bulk-import staging (image files stay on your machine)
+/import/**/*
+!/import/README.md
+
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
