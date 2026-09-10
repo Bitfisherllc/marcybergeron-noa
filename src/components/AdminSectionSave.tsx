@@ -58,13 +58,18 @@ export function AdminDirtySave({ formId }: { formId: string }) {
     if (!form) return;
 
     const initial = getFormSnapshot(form);
-    const check = () => setDirty(!snapshotsEqual(initial, getFormSnapshot(form)));
 
-    form.addEventListener("input", check);
-    form.addEventListener("change", check);
+    const onMaybeDirty = () => {
+      requestAnimationFrame(() => {
+        setDirty(!snapshotsEqual(initial, getFormSnapshot(form)));
+      });
+    };
+
+    form.addEventListener("input", onMaybeDirty);
+    form.addEventListener("change", onMaybeDirty);
     return () => {
-      form.removeEventListener("input", check);
-      form.removeEventListener("change", check);
+      form.removeEventListener("input", onMaybeDirty);
+      form.removeEventListener("change", onMaybeDirty);
     };
   }, [formId]);
 

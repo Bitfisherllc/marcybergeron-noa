@@ -1,15 +1,20 @@
 import { asc, and, count, desc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import type { Artwork, Series } from "@/db";
-import { artwork, artworkSeries, mailingListSignup, post, series } from "@/db/schema";
+import { artwork, artworkSeries, mailingListSignup, post, postCategory, postGalleryImage, series, seriesHeroSlide } from "@/db/schema";
 import { getDb } from "@/db";
 import { CACHE_TAGS, SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
-import { parseFeaturedArtworkMode } from "@/lib/featuredArtwork";
+import { parseFeaturedArtworkMode, type HeroSlideshowSlot } from "@/lib/featuredArtwork";
 import { toHeroSlide, type HeroSlide } from "@/lib/heroSlides";
-import { isMediumGallerySlug, MEDIUM_GALLERY_SLUGS, resolveMediumGalleryRow, withMediumGalleryTitle } from "@/lib/mediumGalleries";
+import {
+  isMediumGallerySlug,
+  MEDIUM_GALLERY_SLUGS,
+  publicPortfolioGalleries,
+  resolveMediumGalleryRow,
+  withMediumGalleryTitle,
+} from "@/lib/mediumGalleries";
 import {
   isOilColdWaxChildSlug,
-  isOilColdWaxParentSlug,
   OIL_COLD_WAX_CHILD_SLUGS,
   oilColdWaxChildTitle,
 } from "@/lib/oilColdWaxSeries";
@@ -80,21 +85,8 @@ export async function listOilColdWaxChildSeries(): Promise<Series[]> {
     .map((s) => (s.title !== oilColdWaxChildTitle(s.slug) ? { ...s, title: oilColdWaxChildTitle(s.slug) ?? s.title } : s));
 }
 
-/** Paintings across all Oil and Cold Wax child series (hub card / featured picks). */
-export async function listArtworksForOilColdWaxHub(): Promise<Artwork[]> {
-  const children = await listOilColdWaxChildSeries();
-  const childIds = children.map((c) => c.id);
-  if (childIds.length === 0) return [];
-
-  const rows = await getDb()
-    .select({ piece: artwork })
-    .from(artwork)
-    .innerJoin(artworkSeries, eq(artworkSeries.artworkId, artwork.id))
-    .where(inArray(artworkSeries.seriesId, childIds))
-    .orderBy(asc(artwork.sortOrder), asc(artwork.title));
-
-  return rows.map((r) => r.piece);
-}
+/** Series tab galleries, in display order. */
+export const listSeriesGalleries = listOilColdWaxChildSeries;
 
 /** One round trip: artworks per medium gallery for `/medium` card picks. */
 export async function listArtworksGroupedForMediumGalleries(galleries: Series[]): Promise<Map<string, Artwork[]>> {
@@ -104,13 +96,8 @@ export async function listArtworksGroupedForMediumGalleries(galleries: Series[])
   const db = getDb();
   const staticArtworkIds: string[] = [];
   const randomMediumIds: string[] = [];
-  let ocwParent: Series | undefined;
 
   for (const gallery of galleries) {
-    if (isOilColdWaxParentSlug(gallery.slug)) {
-      ocwParent = gallery;
-      continue;
-    }
     const mode = parseFeaturedArtworkMode(gallery.featuredArtworkMode);
     if (mode === "static" && gallery.featuredArtworkId) {
       staticArtworkIds.push(gallery.featuredArtworkId);
@@ -119,7 +106,7 @@ export async function listArtworksGroupedForMediumGalleries(galleries: Series[])
     }
   }
 
-  const [staticPieces, randomPieces, ocwPiece] = await Promise.all([
+  const [staticPieces, randomPieces] = await Promise.all([
     staticArtworkIds.length > 0
       ? db.select().from(artwork).where(inArray(artwork.id, staticArtworkIds))
       : Promise.resolve([] as Artwork[]),
@@ -136,24 +123,10 @@ export async function listArtworksGroupedForMediumGalleries(galleries: Series[])
             )`,
           )
       : Promise.resolve([] as Artwork[]),
-    ocwParent
-      ? db
-          .select({ piece: artwork })
-          .from(artwork)
-          .innerJoin(artworkSeries, eq(artworkSeries.artworkId, artwork.id))
-          .innerJoin(
-            series,
-            and(eq(artworkSeries.seriesId, series.id), inArray(series.slug, [...OIL_COLD_WAX_CHILD_SLUGS])),
-          )
-          .orderBy(sql`random()`)
-          .limit(1)
-          .then((rows) => rows[0]?.piece ?? null)
-      : Promise.resolve(null),
   ]);
 
   const staticById = new Map(staticPieces.map((piece) => [piece.id, piece]));
   for (const gallery of galleries) {
-    if (isOilColdWaxParentSlug(gallery.slug)) continue;
     const mode = parseFeaturedArtworkMode(gallery.featuredArtworkMode);
     if (mode === "static" && gallery.featuredArtworkId) {
       const piece = staticById.get(gallery.featuredArtworkId);
@@ -163,8 +136,6 @@ export async function listArtworksGroupedForMediumGalleries(galleries: Series[])
     const piece = randomPieces.find((p) => p.mediumSeriesId === gallery.id);
     if (piece) grouped.set(gallery.id, [piece]);
   }
-
-  if (ocwParent && ocwPiece) grouped.set(ocwParent.id, [ocwPiece]);
 
   return grouped;
 }
@@ -205,15 +176,34 @@ async function listArtworksForMediumGalleryUncached(mediumSeriesId: string) {
 /** Paintings assigned to a Medium nav gallery via `medium_series_id`. */
 export const listArtworksForMediumGallery = unstable_cache(
   listArtworksForMediumGalleryUncached,
-  ["list-artworks-medium-gallery"],
+  ["list-artworks-medium-gallery", "v2"],
   { revalidate: SITE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.artwork] },
 );
 
 export async function listArtworksForPublicGallery(series: Pick<Series, "id" | "slug">) {
-  if (isOilColdWaxParentSlug(series.slug)) return [];
   if (isOilColdWaxChildSlug(series.slug)) return listArtworksForSeries(series.id);
   if (isMediumGallerySlug(series.slug)) return listArtworksForMediumGallery(series.id);
   return listArtworksForSeries(series.id);
+}
+
+/** Paintings available for the gallery-page slideshow and listing-card pick. */
+export async function listArtworksForHeroPicks(series: Pick<Series, "id" | "slug">) {
+  return listArtworksForPublicGallery(series);
+}
+
+export async function listHeroSlideshowSlots(seriesId: string): Promise<HeroSlideshowSlot[]> {
+  const rows = await getDb()
+    .select({
+      artworkId: seriesHeroSlide.artworkId,
+      image: seriesHeroSlide.image,
+    })
+    .from(seriesHeroSlide)
+    .where(eq(seriesHeroSlide.seriesId, seriesId))
+    .orderBy(asc(seriesHeroSlide.slot));
+  return rows.map((row) => ({
+    artworkId: row.artworkId,
+    image: row.image,
+  }));
 }
 
 export async function getArtwork(id: string) {
@@ -223,7 +213,7 @@ export async function getArtwork(id: string) {
 
 export async function getSeriesNeighbors(slug: string) {
   const normalized = normalizeRouteSlug(slug);
-  const all = await listMediumGalleries();
+  const all = publicPortfolioGalleries(await listMediumGalleries());
   const idx = all.findIndex((s) => s.slug === normalized);
   if (idx === -1) return { prev: null as null | (typeof all)[number], next: null as null | (typeof all)[number] };
   return {
@@ -358,7 +348,7 @@ async function listPublishedPostsUncached() {
     .orderBy(desc(post.updatedAt));
 }
 
-export const listPublishedPosts = unstable_cache(listPublishedPostsUncached, ["list-published-posts"], {
+export const listPublishedPosts = unstable_cache(listPublishedPostsUncached, ["list-published-posts", "v2"], {
   revalidate: SITE_REVALIDATE_SECONDS,
   tags: [CACHE_TAGS.posts],
 });
@@ -379,6 +369,18 @@ export async function getPostBySlug(slug: string) {
   return rows[0] ?? null;
 }
 
+export async function listPostGalleryImages(postId: string) {
+  return getDb()
+    .select()
+    .from(postGalleryImage)
+    .where(eq(postGalleryImage.postId, postId))
+    .orderBy(asc(postGalleryImage.sortOrder), asc(postGalleryImage.createdAt));
+}
+
+export async function listPostCategories() {
+  return getDb().select().from(postCategory).orderBy(asc(postCategory.sortOrder), asc(postCategory.name));
+}
+
 export async function listAllPostsAdmin() {
   return getDb().select().from(post).orderBy(desc(post.updatedAt));
 }
@@ -393,12 +395,13 @@ export { listContactMessages } from "@/lib/contactMessages";
 export async function listArtworksWithSeriesForPicker() {
   const rows = await listAllArtworksWithSeries();
   const seen = new Set<string>();
-  const out: { id: string; label: string; image: string; alt: string }[] = [];
+  const out: { id: string; title: string; label: string; image: string; alt: string }[] = [];
   for (const { piece, ser } of rows) {
     if (seen.has(piece.id)) continue;
     seen.add(piece.id);
     out.push({
       id: piece.id,
+      title: piece.title,
       label: `${piece.title} — ${ser.title}`,
       image: piece.image,
       alt: piece.alt,

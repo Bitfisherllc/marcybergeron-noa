@@ -33,7 +33,7 @@ export function AdminArtworkSiteEdit({
       <form id={formId} action={updateArtworkMembershipFromSite} className="space-y-4 border-t border-line pt-4">
         <input type="hidden" name="id" value={artworkId} />
         <input type="hidden" name="returnPath" value={returnPath} />
-        <AdminMediumGalleryField galleries={mediumGalleries} value={mediumSeriesId} />
+        <AdminMediumGalleryField galleries={mediumGalleries} value={mediumSeriesId} required={false} />
         <label className="block text-sm text-muted">
           Status
           <select

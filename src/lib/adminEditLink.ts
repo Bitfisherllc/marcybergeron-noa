@@ -20,7 +20,7 @@ export async function resolveAdminEditTarget(pathname: string): Promise<AdminEdi
 
   if (path === "/") return { href: "/admin/home", label: "Edit home page" };
   if (path === "/about") return { href: "/admin/about", label: "Edit about page" };
-  if (path === "/art" || path === "/art/all-work" || path === "/medium") {
+  if (path === "/art" || path === "/art/all-work" || path === "/medium" || path === "/series") {
     return { href: "/admin/series", label: "Edit galleries" };
   }
   if (path === "/news") return { href: "/admin/posts", label: "Edit posts" };

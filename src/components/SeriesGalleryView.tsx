@@ -7,20 +7,23 @@ import { ArtworkGalleryCaption } from "@/components/ArtworkGalleryCaption";
 import { GalleryLightboxProvider, GalleryLightboxTrigger } from "@/components/GalleryLightbox";
 import { IntrinsicGalleryImage } from "@/components/IntrinsicGalleryImage";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
+import { StatementSlideshow } from "@/components/StatementSlideshow";
+import { StaggeredCardGrid } from "@/components/StaggeredCardGrid";
 import { getAdminSession } from "@/lib/auth";
-import { resolveStatementArtwork } from "@/lib/featuredArtwork";
-import { slideFromArtwork, slideFromArtworkCached, slideFromSeriesHero } from "@/lib/gallerySlides";
+import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
+import { slideFromArtwork, slideFromArtworkCached, slideFromSeriesHero, type GallerySlide } from "@/lib/gallerySlides";
 import { artworkStoredDimensions } from "@/lib/imageDimensions";
-import { isMediumGallerySlug } from "@/lib/mediumGalleries";
-import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
+import { isMediumGallerySlug, isStudioGallerySlug } from "@/lib/mediumGalleries";
+import { isOilColdWaxChildSlug, SERIES_INDEX_HREF } from "@/lib/oilColdWaxSeries";
 import { isPrivateGallery } from "@/lib/privateGalleries";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
 import {
   getArtworkGalleryMeta,
   getOilColdWaxChildNeighbors,
   getSeriesNeighbors,
-  listArtworksForPublicGallery,
   listAdminSeriesMembershipOptions,
+  listArtworksForPublicGallery,
+  listHeroSlideshowSlots,
   listMediumGalleries,
 } from "@/lib/queries";
 import { artSeriesHref } from "@/lib/routeSlug";
@@ -32,7 +35,10 @@ type SeriesGalleryViewProps = {
 };
 
 export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryViewProps) {
-  const pieces = await listArtworksForPublicGallery(s);
+  const [pieces, heroSlots] = await Promise.all([
+    listArtworksForPublicGallery(s),
+    listHeroSlideshowSlots(s.id),
+  ]);
   const isDeletableGallery = isPrivateGallery(s);
   const session = variant === "private" ? await getAdminSession() : null;
   const galleryMeta = await getArtworkGalleryMeta(pieces.map((p) => p.id));
@@ -40,56 +46,78 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
     ? await Promise.all([listMediumGalleries(), listAdminSeriesMembershipOptions()])
     : null;
   const isChildSeries = isOilColdWaxChildSlug(s.slug);
+  const isStudioGallery = isStudioGallerySlug(s.slug);
   const deleteImpact = session && isDeletableGallery ? await getSeriesDeleteImpact(s.id) : null;
   const { prev, next } =
     variant === "public"
       ? isChildSeries
         ? await getOilColdWaxChildNeighbors(s.slug)
-        : isMediumGallerySlug(s.slug) && !isOilColdWaxParentSlug(s.slug)
+        : isMediumGallerySlug(s.slug)
           ? await getSeriesNeighbors(s.slug)
           : { prev: null, next: null }
       : { prev: null, next: null };
   const returnPath = variant === "private" && s.accessToken ? `/private/${s.accessToken}` : artSeriesHref(s.slug);
 
-  const statementArtwork = resolveStatementArtwork(s, pieces);
-  const heroMeta = statementArtwork.artwork ? galleryMeta.get(statementArtwork.artwork.id) : null;
-  const heroSlide = statementArtwork.artwork
-    ? artworkStoredDimensions(statementArtwork.artwork)
-      ? slideFromArtworkCached(statementArtwork.artwork, {
-          portfolioSeries: heroMeta?.portfolioSeries ?? [],
-          mediumGallery: heroMeta?.mediumSeries ?? null,
-        })
-      : await slideFromArtwork(statementArtwork.artwork, {
-          portfolioSeries: heroMeta?.portfolioSeries ?? [],
-          mediumGallery: heroMeta?.mediumSeries ?? null,
-        })
-    : await slideFromSeriesHero(s, { subtitle: "Featured work" });
-  const pieceSlides = await Promise.all(
-    pieces.map((p) => {
-      const meta = galleryMeta.get(p.id);
-      const slideMeta = {
-        portfolioSeries: meta?.portfolioSeries ?? [],
-        mediumGallery: meta?.mediumSeries ?? null,
-      };
-      if (artworkStoredDimensions(p)) return slideFromArtworkCached(p, slideMeta);
-      return slideFromArtwork(p, slideMeta);
-    }),
-  );
-  const lightboxSlides = [heroSlide, ...pieceSlides];
+  const heroResolved = resolveInteriorHeroSlides(s, pieces, heroSlots);
+  const lightboxByArtworkId = new Map<string, number>();
+  const lightboxSlides: GallerySlide[] = [];
+  const heroLightboxIndex: number[] = [];
+  const pushArtworkSlide = async (piece: (typeof pieces)[number]) => {
+    if (lightboxByArtworkId.has(piece.id)) return;
+    const meta = galleryMeta.get(piece.id);
+    const slideMeta = {
+      portfolioSeries: meta?.portfolioSeries ?? [],
+      mediumGallery: meta?.mediumSeries ?? null,
+    };
+    const slide = artworkStoredDimensions(piece)
+      ? slideFromArtworkCached(piece, slideMeta)
+      : await slideFromArtwork(piece, slideMeta);
+    lightboxByArtworkId.set(piece.id, lightboxSlides.length);
+    lightboxSlides.push(slide);
+  };
+  for (const [slot, hero] of heroResolved.entries()) {
+    if (hero.artwork) {
+      await pushArtworkSlide(hero.artwork);
+      heroLightboxIndex.push(lightboxByArtworkId.get(hero.artwork.id) ?? 0);
+    } else {
+      heroLightboxIndex.push(lightboxSlides.length);
+      lightboxSlides.push(await slideFromSeriesHero(s, { subtitle: "Featured work", image: hero.image, slot }));
+    }
+  }
+  for (const piece of pieces) {
+    await pushArtworkSlide(piece);
+  }
+  const slideshowSlides = heroResolved.map((hero, i) => {
+    const standalone = hero.artwork ? null : lightboxSlides[heroLightboxIndex[i] ?? -1];
+    return {
+      src: hero.image,
+      alt: hero.alt,
+      title: hero.title,
+      width: hero.artwork?.imageWidth ?? standalone?.width,
+      height: hero.artwork?.imageHeight ?? standalone?.height,
+      lightboxIndex: heroLightboxIndex[i] ?? 0,
+    };
+  });
 
   return (
     <article>
       <header className="border-b border-line">
         <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
           <p className="text-xs tracking-[0.22em] text-muted uppercase">
-            {variant === "private" ? "Private gallery" : isChildSeries ? "Oil and Cold Wax" : "Portfolio"}
+            {variant === "private"
+              ? "Private gallery"
+              : isChildSeries
+                ? "Series"
+                : isStudioGallery
+                  ? "Studio"
+                  : "Portfolio"}
           </p>
           <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
           <p className="mt-6 max-w-3xl text-base leading-relaxed text-muted">{s.excerpt}</p>
           {isChildSeries ? (
             <p className="mt-4">
-              <Link href={artSeriesHref(OIL_COLD_WAX_PARENT_SLUG)} className="link-quiet text-sm tracking-wide">
-                ← All Oil and Cold Wax series
+              <Link href={SERIES_INDEX_HREF} className="link-quiet text-sm tracking-wide">
+                ← All series
               </Link>
             </p>
           ) : null}
@@ -104,23 +132,10 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       <GalleryLightboxProvider slides={lightboxSlides}>
         <section className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
           <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
-            <GalleryLightboxTrigger
-              index={0}
-              label={`Enlarge featured image: ${statementArtwork.title}`}
-            >
-              <IntrinsicGalleryImage
-                src={statementArtwork.image}
-                alt={statementArtwork.alt}
-                width={statementArtwork.artwork?.imageWidth}
-                height={statementArtwork.artwork?.imageHeight}
-                priority
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                frameClassName="border border-line"
-              />
-            </GalleryLightboxTrigger>
+            <StatementSlideshow slides={slideshowSlides} />
             <div className="space-y-8">
               <h2 className="font-serif text-2xl tracking-tight">
-                {isChildSeries ? "Series statement" : "Portfolio statement"}
+                {isChildSeries ? "Series statement" : "About"}
               </h2>
               <ProseMarkdown content={s.content} />
               <div className="border-t border-line pt-8">
@@ -134,22 +149,25 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
 
         <section className="border-t border-line bg-white/35">
           <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
-            <h2 className="font-serif text-3xl tracking-tight">Gallery</h2>
+            <h2 className="font-serif text-3xl tracking-tight">{s.title}</h2>
             <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
               Click an image to view it larger. Captions appear beneath each thumbnail and in the lightbox.
             </p>
-            <div className="mt-12 grid gap-12 sm:grid-cols-2 sm:items-start">
-              {pieces.map((p, i) => {
+            <StaggeredCardGrid className="mt-12">
+              {pieces.map((p) => {
                 const meta = galleryMeta.get(p.id);
                 return (
                   <figure key={p.id} className="border border-line bg-white/30 p-4">
-                    <GalleryLightboxTrigger index={i + 1} label={`Enlarge: ${p.title}`}>
+                    <GalleryLightboxTrigger
+                      index={lightboxByArtworkId.get(p.id) ?? 0}
+                      label={`Enlarge: ${p.title}`}
+                    >
                       <IntrinsicGalleryImage
                         src={p.image}
                         alt={p.alt}
                         width={p.imageWidth}
                         height={p.imageHeight}
-                        sizes="(max-width: 768px) 100vw, 50vw"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       />
                     </GalleryLightboxTrigger>
                     <ArtworkGalleryCaption
@@ -175,12 +193,12 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                   </figure>
                 );
               })}
-            </div>
+            </StaggeredCardGrid>
           </div>
         </section>
       </GalleryLightboxProvider>
 
-      {variant === "public" ? (
+      {variant === "public" && (prev || next) ? (
         <nav className="border-t border-line" aria-label="Series pagination">
           <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-10 text-sm text-muted md:flex-row md:items-center md:justify-between md:px-8">
             <div>
@@ -233,11 +251,12 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
         <section className="border-t border-line">
           <div className="mx-auto max-w-6xl px-5 py-10 md:px-8">
             {isChildSeries ? (
-              <Link
-                href={artSeriesHref(OIL_COLD_WAX_PARENT_SLUG)}
-                className="text-sm tracking-wide text-muted hover:text-ink"
-              >
-                ← Back to Oil and Cold Wax
+              <Link href={SERIES_INDEX_HREF} className="text-sm tracking-wide text-muted hover:text-ink">
+                ← Back to series
+              </Link>
+            ) : isStudioGallery ? (
+              <Link href="/about" className="text-sm tracking-wide text-muted hover:text-ink">
+                ← Back to About
               </Link>
             ) : (
               <Link href="/medium" className="text-sm tracking-wide text-muted hover:text-ink">

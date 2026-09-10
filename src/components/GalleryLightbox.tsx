@@ -117,17 +117,19 @@ export function GalleryLightboxTrigger({
   index,
   children,
   label = "Enlarge image",
+  className = "",
 }: {
   index: number;
   children: React.ReactNode;
   label?: string;
+  className?: string;
 }) {
   const { open } = useGalleryLightbox();
   return (
     <div
       role="button"
       tabIndex={0}
-      className="cursor-zoom-in focus-ring rounded-sm outline-offset-2"
+      className={`cursor-zoom-in focus-ring rounded-sm outline-offset-2 ${className}`}
       aria-label={label}
       onClick={() => open(index)}
       onKeyDown={(e) => {

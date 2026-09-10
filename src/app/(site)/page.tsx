@@ -104,6 +104,14 @@ export default async function HomePage() {
             />
             <h2 className="font-serif text-3xl tracking-tight">{artistSec.title}</h2>
             <div className="mt-5 h-px w-16 bg-line" />
+            <div className="mt-8">
+              <Link
+                href="/about"
+                className="inline-flex items-center border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90 focus-ring"
+              >
+                About Marcy
+              </Link>
+            </div>
           </div>
           <blockquote className="space-y-6">
             {artistSec.quote ? (

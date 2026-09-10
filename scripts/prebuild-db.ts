@@ -83,6 +83,46 @@ function main() {
     process.exit(1);
   }
 
+  try {
+    execSync("npx tsx scripts/migrate-post-gallery.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] post gallery table migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
+    execSync("npx tsx scripts/migrate-post-categories.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] post category table migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
+    execSync("npx tsx scripts/migrate-series-hero-slides.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] series hero slideshow table migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
+    execSync("npx tsx scripts/migrate-ocw-gallery-images.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] Oil and Cold Wax gallery image assignment failed.", e);
+    process.exit(1);
+  }
+
   console.log("[prebuild] Postgres schema push OK.");
 }
 

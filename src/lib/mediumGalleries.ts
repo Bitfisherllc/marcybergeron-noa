@@ -82,11 +82,29 @@ export function isMediumGallerySlug(slug: string): slug is MediumGallerySlug {
   return mediumSlugSet.has(slug);
 }
 
+export const STUDIO_GALLERY_SLUG: MediumGallerySlug = "The Studio";
+
+export function isStudioGallerySlug(slug: string): boolean {
+  return slug === STUDIO_GALLERY_SLUG;
+}
+
+/** Galleries shown on /medium and in the Portfolio menu — The Studio lives under About instead. */
+export function publicPortfolioGalleries<T extends { slug: string }>(galleries: T[]): T[] {
+  return galleries.filter((s) => !isStudioGallerySlug(s.slug));
+}
+
 /** @deprecated alias — portfolio nav uses medium gallery rows. */
 export const isPortfolioGallerySlug = isMediumGallerySlug;
 
 export function portfolioNavDropdownItems(galleries: Series[]): { href: string; label: string }[] {
-  return galleries.map((s) => ({ href: artSeriesHref(s.slug), label: s.title }));
+  return publicPortfolioGalleries(galleries).map((s) => ({ href: artSeriesHref(s.slug), label: s.title }));
+}
+
+export function aboutNavDropdownItems(): { href: string; label: string }[] {
+  return [
+    { href: "/about", label: "About Marcy" },
+    { href: artSeriesHref(STUDIO_GALLERY_SLUG), label: "The Studio" },
+  ];
 }
 
 /** Resolve stored medium assignment, including legacy rows that only used `series_id`. */

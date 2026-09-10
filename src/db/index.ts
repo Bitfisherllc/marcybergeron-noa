@@ -56,5 +56,8 @@ export async function closeDb(): Promise<void> {
 
 export type Series = typeof schema.series.$inferSelect;
 export type Artwork = typeof schema.artwork.$inferSelect;
+export type SeriesHeroSlide = typeof schema.seriesHeroSlide.$inferSelect;
 export type Post = typeof schema.post.$inferSelect;
+export type PostCategory = typeof schema.postCategory.$inferSelect;
+export type PostGalleryImage = typeof schema.postGalleryImage.$inferSelect;
 export type MailingListSignup = typeof schema.mailingListSignup.$inferSelect;

@@ -1,16 +1,16 @@
 import Image from "next/image";
-import { Fragment } from "react";
 import { setSeriesPrivacy } from "@/app/admin/actions";
 import { AdminLink } from "@/components/AdminLink";
-import { isMediumGallerySlug } from "@/lib/mediumGalleries";
-import { isOilColdWaxParentSlug } from "@/lib/oilColdWaxSeries";
+import { isMediumGallerySlug, isStudioGallerySlug } from "@/lib/mediumGalleries";
+import { isOilColdWaxChildSlug } from "@/lib/oilColdWaxSeries";
 import { privateGalleryHref } from "@/lib/privateGalleries";
-import { listOilColdWaxChildSeries, listSeriesAdminOverview } from "@/lib/queries";
+import { listSeriesAdminOverview } from "@/lib/queries";
 
 export default async function AdminSeriesIndexPage() {
   const rows = await listSeriesAdminOverview();
-  const portfolioRows = rows.filter((s) => isMediumGallerySlug(s.slug));
-  const oilColdWaxChildren = await listOilColdWaxChildSeries();
+  const studioRows = rows.filter((s) => isStudioGallerySlug(s.slug));
+  const portfolioRows = rows.filter((s) => isMediumGallerySlug(s.slug) && !isStudioGallerySlug(s.slug));
+  const seriesRows = rows.filter((s) => isOilColdWaxChildSlug(s.slug));
   const privateRows = rows.filter((s) => s.isPrivate);
   const totalArtworks = rows.reduce((n, s) => n + s.artworkCount, 0);
 
@@ -21,12 +21,15 @@ export default async function AdminSeriesIndexPage() {
           <h1 className="font-serif text-3xl tracking-tight">Galleries &amp; artwork</h1>
           <p className="mt-3 max-w-prose text-sm text-muted">
             Portfolio galleries appear on <span className="text-ink/80">/medium</span> and in the Portfolio menu.
-            Click <span className="text-ink/80">Manage paintings</span> to reorder artwork, edit captions, or add new
-            pieces.
+            The Studio appears under <span className="text-ink/80">About</span>. Series appear under{" "}
+            <span className="text-ink/80">Series</span>. Click{" "}
+            <span className="text-ink/80">Manage paintings</span> to reorder artwork, edit captions, or add new pieces.
           </p>
           <p className="mt-2 text-sm text-ink/80">
-            {portfolioRows.length + privateRows.length}{" "}
-            {portfolioRows.length + privateRows.length === 1 ? "gallery" : "galleries"} · {totalArtworks}{" "}
+            {portfolioRows.length + seriesRows.length + studioRows.length + privateRows.length}{" "}
+            {portfolioRows.length + seriesRows.length + studioRows.length + privateRows.length === 1
+              ? "gallery"
+              : "galleries"} · {totalArtworks}{" "}
             {totalArtworks === 1 ? "painting" : "paintings"}
           </p>
         </div>
@@ -37,7 +40,7 @@ export default async function AdminSeriesIndexPage() {
         </div>
       </div>
 
-      {portfolioRows.length === 0 && privateRows.length === 0 ? (
+      {portfolioRows.length === 0 && seriesRows.length === 0 && studioRows.length === 0 && privateRows.length === 0 ? (
         <p className="border border-line bg-white/50 p-6 text-sm text-muted">
           No galleries yet. If the public site shows art but this list is empty, the admin may be connected to a
           different database — check <span className="text-ink/80">DATABASE_URL</span> matches production.
@@ -65,47 +68,106 @@ export default async function AdminSeriesIndexPage() {
                   </thead>
                   <tbody>
                     {portfolioRows.map((s) => (
-                      <Fragment key={s.id}>
-                        <tr className="border-b border-line last:border-b-0">
-                          <td className="px-4 py-3">
-                            <div className="relative h-16 w-24 overflow-hidden border border-line bg-black/[0.03]">
-                              <Image src={s.featuredImage} alt="" fill className="object-cover" sizes="96px" />
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="font-medium">{s.title}</div>
-                            <div className="text-xs text-muted">/art/{s.slug}</div>
-                          </td>
-                          <td className="px-4 py-3 text-muted">{s.artworkCount}</td>
-                          <td className="px-4 py-3 text-right">
-                            <AdminLink href={`/admin/series/${s.id}`}>
-                              {isOilColdWaxParentSlug(s.slug) ? "Manage portfolio" : "Manage paintings"}
-                            </AdminLink>
-                          </td>
-                        </tr>
-                        {isOilColdWaxParentSlug(s.slug)
-                          ? oilColdWaxChildren.map((child) => {
-                              const childOverview = rows.find((row) => row.id === child.id);
-                              return (
-                                <tr key={child.id} className="border-b border-line bg-black/[0.015] last:border-b-0">
-                                  <td className="px-4 py-3 pl-8">
-                                    <div className="relative h-14 w-20 overflow-hidden border border-line bg-black/[0.03]">
-                                      <Image src={child.featuredImage} alt="" fill className="object-cover" sizes="80px" />
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="font-medium text-ink/90">{child.title}</div>
-                                    <div className="text-xs text-muted">/art/{child.slug} · series</div>
-                                  </td>
-                                  <td className="px-4 py-3 text-muted">{childOverview?.artworkCount ?? 0}</td>
-                                  <td className="px-4 py-3 text-right">
-                                    <AdminLink href={`/admin/series/${child.id}`}>Manage series</AdminLink>
-                                  </td>
-                                </tr>
-                              );
-                            })
-                          : null}
-                      </Fragment>
+                      <tr key={s.id} className="border-b border-line last:border-b-0">
+                        <td className="px-4 py-3">
+                          <div className="relative h-16 w-24 overflow-hidden border border-line bg-black/[0.03]">
+                            <Image src={s.featuredImage} alt="" fill className="object-cover" sizes="96px" />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium">{s.title}</div>
+                          <div className="text-xs text-muted">/art/{s.slug}</div>
+                        </td>
+                        <td className="px-4 py-3 text-muted">{s.artworkCount}</td>
+                        <td className="px-4 py-3 text-right">
+                          <AdminLink href={`/admin/series/${s.id}`}>Manage paintings</AdminLink>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+
+          {studioRows.length > 0 ? (
+            <div className="space-y-4">
+              <div>
+                <h2 className="font-serif text-2xl tracking-tight">About</h2>
+                <p className="mt-2 max-w-prose text-sm text-muted">
+                  The Studio gallery appears under <span className="text-ink/80">About</span> on the public site—not
+                  on the Portfolio page.
+                </p>
+              </div>
+              <div className="overflow-hidden border border-line bg-white/50">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-line bg-white/70 text-xs tracking-[0.18em] text-muted uppercase">
+                    <tr>
+                      <th className="px-4 py-3">Cover</th>
+                      <th className="px-4 py-3">Gallery</th>
+                      <th className="px-4 py-3">Paintings</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {studioRows.map((s) => (
+                      <tr key={s.id} className="border-b border-line last:border-b-0">
+                        <td className="px-4 py-3">
+                          <div className="relative h-16 w-24 overflow-hidden border border-line bg-black/[0.03]">
+                            <Image src={s.featuredImage} alt="" fill className="object-cover" sizes="96px" />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium">{s.title}</div>
+                          <div className="text-xs text-muted">/art/{s.slug}</div>
+                        </td>
+                        <td className="px-4 py-3 text-muted">{s.artworkCount}</td>
+                        <td className="px-4 py-3 text-right">
+                          <AdminLink href={`/admin/series/${s.id}`}>Manage paintings</AdminLink>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+
+          {seriesRows.length > 0 ? (
+            <div className="space-y-4">
+              <div>
+                <h2 className="font-serif text-2xl tracking-tight">Series</h2>
+                <p className="mt-2 max-w-prose text-sm text-muted">
+                  Appear under <span className="text-ink/80">Series</span> in the site menu.
+                </p>
+              </div>
+              <div className="overflow-hidden border border-line bg-white/50">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-line bg-white/70 text-xs tracking-[0.18em] text-muted uppercase">
+                    <tr>
+                      <th className="px-4 py-3">Cover</th>
+                      <th className="px-4 py-3">Series</th>
+                      <th className="px-4 py-3">Paintings</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {seriesRows.map((s) => (
+                      <tr key={s.id} className="border-b border-line last:border-b-0">
+                        <td className="px-4 py-3">
+                          <div className="relative h-16 w-24 overflow-hidden border border-line bg-black/[0.03]">
+                            <Image src={s.featuredImage} alt="" fill className="object-cover" sizes="96px" />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium">{s.title}</div>
+                          <div className="text-xs text-muted">/art/{s.slug}</div>
+                        </td>
+                        <td className="px-4 py-3 text-muted">{s.artworkCount}</td>
+                        <td className="px-4 py-3 text-right">
+                          <AdminLink href={`/admin/series/${s.id}`}>Manage series</AdminLink>
+                        </td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>

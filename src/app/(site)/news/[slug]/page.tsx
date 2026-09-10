@@ -4,8 +4,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BlogPostGalleryLightbox } from "@/components/BlogPostGalleryLightbox";
 import { HomeJournalSlider } from "@/components/HomeJournalSlider";
+import { PostArticleGallery } from "@/components/PostArticleGallery";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
-import { getPostBySlug, listPublishedPosts } from "@/lib/queries";
+import { getPostBySlug, listPostGalleryImages, listPublishedPosts } from "@/lib/queries";
 import { formatPostDate, postCategoryLine } from "@/lib/postDisplay";
 import { SITE_URL } from "@/lib/site";
 
@@ -30,6 +31,7 @@ export default async function NewsPostPage({ params }: { params: Promise<{ slug:
   const { slug } = await params;
   const [p, published] = await Promise.all([getPostBySlug(slug), listPublishedPosts()]);
   if (!p || !p.published) notFound();
+  const gallery = await listPostGalleryImages(p.id);
 
   const currentIndex = published.findIndex((post) => post.slug === slug);
   const morePostsRaw =
@@ -78,13 +80,15 @@ export default async function NewsPostPage({ params }: { params: Promise<{ slug:
         ) : null}
       </section>
 
+      <PostArticleGallery images={gallery} />
+
       {morePosts.length > 0 ? (
-        <section className="border-t border-line">
+        <section className="border-t border-line bg-white/35">
           <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
             <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
               <div>
                 <p className="text-xs tracking-[0.22em] text-muted uppercase">News</p>
-                <h2 className="mt-3 font-serif text-3xl tracking-tight">More articles</h2>
+                <h2 className="mt-3 font-serif text-3xl tracking-tight">Next article</h2>
               </div>
               <Link href="/news" className="link-quiet shrink-0 text-sm tracking-wide">
                 View all posts →
@@ -94,7 +98,7 @@ export default async function NewsPostPage({ params }: { params: Promise<{ slug:
               <HomeJournalSlider
                 key={slug}
                 posts={morePosts}
-                ariaLabel="More news articles"
+                ariaLabel="Next articles"
                 emptyLabel="News"
               />
             </div>

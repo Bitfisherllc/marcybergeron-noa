@@ -16,6 +16,7 @@ import { CACHE_TAGS, SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
 import { HOME_SECTION_DEFAULTS, HOME_SECTION_KEYS, type HomeSectionKey } from "@/lib/homeDefaults";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
 import { featuredHomePieces, getPrimarySeriesForArtworks, heroHomeSlides, listMediumGalleries, listPublishedPosts } from "@/lib/queries";
+import { HERO_SLIDESHOW_MAX } from "@/lib/featuredArtwork";
 import { heroSlideAlt, type HeroSlide, toHeroSlide } from "@/lib/heroSlides";
 
 export type HomeSectionResolved = {
@@ -48,7 +49,7 @@ export async function getResolvedHomeSections(): Promise<Record<HomeSectionKey, 
 export async function getResolvedHeroSlides(): Promise<HeroSlide[]> {
   const rows = await getDb().select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder), asc(homeSlideshow.createdAt));
   if (rows.length > 0) {
-    return rows.map((r) =>
+    return rows.slice(0, HERO_SLIDESHOW_MAX).map((r) =>
       toHeroSlide(
         r.image,
         r.title,
@@ -176,7 +177,7 @@ async function getPublicHomePayloadUncached() {
 }
 
 /** Cached home payload so public visitors don't hit Railway on every request. */
-export const getPublicHomePayload = unstable_cache(getPublicHomePayloadUncached, ["public-home-payload"], {
+export const getPublicHomePayload = unstable_cache(getPublicHomePayloadUncached, ["public-home-payload", "v2"], {
   revalidate: SITE_REVALIDATE_SECONDS,
   tags: [CACHE_TAGS.home, CACHE_TAGS.posts, CACHE_TAGS.artwork, CACHE_TAGS.series],
 });

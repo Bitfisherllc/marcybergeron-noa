@@ -4,20 +4,21 @@ type AdminMediumGalleryFieldProps = {
   galleries: Series[];
   /** Current `medium_series_id` (empty = not assigned). */
   value?: string | null;
+  required?: boolean;
 };
 
 /** Assigns an artwork to a portfolio gallery (`artwork.medium_series_id`). */
-export function AdminMediumGalleryField({ galleries, value }: AdminMediumGalleryFieldProps) {
+export function AdminMediumGalleryField({ galleries, value, required = true }: AdminMediumGalleryFieldProps) {
   return (
     <label className="block text-sm text-muted">
       Portfolio gallery
       <select
         name="mediumSeriesId"
         defaultValue={value ?? ""}
+        required={required}
         className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
-        required
       >
-        <option value="">Choose a gallery…</option>
+        <option value="">{required ? "Choose a gallery…" : "None — series only"}</option>
         {galleries.map((g) => (
           <option key={g.id} value={g.id}>
             {g.title}

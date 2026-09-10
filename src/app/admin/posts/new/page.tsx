@@ -1,13 +1,25 @@
 import { upsertPost } from "@/app/admin/actions";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminLink, adminBtnPrimary } from "@/components/AdminLink";
+import { AdminPostCategorySelect } from "@/components/AdminPostCategorySelect";
+import { listPostCategories } from "@/lib/queries";
 
-export default function NewPostPage() {
+export default async function NewPostPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const sp = await searchParams;
+  const categories = await listPostCategories();
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="font-serif text-3xl tracking-tight">New post</h1>
         <p className="mt-3 text-sm text-muted">Public URL becomes /news/[slug].</p>
+        {sp.error === "category" ? (
+          <p className="mt-3 text-sm text-red-700">Choose a category from the list.</p>
+        ) : null}
       </div>
 
       <form action={upsertPost} className="space-y-6 border border-line bg-white/50 p-6">
@@ -31,10 +43,7 @@ export default function NewPostPage() {
           <textarea name="content" required rows={14} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
         </label>
         <div className="grid gap-6 md:grid-cols-2">
-          <label className="block text-sm text-muted">
-            Category
-            <input name="category" defaultValue="News" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
-          </label>
+          <AdminPostCategorySelect categories={categories} />
           <label className="block text-sm text-muted">
             Tags (comma-separated)
             <input name="tags" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
@@ -49,6 +58,9 @@ export default function NewPostPage() {
           Show publish date on site
         </label>
         <AdminFilePicker name="featured" label="Add image" buttonLabel="Upload image" />
+        <p className="text-sm text-muted">
+          After you save, open the post again to add a lightbox gallery under the article.
+        </p>
         <div className="flex flex-wrap gap-3">
           <button className={adminBtnPrimary} type="submit">
             Save post

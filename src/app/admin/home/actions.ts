@@ -2,12 +2,13 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { CACHE_REVALIDATE_PROFILE, CACHE_TAGS } from "@/lib/cacheConfig";
 import { nanoid } from "nanoid";
 import { readExistingImageField } from "@/lib/resolveAdminImage";
 import { saveUpload } from "@/lib/save-upload";
 import {
+  artwork,
   homeFeaturedPostSlot,
   homeFeaturedSeriesSlot,
   homeSection,
@@ -15,9 +16,9 @@ import {
   homeSlideshow,
 } from "@/db/schema";
 import { getDb } from "@/db";
+import { HERO_SLIDESHOW_MAX, resolveHeroSlideshowWrite } from "@/lib/featuredArtwork";
 import { HOME_SECTION_KEYS, type HomeSectionKey } from "@/lib/homeDefaults";
 import { heroSlideAlt } from "@/lib/heroSlides";
-import { getArtwork } from "@/lib/queries";
 import { captionSubtitle } from "@/components/ArtCaption";
 
 function now() {
@@ -172,115 +173,73 @@ export async function saveHomeAllAction(formData: FormData) {
   redirect("/admin/home?saved=1");
 }
 
-export async function saveHomeSlideshowSlideAction(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  if (!id) redirect("/admin/home?error=slide");
+function homeSlideCaption(
+  resolved: { artworkId: string | null; image: string },
+  pieces: { id: string; title: string; image: string; medium: string; size: string }[],
+  previous: { image: string; title: string; subtitle: string }[],
+): { title: string; subtitle: string } {
+  const prev = previous.find((row) => row.image === resolved.image);
+  if (prev) return { title: prev.title, subtitle: prev.subtitle };
+  const piece = resolved.artworkId
+    ? pieces.find((row) => row.id === resolved.artworkId)
+    : pieces.find((row) => row.image === resolved.image);
+  if (piece) return { title: piece.title, subtitle: captionSubtitle({ medium: piece.medium, size: piece.size }) };
+  return { title: "", subtitle: "" };
+}
 
-  const title = String(formData.get("title") ?? "").trim();
-  const subtitle = String(formData.get("subtitle") ?? "").trim();
-  const alt = heroSlideAlt(title, subtitle);
-  const t = now();
+export async function saveHomeSlideshowAction(formData: FormData) {
+  try {
+    const db = getDb();
+    const [pieces, previous] = await Promise.all([
+      db
+        .select({
+          id: artwork.id,
+          title: artwork.title,
+          image: artwork.image,
+          medium: artwork.medium,
+          size: artwork.size,
+        })
+        .from(artwork),
+      db.select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder), asc(homeSlideshow.createdAt)),
+    ]);
 
-  await getDb()
-    .update(homeSlideshow)
-    .set({ title, subtitle, alt, updatedAt: t })
-    .where(eq(homeSlideshow.id, id));
+    const slides: { image: string; title: string; subtitle: string }[] = [];
+    for (let i = 0; i < HERO_SLIDESHOW_MAX; i += 1) {
+      const uploaded = await saveUpload(formData.get(`homeSlide${i}`) as File | null, "home-slideshow");
+      const resolved = resolveHeroSlideshowWrite({
+        uploaded,
+        libraryImage: readExistingImageField(formData, `homeSlide${i}Existing`),
+        initialImage: String(formData.get(`homeSlide${i}Initial`) ?? "").trim(),
+        artworkId: String(formData.get(`homeSlideArtwork${i}`) ?? "").trim(),
+        pieces,
+      });
+      if (!resolved) continue;
+      const caption = homeSlideCaption(resolved, pieces, previous);
+      slides.push({ image: resolved.image, ...caption });
+    }
+
+    await db.delete(homeSlideshow).where(sql`true`);
+    const t = now();
+    if (slides.length > 0) {
+      await db.insert(homeSlideshow).values(
+        slides.map((slide, sortOrder) => ({
+          id: nanoid(),
+          sortOrder,
+          image: slide.image,
+          title: slide.title,
+          subtitle: slide.subtitle,
+          alt: heroSlideAlt(slide.title, slide.subtitle),
+          createdAt: t,
+          updatedAt: t,
+        })),
+      );
+    }
+  } catch (e) {
+    console.error("[saveHomeSlideshowAction]", e);
+    redirect(`/admin/home?error=${encodeURIComponent(e instanceof Error ? e.message : "slideshow")}`);
+  }
 
   revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   redirect("/admin/home?saved=slideshow");
-}
-
-export async function addHomeSlideshowAction(formData: FormData) {
-  try {
-    const file = formData.get("slide") as File | null;
-    const rel = (await saveUpload(file, "home-slideshow")) || readExistingImageField(formData, "slideExisting");
-    if (!rel) redirect("/admin/home?error=slide");
-
-    const db = getDb();
-    const rows = await db.select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder));
-    const nextOrder = rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.sortOrder)) + 1;
-    const t = now();
-    await db.insert(homeSlideshow).values({
-      id: nanoid(),
-      sortOrder: nextOrder,
-      image: rel,
-      title: "",
-      subtitle: "",
-      alt: heroSlideAlt("", ""),
-      createdAt: t,
-      updatedAt: t,
-    });
-    revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
-    revalidatePath("/");
-    redirect("/admin/home?saved=1");
-  } catch (e) {
-    console.error("[addHomeSlideshowAction]", e);
-    redirect(`/admin/home?error=${encodeURIComponent(e instanceof Error ? e.message : "upload")}`);
-  }
-}
-
-export async function addHomeSlideshowFromArtworkAction(formData: FormData) {
-  const artworkId = String(formData.get("artwork_id") ?? "").trim();
-  if (!artworkId) redirect("/admin/home?error=slide");
-
-  const piece = await getArtwork(artworkId);
-  if (!piece) redirect("/admin/home?error=slide");
-
-  const title = piece.title;
-  const subtitle = captionSubtitle({ medium: piece.medium, size: piece.size });
-
-  const db = getDb();
-  const rows = await db.select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder));
-  const nextOrder = rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.sortOrder)) + 1;
-  const t = now();
-  await db.insert(homeSlideshow).values({
-    id: nanoid(),
-    sortOrder: nextOrder,
-    image: piece.image,
-    title,
-    subtitle,
-    alt: heroSlideAlt(title, subtitle),
-    createdAt: t,
-    updatedAt: t,
-  });
-  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
-  revalidatePath("/");
-  redirect("/admin/home?saved=1");
-}
-
-export async function deleteHomeSlideshowAction(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  if (!id) redirect("/admin/home");
-  await getDb().delete(homeSlideshow).where(eq(homeSlideshow.id, id));
-  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
-  revalidatePath("/");
-  redirect("/admin/home?saved=1");
-}
-
-export async function reorderHomeSlideshowAction(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  const dir = String(formData.get("dir") ?? "");
-  if (!id || (dir !== "up" && dir !== "down")) redirect("/admin/home");
-
-  const db = getDb();
-  const rows = await db.select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder), asc(homeSlideshow.createdAt));
-  const idx = rows.findIndex((r) => r.id === id);
-  if (idx === -1) redirect("/admin/home");
-  const swapWith = dir === "up" ? idx - 1 : idx + 1;
-  if (swapWith < 0 || swapWith >= rows.length) redirect("/admin/home");
-
-  const ordered = [...rows];
-  [ordered[idx], ordered[swapWith]] = [ordered[swapWith]!, ordered[idx]!];
-  const t = now();
-  for (let i = 0; i < ordered.length; i++) {
-    await db
-      .update(homeSlideshow)
-      .set({ sortOrder: i, updatedAt: t })
-      .where(eq(homeSlideshow.id, ordered[i]!.id));
-  }
-
-  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
-  revalidatePath("/");
-  redirect("/admin/home?saved=1");
 }

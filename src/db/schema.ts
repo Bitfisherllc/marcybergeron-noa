@@ -41,6 +41,20 @@ export const artwork = pgTable("artwork", {
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });
 
+/** Up to three images for the large slideshow beside About on a gallery page. */
+export const seriesHeroSlide = pgTable(
+  "series_hero_slide",
+  {
+    seriesId: text("series_id")
+      .notNull()
+      .references(() => series.id, { onDelete: "cascade" }),
+    slot: integer("slot").notNull(),
+    artworkId: text("artwork_id").references(() => artwork.id, { onDelete: "cascade" }),
+    image: text("image"),
+  },
+  (t) => [primaryKey({ columns: [t.seriesId, t.slot] })],
+);
+
 /** Portfolio series membership — a painting may appear in multiple series. */
 export const artworkSeries = pgTable(
   "artwork_series",
@@ -68,6 +82,31 @@ export const post = pgTable("post", {
   publishedAt: timestamp("published_at", { withTimezone: true, mode: "date" }),
   category: text("category").notNull().default("News"),
   tags: text("tags").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
+});
+
+/** Admin-managed news categories (posts store the category name on `post.category`). */
+export const postCategory = pgTable("post_category", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+});
+
+/** Lightbox gallery images for an individual news post. */
+export const postGalleryImage = pgTable("post_gallery_image", {
+  id: text("id").primaryKey(),
+  postId: text("post_id")
+    .notNull()
+    .references(() => post.id, { onDelete: "cascade" }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  image: text("image").notNull(),
+  alt: text("alt").notNull().default(""),
+  caption: text("caption").notNull().default(""),
+  imageWidth: integer("image_width"),
+  imageHeight: integer("image_height"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });

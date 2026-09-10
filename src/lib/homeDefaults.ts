@@ -40,9 +40,7 @@ export const HOME_SECTION_DEFAULTS: Record<HomeSectionKey, HomeSectionCopy> = {
     eyebrow: "",
     title: "In the artist’s words",
     quote: "Layers hold what memory cannot name.",
-    body: `The paintings in this series depict the search for direction, orientation, destination, meaning, clarity and connection.
-
-If you are new here, begin with [Wayfinding](/art/wayfinding), then move through [Beyond the Surface](/art/beyond-the-surface) and [In Search of Solace](/art/in-search-of-solace).`,
+    body: "The paintings in this series depict the search for direction, orientation, destination, meaning, clarity and connection.",
   },
   selected_works: {
     eyebrow: "",

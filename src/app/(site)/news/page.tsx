@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { listPublishedPosts } from "@/lib/queries";
+import { NewsCategoryNav } from "@/components/NewsCategoryNav";
+import { listPostCategories, listPublishedPosts } from "@/lib/queries";
 import { postCategoryLine } from "@/lib/postDisplay";
 import { SITE_URL } from "@/lib/site";
 
@@ -13,8 +14,15 @@ export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/news` },
 };
 
-export default async function NewsIndexPage() {
-  const posts = await listPublishedPosts();
+export default async function NewsIndexPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>;
+}) {
+  const { category: categorySlug } = await searchParams;
+  const [posts, categories] = await Promise.all([listPublishedPosts(), listPostCategories()]);
+  const active = categories.find((c) => c.slug === categorySlug) ?? null;
+  const visible = active ? posts.filter((p) => p.category === active.name) : posts;
 
   return (
     <div>
@@ -26,19 +34,22 @@ export default async function NewsIndexPage() {
             Exhibitions, studio notes, new work, press, and teaching updates—published here as posts are added in
             the admin area.
           </p>
+          <NewsCategoryNav categories={categories} activeSlug={active?.slug} />
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
-        {posts.length === 0 ? (
+        {visible.length === 0 ? (
           <div className="border border-line bg-white/35 px-8 py-12 text-center">
             <p className="text-sm leading-relaxed text-muted">
-              No published posts yet. When you are ready, add your first entry in the site admin under Posts.
+              {active
+                ? `No published posts in ${active.name} yet.`
+                : "No published posts yet. When you are ready, add your first entry in the site admin under Posts."}
             </p>
           </div>
         ) : (
           <div className="grid gap-10">
-            {posts.map((p) => (
+            {visible.map((p) => (
               <article key={p.id} className="border border-line bg-white/35">
                 <div className="grid gap-0 md:grid-cols-12">
                   <Link

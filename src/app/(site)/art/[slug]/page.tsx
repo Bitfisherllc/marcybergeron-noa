@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { OilColdWaxHubView } from "@/components/OilColdWaxHubView";
 import { SeriesGalleryView } from "@/components/SeriesGalleryView";
 import { getAdminSession } from "@/lib/auth";
 import { isMediumGallerySlug, legacyMediumGalleryRedirect } from "@/lib/mediumGalleries";
-import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, OIL_COLD_WAX_CHILD_SLUGS } from "@/lib/oilColdWaxSeries";
+import { isOilColdWaxChildSlug, OIL_COLD_WAX_CHILD_SLUGS } from "@/lib/oilColdWaxSeries";
 import { isAllWorkSlug } from "@/lib/portfolioGalleries";
 import { isPrivateGallery } from "@/lib/privateGalleries";
-import { getSeriesBySlug, listMediumGalleries, listOilColdWaxChildSeries } from "@/lib/queries";
+import { getSeriesBySlug, listMediumGalleries } from "@/lib/queries";
 import { SITE_URL } from "@/lib/site";
 import { artSeriesHref, normalizeRouteSlug } from "@/lib/routeSlug";
 
@@ -62,11 +61,6 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
   if (isPrivateGallery(s)) {
     const session = await getAdminSession();
     if (!session) notFound();
-  }
-
-  if (isOilColdWaxParentSlug(slug)) {
-    const childSeries = await listOilColdWaxChildSeries();
-    return <OilColdWaxHubView parent={s} childSeries={childSeries} />;
   }
 
   return <SeriesGalleryView series={s} variant="public" />;

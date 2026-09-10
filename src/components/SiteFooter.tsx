@@ -11,17 +11,6 @@ function InstagramIcon({ className }: { className?: string }) {
   );
 }
 
-function FacebookIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M14 8.5h2.5L16 12h-2v8h-3.5v-8H9V8.5h2.5V6.8c0-1 .3-2.2 1.2-3 1-.9 2.2-1.3 3.5-1.3H17v3h-2c-.7 0-1.4.1-1.4 1v1.8Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
 export function SiteFooter() {
   return (
     <footer className="mt-20 border-t border-line">
@@ -34,6 +23,11 @@ export function SiteFooter() {
           <p className="mt-4">
             <Link className="link-quiet text-sm" href="/mailing-list">
               Join the mailing list
+            </Link>
+          </p>
+          <p className="mt-2">
+            <Link className="link-quiet text-sm" href="/privacy">
+              Privacy Policy
             </Link>
           </p>
         </div>
@@ -67,17 +61,6 @@ export function SiteFooter() {
               >
                 <InstagramIcon className="shrink-0 opacity-70" />
                 Instagram
-              </a>
-            </li>
-            <li>
-              <a
-                className="link-quiet inline-flex items-center gap-2"
-                href={CONTACT.facebook}
-                rel="noreferrer"
-                target="_blank"
-              >
-                <FacebookIcon className="shrink-0 opacity-70" />
-                Facebook
               </a>
             </li>
             <li>

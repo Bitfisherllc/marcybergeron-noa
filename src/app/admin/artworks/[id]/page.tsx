@@ -1,9 +1,7 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { deleteArtwork, upsertArtwork } from "@/app/admin/actions";
 import { ArtCaption, captionSubtitle } from "@/components/ArtCaption";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
-import { AdminLightboxThumb } from "@/components/AdminImageLightbox";
 import { AdminLink, adminBtnDanger } from "@/components/AdminLink";
 import { AdminDirtySave } from "@/components/AdminSectionSave";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
@@ -42,24 +40,26 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
         </p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-12">
+      <form id="artwork-edit" action={upsertArtwork} className="grid gap-8 lg:grid-cols-12">
         <div className="lg:col-span-5">
-          <AdminLightboxThumb src={a.image} alt={a.alt || a.title} caption={a.title}>
-            <div className="relative aspect-[3/4] overflow-hidden border border-line bg-black/[0.03]">
-              <Image src={a.image} alt="" fill className="object-cover" />
-            </div>
-          </AdminLightboxThumb>
-            <div className="mt-4 border border-line bg-white/35 p-4">
-              <p className="text-[0.65rem] tracking-[0.2em] text-muted uppercase">Live site preview</p>
-              <ArtCaption as="div" title={a.title} subtitle={liveSubtitle || "—"} status={a.status} />
-              {a.description ? (
-                <p className="mt-3 text-sm leading-relaxed text-muted">{a.description}</p>
-              ) : null}
-            </div>
+          <AdminFilePicker
+            name="image"
+            label="Replace image"
+            buttonLabel="Choose new image"
+            existingValue={a.image}
+            preview="hero"
+          />
+          <div className="mt-4 border border-line bg-white/35 p-4">
+            <p className="text-[0.65rem] tracking-[0.2em] text-muted uppercase">Live site preview</p>
+            <ArtCaption as="div" title={a.title} subtitle={liveSubtitle || "—"} status={a.status} />
+            {a.description ? (
+              <p className="mt-3 text-sm leading-relaxed text-muted">{a.description}</p>
+            ) : null}
+          </div>
         </div>
 
         <div className="lg:col-span-7">
-          <form id="artwork-edit" action={upsertArtwork} className="space-y-5 border border-line bg-white/50 p-6">
+          <div className="space-y-5 border border-line bg-white/50 p-6">
             <input type="hidden" name="id" value={a.id} />
             <input type="hidden" name="contextSeriesId" value={contextSeriesId} />
 
@@ -67,7 +67,7 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
               Title
               <input name="title" required defaultValue={a.title} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
             </label>
-            <AdminMediumGalleryField galleries={mediumGalleries} value={mediumAssignment} />
+            <AdminMediumGalleryField galleries={mediumGalleries} value={mediumAssignment} required={false} />
             <fieldset className="space-y-3">
               <legend className="text-sm text-muted">Material and size</legend>
               <div className="grid gap-4 md:grid-cols-2">
@@ -112,7 +112,6 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
               Sort order
               <input name="sortOrder" defaultValue={String(a.sortOrder)} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
             </label>
-            <AdminFilePicker name="image" label="Add image" buttonLabel="Upload image" existingValue={a.image} />
 
             <AdminDirtySave formId="artwork-edit" />
             <div className="flex flex-wrap gap-3">
@@ -120,17 +119,17 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
                 Back
               </AdminLink>
             </div>
-          </form>
-
-          <form action={deleteArtwork} className="mt-6 border border-red-200 bg-red-50/40 p-4">
-            <input type="hidden" name="id" value={a.id} />
-            <input type="hidden" name="contextSeriesId" value={contextSeriesId} />
-            <button className={adminBtnDanger} type="submit">
-              Delete artwork
-            </button>
-          </form>
+          </div>
         </div>
-      </div>
+      </form>
+
+      <form action={deleteArtwork} className="max-w-xl border border-red-200 bg-red-50/40 p-4">
+        <input type="hidden" name="id" value={a.id} />
+        <input type="hidden" name="contextSeriesId" value={contextSeriesId} />
+        <button className={adminBtnDanger} type="submit">
+          Delete artwork
+        </button>
+      </form>
     </div>
   );
 }

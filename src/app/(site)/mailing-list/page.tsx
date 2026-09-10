@@ -77,6 +77,12 @@ export default async function MailingListPage({
                 >
                   Join the list
                 </button>
+                <p className="text-xs leading-relaxed text-muted">
+                  We do not share your information. Unsubscribe at any time.{" "}
+                  <Link className="link-quiet" href="/privacy">
+                    Privacy Policy
+                  </Link>
+                </p>
               </form>
             ) : (
               <p className="mt-6 text-sm text-muted">

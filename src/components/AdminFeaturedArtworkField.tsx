@@ -5,18 +5,25 @@ type AdminFeaturedArtworkFieldProps = {
   mode: string | null | undefined;
   artworkId: string | null | undefined;
   pieces: Pick<Artwork, "id" | "title" | "image">[];
+  listingSurface?: "portfolio" | "series";
 };
 
-export function AdminFeaturedArtworkField({ mode, artworkId, pieces }: AdminFeaturedArtworkFieldProps) {
+export function AdminFeaturedArtworkField({
+  mode,
+  artworkId,
+  pieces,
+  listingSurface = "portfolio",
+}: AdminFeaturedArtworkFieldProps) {
   const parsedMode = parseFeaturedArtworkMode(mode);
   const selectedId = artworkId ?? "";
+  const listingName = listingSurface === "series" ? "Series" : "Portfolio";
 
   return (
     <fieldset className="space-y-4 border border-line bg-paper/40 p-4">
-      <legend className="px-1 text-sm font-medium text-ink">Statement featured piece</legend>
+      <legend className="px-1 text-sm font-medium text-ink">{listingName} listing card</legend>
       <p className="text-xs leading-relaxed text-muted">
-        Shown beside the portfolio statement. Choose a fixed piece, or show a random work from this gallery on each
-        page load.
+        Image on the main {listingName} page. Choose a fixed painting, or rotate randomly when the visitor refreshes
+        the page. This does not change the large image inside the gallery.
       </p>
       <div className="space-y-2 text-sm text-ink/90">
         <label className="flex items-center gap-2">

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { reorderArtwork, upsertArtwork, upsertSeries, deleteSeries } from "@/app/admin/actions";
 import { AdminDeleteSeriesForm } from "@/components/AdminDeleteSeriesForm";
 import { AdminFeaturedArtworkField } from "@/components/AdminFeaturedArtworkField";
+import { AdminHeroSlideshowField } from "@/components/AdminHeroSlideshowField";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminGalleryPrivacyPanel } from "@/components/AdminGalleryPrivacyPanel";
 import { AdminLightboxProvider, AdminLightboxThumb, AdminLightboxTrigger } from "@/components/AdminImageLightbox";
@@ -10,10 +11,11 @@ import { AdminLink, adminBtnDanger } from "@/components/AdminLink";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
 import { AdminReorderButtons } from "@/components/AdminReorderButtons";
 import { AdminDirtySave } from "@/components/AdminSectionSave";
+import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
-import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
+import { isGeneralOilColdWaxSlug, isOilColdWaxChildSlug, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
-import { getSeriesById, listAdminSeriesMembershipOptions, listArtworksForMediumGallery, listArtworksForPublicGallery, listMediumGalleries } from "@/lib/queries";
+import { getSeriesById, listAdminSeriesMembershipOptions, listArtworksForHeroPicks, listArtworksForPublicGallery, listHeroSlideshowSlots, listMediumGalleries } from "@/lib/queries";
 
 export default async function EditSeriesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,19 +23,25 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
   if (!s) notFound();
   const isMediumGallery = isMediumGallerySlug(s.slug);
   const isOilColdWaxChild = isOilColdWaxChildSlug(s.slug);
-  const isOilColdWaxHub = isOilColdWaxParentSlug(s.slug);
-  const [arts, mediumGalleries, membershipOptions, deleteImpact, statementPieceOptions] = await Promise.all([
+  const isGeneralOilColdWax = isGeneralOilColdWaxSlug(s.slug);
+  const [arts, mediumGalleries, membershipOptions, deleteImpact, statementPieceOptions, heroSlots] = await Promise.all([
     listArtworksForPublicGallery(s),
     listMediumGalleries(),
     listAdminSeriesMembershipOptions(),
     isMediumGallery || isOilColdWaxChild ? Promise.resolve(null) : getSeriesDeleteImpact(s.id),
-    isOilColdWaxHub ? listArtworksForMediumGallery(s.id) : listArtworksForPublicGallery(s),
+    listArtworksForHeroPicks(s),
+    listHeroSlideshowSlots(s.id),
   ]);
   const oilColdWaxParent = mediumGalleries.find((g) => g.slug === OIL_COLD_WAX_PARENT_SLUG) ?? null;
   const artworkSlides = arts.map((a) => ({
     src: a.image,
     alt: a.alt || a.title,
     caption: a.title,
+  }));
+  const usingRandomSlideshow = heroSlots.every((slot) => !slot.image && !slot.artworkId);
+  const liveSlideshow = resolveInteriorHeroSlides(s, statementPieceOptions, heroSlots).map((hero) => ({
+    src: hero.image,
+    title: hero.artwork?.title ?? hero.title,
   }));
 
   return (
@@ -51,14 +59,9 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
               Private gallery · {arts.length} {arts.length === 1 ? "painting" : "paintings"} · not listed on the
               public portfolio
             </>
-          ) : isOilColdWaxHub ? (
-            <>
-              Oil and Cold Wax hub · <span className="text-ink/80">/art/{s.slug}</span> · paintings are managed in each
-              series below
-            </>
           ) : isOilColdWaxChild ? (
             <>
-              Oil and Cold Wax series · <span className="text-ink/80">/art/{s.slug}</span> · {arts.length}{" "}
+              Series · <span className="text-ink/80">/art/{s.slug}</span> · {arts.length}{" "}
               {arts.length === 1 ? "painting" : "paintings"}
             </>
           ) : isMediumGallery ? (
@@ -106,28 +109,38 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           </label>
           <AdminFilePicker
             name="featured"
-            label="Portfolio card image"
+            label={isOilColdWaxChild ? "Series card image" : "Portfolio card image"}
             buttonLabel="Upload image"
             existingValue={s.featuredImage}
           />
         </div>
-        <AdminFeaturedArtworkField
-          mode={s.featuredArtworkMode}
-          artworkId={s.featuredArtworkId}
-          pieces={statementPieceOptions}
-        />
         <div className="flex items-center gap-4">
           <AdminLightboxThumb src={s.featuredImage} alt={s.title} caption={`${s.title} — portfolio card image`}>
             <div className="relative h-24 w-36 cursor-zoom-in overflow-hidden border border-line bg-black/[0.03]">
               <Image src={s.featuredImage} alt="" fill className="object-cover" />
             </div>
           </AdminLightboxThumb>
-          <p className="text-xs text-muted">Used on the portfolio overview page. Leave empty to keep the current image.</p>
+          <p className="text-xs text-muted">
+            {isOilColdWaxChild
+              ? "Used on the Series overview page. Leave empty to keep the current image."
+              : "Used on the Portfolio overview page. Leave empty to keep the current image."}
+          </p>
         </div>
+        <AdminFeaturedArtworkField
+          mode={s.featuredArtworkMode}
+          artworkId={s.featuredArtworkId}
+          pieces={statementPieceOptions}
+          listingSurface={isOilColdWaxChild ? "series" : "portfolio"}
+        />
+        <AdminHeroSlideshowField
+          pieces={statementPieceOptions}
+          slots={heroSlots}
+          liveSlides={liveSlideshow}
+          usingRandom={usingRandomSlideshow}
+        />
         <AdminDirtySave formId="series-edit" />
       </form>
 
-      {!isOilColdWaxHub ? (
       <div className="space-y-4">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -185,14 +198,7 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
         </div>
         </AdminLightboxProvider>
       </div>
-      ) : (
-        <p className="border border-line bg-white/50 p-6 text-sm text-muted">
-          This portfolio is organized into series. Edit the portfolio statement above, then manage paintings in each
-          series from the Galleries list.
-        </p>
-      )}
 
-      {!isOilColdWaxHub ? (
       <div id="add-artwork" className="border border-line bg-white/50 p-6">
         <h3 className="font-serif text-xl tracking-tight">Add artwork</h3>
         <form id="series-add-artwork" action={upsertArtwork} className="mt-6 space-y-4">
@@ -224,7 +230,8 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           </div>
           <AdminMediumGalleryField
             galleries={mediumGalleries}
-            value={isMediumGallery ? s.id : isOilColdWaxChild ? oilColdWaxParent?.id ?? null : null}
+            value={isMediumGallery ? s.id : isGeneralOilColdWax ? oilColdWaxParent?.id ?? null : null}
+            required={isMediumGallery || isGeneralOilColdWax}
           />
           <label className="block text-sm text-muted">
             Description (optional)
@@ -244,7 +251,6 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           <AdminDirtySave formId="series-add-artwork" />
         </form>
       </div>
-      ) : null}
 
       {!isMediumGallery && !isOilColdWaxChild ? (
         <div id="delete" className="border border-line bg-white/50 p-6">

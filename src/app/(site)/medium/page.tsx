@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { IntrinsicGalleryImage } from "@/components/IntrinsicGalleryImage";
+import { GalleryIndexCards } from "@/components/GalleryIndexCards";
 import { resolveStatementArtwork } from "@/lib/featuredArtwork";
+import { publicPortfolioGalleries } from "@/lib/mediumGalleries";
 import { listArtworksGroupedForMediumGalleries, listMediumGalleries } from "@/lib/queries";
-import { SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
+import { artSeriesHref } from "@/lib/routeSlug";
 import { SITE_URL } from "@/lib/site";
 
-export const revalidate = SITE_REVALIDATE_SECONDS;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Portfolio",
@@ -16,12 +16,21 @@ export const metadata: Metadata = {
 };
 
 export default async function MediumPage() {
-  const galleries = await listMediumGalleries();
+  const galleries = publicPortfolioGalleries(await listMediumGalleries());
   const piecesByGallery = await listArtworksGroupedForMediumGalleries(galleries);
   const cards = galleries.map((s) => {
     const pieces = piecesByGallery.get(s.id) ?? [];
     const featured = resolveStatementArtwork(s, pieces);
-    return { series: s, featured };
+    return {
+      id: s.id,
+      href: artSeriesHref(s.slug),
+      title: s.title,
+      excerpt: s.excerpt,
+      image: featured.image,
+      alt: featured.alt,
+      imageWidth: featured.artwork?.imageWidth,
+      imageHeight: featured.artwork?.imageHeight,
+    };
   });
 
   return (
@@ -42,31 +51,7 @@ export default async function MediumPage() {
           {cards.length === 0 ? (
             <p className="text-center text-sm text-muted">Portfolio galleries will appear here once they are published.</p>
           ) : (
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {cards.map(({ series: s, featured }) => (
-                <article key={s.id} className="group border border-line bg-white/40">
-                  <Link href={`/art/${s.slug}`} className="focus-ring block">
-                    <IntrinsicGalleryImage
-                      src={featured.image}
-                      alt={featured.alt}
-                      width={featured.artwork?.imageWidth}
-                      height={featured.artwork?.imageHeight}
-                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      imageClassName="transition duration-500 group-hover:scale-[1.01]"
-                    />
-                    <div className="px-6 py-7">
-                      <h2 className="font-serif text-3xl tracking-tight">{s.title}</h2>
-                      {s.excerpt ? (
-                        <p className="mt-3 text-sm leading-relaxed text-muted">{s.excerpt}</p>
-                      ) : null}
-                      <span className="mt-3 inline-flex text-xs tracking-[0.18em] text-ink/70 uppercase">
-                        Open gallery →
-                      </span>
-                    </div>
-                  </Link>
-                </article>
-              ))}
-            </div>
+            <GalleryIndexCards cards={cards} cta="Open gallery →" />
           )}
         </div>
       </section>

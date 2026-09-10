@@ -4,9 +4,10 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { artwork, contactMessage, post, series } from "@/db/schema";
+import { artwork, contactMessage, post, postCategory, postGalleryImage, series, seriesHeroSlide } from "@/db/schema";
 import { getDb } from "@/db";
 import {
+  getArtworkPortfolioOnlySeriesIds,
   getArtworkPortfolioSeriesIds,
   parsePortfolioSeriesIdsFromForm,
   resolveArtworkAssignment,
@@ -15,19 +16,25 @@ import {
 import { createAdminSession, destroyAdminSession, requireAdminSession, verifyAdminPassword } from "@/lib/auth";
 import { readExistingImageField } from "@/lib/resolveAdminImage";
 import { saveUpload } from "@/lib/save-upload";
+import { slugifyPostCategory } from "@/lib/postCategories";
 import { CACHE_REVALIDATE_PROFILE, CACHE_TAGS } from "@/lib/cacheConfig";
 import { measureImageBuffer, measureImageSrc } from "@/lib/imageDimensions";
 import { GALLERY_PLACEHOLDER_IMAGE } from "@/lib/galleryDefaults";
-import { parseFeaturedArtworkMode } from "@/lib/featuredArtwork";
+import {
+  HERO_SLIDESHOW_MAX,
+  parseFeaturedArtworkMode,
+  resolveHeroSlideshowWrite,
+} from "@/lib/featuredArtwork";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
-import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
+import { isOilColdWaxChildSlug } from "@/lib/oilColdWaxSeries";
 import { generatePrivateGalleryAccessToken } from "@/lib/privateGalleries";
 import {
   getSeriesById,
-  getSeriesBySlug,
+  listArtworksForHeroPicks,
   listArtworksForMediumGallery,
-  listArtworksForPublicGallery,
   listArtworksForSeries,
+  listPostCategories,
+  listPostGalleryImages,
 } from "@/lib/queries";
 import {
   getSeriesDeleteImpact,
@@ -79,6 +86,7 @@ async function revalidateArtworkPaths(
   revalidateTag(CACHE_TAGS.artwork, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   revalidatePath("/medium");
+  revalidatePath("/series");
 
   const portfolioIds = new Set([...portfolioSeriesIds, ...(previousPortfolioSeriesIds ?? [])]);
   for (const id of portfolioIds) {
@@ -132,14 +140,25 @@ export async function upsertSeries(formData: FormData) {
   const featuredImage = uploaded || existing || existingRow?.featuredImage || GALLERY_PLACEHOLDER_IMAGE;
 
   let featuredArtworkId: string | null = null;
-  if (featuredArtworkMode === "static" && featuredArtworkIdRaw && id) {
+  const heroSlides: { artworkId: string | null; image: string }[] = [];
+  if (id) {
     const ser = await getSeriesById(id);
     if (ser) {
-      const pieces = isOilColdWaxParentSlug(ser.slug)
-        ? await listArtworksForMediumGallery(ser.id)
-        : await listArtworksForPublicGallery(ser);
-      if (pieces.some((piece) => piece.id === featuredArtworkIdRaw)) {
+      const pieces = await listArtworksForHeroPicks(ser);
+      const allowed = new Set(pieces.map((piece) => piece.id));
+      if (featuredArtworkMode === "static" && featuredArtworkIdRaw && allowed.has(featuredArtworkIdRaw)) {
         featuredArtworkId = featuredArtworkIdRaw;
+      }
+      for (let i = 0; i < HERO_SLIDESHOW_MAX; i += 1) {
+        const uploaded = await saveUpload(formData.get(`heroSlide${i}`) as File | null, slug);
+        const resolved = resolveHeroSlideshowWrite({
+          uploaded,
+          libraryImage: readExistingImageField(formData, `heroSlide${i}Existing`),
+          initialImage: String(formData.get(`heroSlide${i}Initial`) ?? "").trim(),
+          artworkId: String(formData.get(`heroSlideArtwork${i}`) ?? "").trim(),
+          pieces,
+        });
+        if (resolved) heroSlides.push(resolved);
       }
     }
   }
@@ -165,6 +184,17 @@ export async function upsertSeries(formData: FormData) {
         updatedAt: now(),
       })
       .where(eq(series.id, id));
+    await db.delete(seriesHeroSlide).where(eq(seriesHeroSlide.seriesId, id));
+    if (heroSlides.length > 0) {
+      await db.insert(seriesHeroSlide).values(
+        heroSlides.map((slide, slot) => ({
+          seriesId: id,
+          slot,
+          artworkId: slide.artworkId,
+          image: slide.image,
+        })),
+      );
+    }
   } else {
     const newId = nanoid();
     await db.insert(series).values({
@@ -185,6 +215,7 @@ export async function upsertSeries(formData: FormData) {
     revalidateTag(CACHE_TAGS.series, CACHE_REVALIDATE_PROFILE);
     revalidatePath("/");
     revalidatePath("/medium");
+  revalidatePath("/series");
     if (isPrivate) {
       revalidatePath("/admin/series");
       redirect(`/admin/series/${newId}`);
@@ -194,6 +225,7 @@ export async function upsertSeries(formData: FormData) {
   revalidateTag(CACHE_TAGS.series, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   revalidatePath("/medium");
+  revalidatePath("/series");
   revalidatePath(`/art/${slug}`);
   if (accessToken) revalidatePath(`/private/${accessToken}`);
   redirect(id ? `/admin/series/${id}` : "/admin/series");
@@ -226,6 +258,7 @@ export async function setSeriesPrivacy(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/medium");
+  revalidatePath("/series");
   revalidatePath(`/art/${row.slug}`);
   if (previousToken) revalidatePath(`/private/${previousToken}`);
   if (accessToken) revalidatePath(`/private/${accessToken}`);
@@ -297,7 +330,9 @@ export async function deleteSeries(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/medium");
+  revalidatePath("/series");
   revalidatePath("/medium");
+  revalidatePath("/series");
   if (deletedRow?.accessToken) revalidatePath(`/private/${deletedRow.accessToken}`);
   redirect(redirectAfter);
 }
@@ -326,6 +361,7 @@ export async function reorderSeries(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/medium");
+  revalidatePath("/series");
   revalidatePath("/admin/series");
   redirect("/admin/series");
 }
@@ -349,14 +385,6 @@ export async function upsertArtwork(formData: FormData) {
     const context = await getSeriesById(contextSeriesId);
     if (context && !isMediumGallerySlug(context.slug)) {
       portfolioSeriesIds = [...portfolioSeriesIds, contextSeriesId];
-    }
-  }
-
-  if (!mediumSeriesId && contextSeriesId) {
-    const context = await getSeriesById(contextSeriesId);
-    if (context && isOilColdWaxChildSlug(context.slug)) {
-      const parent = await getSeriesBySlug(OIL_COLD_WAX_PARENT_SLUG);
-      if (parent) mediumSeriesId = parent.id;
     }
   }
 
@@ -474,6 +502,9 @@ export async function updateArtworkMembershipFromSite(formData: FormData) {
   if (!id) redirect(returnPath);
 
   let portfolioSeriesIds = await parsePortfolioSeriesIdsFromForm(formData);
+  if (portfolioSeriesIds.length === 0) {
+    portfolioSeriesIds = await getArtworkPortfolioOnlySeriesIds(id);
+  }
   const mediumSeriesId = await parseMediumSeriesId(String(formData.get("mediumSeriesId") ?? ""));
   const assignment = await resolveArtworkAssignment(portfolioSeriesIds, mediumSeriesId);
   if (!assignment) redirect(returnPath);
@@ -588,7 +619,7 @@ export async function upsertPost(formData: FormData) {
   const slug = String(formData.get("slug") ?? "").trim();
   const excerpt = String(formData.get("excerpt") ?? "").trim();
   const content = String(formData.get("content") ?? "").trim();
-  const category = String(formData.get("category") ?? "News").trim();
+  const category = String(formData.get("category") ?? "").trim();
   const tags = String(formData.get("tags") ?? "").trim();
   const published = String(formData.get("published") ?? "") === "on";
   const showDate = String(formData.get("showDate") ?? "") === "on";
@@ -596,6 +627,9 @@ export async function upsertPost(formData: FormData) {
   const featuredExisting = readExistingImageField(formData, "featuredExisting");
 
   if (!title || !slug || !excerpt || !content) redirect("/admin/posts?error=1");
+  const knownCategories = await listPostCategories();
+  const categoryRow = knownCategories.find((row) => row.name === category);
+  if (!categoryRow) redirect(id ? `/admin/posts/${id}?error=category` : "/admin/posts/new?error=category");
 
   const featuredImage = (await saveUpload(featured)) || (featuredExisting.trim() ? featuredExisting : null);
   const db = getDb();
@@ -644,6 +678,123 @@ export async function upsertPost(formData: FormData) {
   redirect("/admin/posts");
 }
 
+async function revalidatePostById(postId: string, fallbackSlug?: string) {
+  const row = await getDb()
+    .select({ slug: post.slug })
+    .from(post)
+    .where(eq(post.id, postId))
+    .then((r) => r[0]);
+  const slug = row?.slug ?? fallbackSlug ?? "";
+  revalidateTag(CACHE_TAGS.posts, CACHE_REVALIDATE_PROFILE);
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
+  revalidatePath("/news");
+  if (slug) revalidatePath(`/news/${slug}`);
+  revalidatePath("/");
+  redirect(`/admin/posts/${postId}`);
+}
+
+export async function addPostGalleryImage(formData: FormData) {
+  const postId = String(formData.get("postId") ?? "").trim();
+  if (!postId) redirect("/admin/posts");
+
+  const existingPost = await getDb()
+    .select({ slug: post.slug })
+    .from(post)
+    .where(eq(post.id, postId))
+    .then((r) => r[0]);
+  if (!existingPost) redirect("/admin/posts");
+
+  const file = formData.get("image") as File | null;
+  const image = (await saveUpload(file, existingPost.slug)) || readExistingImageField(formData, "imageExisting");
+  if (!image) redirect(`/admin/posts/${postId}?error=gallery`);
+
+  const caption = String(formData.get("caption") ?? "").trim();
+  const alt = String(formData.get("alt") ?? "").trim() || caption || "Gallery image";
+
+  let imageWidth: number | null = null;
+  let imageHeight: number | null = null;
+  if (file && file.size > 0) {
+    const dim = measureImageBuffer(Buffer.from(await file.arrayBuffer()));
+    imageWidth = dim?.width ?? null;
+    imageHeight = dim?.height ?? null;
+  } else if (image.startsWith("/")) {
+    const dim = await measureImageSrc(image);
+    imageWidth = dim?.width ?? null;
+    imageHeight = dim?.height ?? null;
+  }
+
+  const db = getDb();
+  const rows = await db
+    .select({ sortOrder: postGalleryImage.sortOrder })
+    .from(postGalleryImage)
+    .where(eq(postGalleryImage.postId, postId));
+  const nextOrder = rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.sortOrder)) + 1;
+  const t = now();
+  await db.insert(postGalleryImage).values({
+    id: nanoid(),
+    postId,
+    sortOrder: nextOrder,
+    image,
+    alt,
+    caption,
+    imageWidth,
+    imageHeight,
+    createdAt: t,
+    updatedAt: t,
+  });
+  await revalidatePostById(postId);
+}
+
+export async function savePostGalleryImage(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  const postId = String(formData.get("postId") ?? "").trim();
+  if (!id || !postId) redirect("/admin/posts");
+
+  const caption = String(formData.get("caption") ?? "").trim();
+  const alt = String(formData.get("alt") ?? "").trim() || caption || "Gallery image";
+  await getDb()
+    .update(postGalleryImage)
+    .set({ caption, alt, updatedAt: now() })
+    .where(eq(postGalleryImage.id, id));
+  await revalidatePostById(postId);
+}
+
+export async function deletePostGalleryImage(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  const postId = String(formData.get("postId") ?? "").trim();
+  if (!id || !postId) redirect("/admin/posts");
+  await getDb().delete(postGalleryImage).where(eq(postGalleryImage.id, id));
+  await revalidatePostById(postId);
+}
+
+export async function reorderPostGalleryImage(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  const postId = String(formData.get("postId") ?? "").trim();
+  const dir = String(formData.get("dir") ?? "");
+  if (!id || !postId || (dir !== "up" && dir !== "down")) redirect(postId ? `/admin/posts/${postId}` : "/admin/posts");
+
+  const items = await listPostGalleryImages(postId);
+  const idx = items.findIndex((row) => row.id === id);
+  if (idx === -1) redirect(`/admin/posts/${postId}`);
+  const swapWith = dir === "up" ? idx - 1 : idx + 1;
+  if (swapWith < 0 || swapWith >= items.length) redirect(`/admin/posts/${postId}`);
+
+  const ordered = swapOrderedIds(
+    items.map((row) => row.id),
+    idx,
+    swapWith,
+  );
+  const db = getDb();
+  const t = now();
+  for (let i = 0; i < ordered.length; i++) {
+    await db
+      .update(postGalleryImage)
+      .set({ sortOrder: i, updatedAt: t })
+      .where(eq(postGalleryImage.id, ordered[i]!));
+  }
+  await revalidatePostById(postId);
+}
+
 export async function deletePost(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) redirect("/admin/posts");
@@ -676,4 +827,112 @@ export async function deleteContactMessage(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/admin/contact");
   redirect("/admin/contact");
+}
+
+async function revalidatePostTaxonomy() {
+  revalidateTag(CACHE_TAGS.posts, CACHE_REVALIDATE_PROFILE);
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
+  revalidatePath("/news");
+  revalidatePath("/");
+}
+
+export async function addPostCategory(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) redirect("/admin/posts?error=category-name");
+
+  const db = getDb();
+  const rows = await listPostCategories();
+  if (rows.some((row) => row.name.toLowerCase() === name.toLowerCase())) {
+    redirect("/admin/posts?error=category-exists");
+  }
+
+  let slug = slugifyPostCategory(name);
+  const slugs = new Set(rows.map((row) => row.slug));
+  if (slugs.has(slug)) {
+    let n = 2;
+    while (slugs.has(`${slug}-${n}`)) n += 1;
+    slug = `${slug}-${n}`;
+  }
+
+  const nextOrder = rows.length === 0 ? 0 : Math.max(...rows.map((row) => row.sortOrder)) + 1;
+  await db.insert(postCategory).values({
+    id: nanoid(),
+    name,
+    slug,
+    sortOrder: nextOrder,
+    createdAt: now(),
+  });
+  await revalidatePostTaxonomy();
+  redirect("/admin/posts?saved=category");
+}
+
+export async function savePostCategory(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!id || !name) redirect("/admin/posts?error=category-name");
+
+  const db = getDb();
+  const current = await db.select().from(postCategory).where(eq(postCategory.id, id)).then((r) => r[0]);
+  if (!current) redirect("/admin/posts");
+
+  const others = (await listPostCategories()).filter((row) => row.id !== id);
+  if (others.some((row) => row.name.toLowerCase() === name.toLowerCase())) {
+    redirect("/admin/posts?error=category-exists");
+  }
+
+  let slug = slugifyPostCategory(name);
+  const slugs = new Set(others.map((row) => row.slug));
+  if (slugs.has(slug)) {
+    let n = 2;
+    while (slugs.has(`${slug}-${n}`)) n += 1;
+    slug = `${slug}-${n}`;
+  }
+
+  await db.update(postCategory).set({ name, slug }).where(eq(postCategory.id, id));
+  if (current.name !== name) {
+    await db.update(post).set({ category: name, updatedAt: now() }).where(eq(post.category, current.name));
+  }
+  await revalidatePostTaxonomy();
+  redirect("/admin/posts?saved=category");
+}
+
+export async function deletePostCategory(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) redirect("/admin/posts");
+  const db = getDb();
+  const current = await db.select().from(postCategory).where(eq(postCategory.id, id)).then((r) => r[0]);
+  if (!current) redirect("/admin/posts");
+  const inUse = await db
+    .select({ id: post.id })
+    .from(post)
+    .where(eq(post.category, current.name))
+    .then((r) => r[0]);
+  if (inUse) redirect("/admin/posts?error=category-in-use");
+  await db.delete(postCategory).where(eq(postCategory.id, id));
+  await revalidatePostTaxonomy();
+  redirect("/admin/posts?saved=category");
+}
+
+export async function reorderPostCategory(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  const dir = String(formData.get("dir") ?? "");
+  if (!id || (dir !== "up" && dir !== "down")) redirect("/admin/posts");
+
+  const items = await listPostCategories();
+  const idx = items.findIndex((row) => row.id === id);
+  if (idx === -1) redirect("/admin/posts");
+  const swapWith = dir === "up" ? idx - 1 : idx + 1;
+  if (swapWith < 0 || swapWith >= items.length) redirect("/admin/posts");
+
+  const ordered = swapOrderedIds(
+    items.map((row) => row.id),
+    idx,
+    swapWith,
+  );
+  const db = getDb();
+  for (let i = 0; i < ordered.length; i++) {
+    await db.update(postCategory).set({ sortOrder: i }).where(eq(postCategory.id, ordered[i]!));
+  }
+  await revalidatePostTaxonomy();
+  redirect("/admin/posts?saved=category");
 }

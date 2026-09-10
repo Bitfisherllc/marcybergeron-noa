@@ -1,13 +1,23 @@
 import Link from "next/link";
-import { listMediumGalleries } from "@/lib/queries";
-import { portfolioNavDropdownItems } from "@/lib/mediumGalleries";
-import { SITE_NAME } from "@/lib/site";
+import { listMediumGalleries, listSeriesGalleries } from "@/lib/queries";
+import { aboutNavDropdownItems, portfolioNavDropdownItems } from "@/lib/mediumGalleries";
+import { SERIES_INDEX_HREF, seriesNavDropdownItems } from "@/lib/oilColdWaxSeries";
+import { CONTACT, SITE_NAME } from "@/lib/site";
 
 const navLinks = [
-  { href: "/about", label: "About" },
   { href: "/news", label: "News" },
   { href: "/contact", label: "Contact" },
 ] as const;
+
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
+    </svg>
+  );
+}
 
 function ChevronDown({ className }: { className?: string }) {
   return (
@@ -27,22 +37,26 @@ function NavDropdownPanel({
   items,
 }: {
   ariaLabel: string;
-  overviewHref: string;
-  overviewLabel: string;
+  overviewHref?: string;
+  overviewLabel?: string;
   items: { href: string; label: string }[];
 }) {
   return (
     <div className={dropdownPanelClass} role="region" aria-label={ariaLabel}>
       <ul className="min-w-[14.5rem] border border-line bg-paper py-1.5 shadow-[0_8px_30px_rgba(31,31,31,0.08)]">
-        <li>
-          <Link
-            href={overviewHref}
-            className="block px-4 py-2.5 text-sm text-ink/90 transition-colors hover:bg-black/[0.04] hover:text-ink focus-visible:bg-black/[0.04] focus-visible:outline-none"
-          >
-            {overviewLabel}
-          </Link>
-        </li>
-        <li className="mx-3 my-1 h-px bg-line" role="separator" />
+        {overviewHref && overviewLabel ? (
+          <>
+            <li>
+              <Link
+                href={overviewHref}
+                className="block px-4 py-2.5 text-sm text-ink/90 transition-colors hover:bg-black/[0.04] hover:text-ink focus-visible:bg-black/[0.04] focus-visible:outline-none"
+              >
+                {overviewLabel}
+              </Link>
+            </li>
+            <li className="mx-3 my-1 h-px bg-line" role="separator" />
+          </>
+        ) : null}
         {items.map((item) => (
           <li key={item.href}>
             <Link
@@ -78,19 +92,21 @@ function MobileNavSection({
   items,
 }: {
   title: string;
-  overviewHref: string;
-  overviewLabel: string;
+  overviewHref?: string;
+  overviewLabel?: string;
   items: { href: string; label: string }[];
 }) {
   return (
     <li className="border-b border-line/60 pb-2">
       <div className="px-2 py-2 text-[0.65rem] tracking-[0.2em] text-muted uppercase">{title}</div>
       <ul className="mt-0.5 space-y-0.5">
-        <li>
-          <Link className="block rounded-sm px-2 py-2 text-sm text-ink hover:bg-black/[0.03]" href={overviewHref}>
-            {overviewLabel}
-          </Link>
-        </li>
+        {overviewHref && overviewLabel ? (
+          <li>
+            <Link className="block rounded-sm px-2 py-2 text-sm text-ink hover:bg-black/[0.03]" href={overviewHref}>
+              {overviewLabel}
+            </Link>
+          </li>
+        ) : null}
         {items.map((item) => (
           <li key={item.href}>
             <Link className="block rounded-sm px-2 py-2 text-sm text-ink/85 hover:bg-black/[0.03] hover:text-ink" href={item.href}>
@@ -104,8 +120,13 @@ function MobileNavSection({
 }
 
 export async function SiteHeader() {
-  const portfolioGalleries = await listMediumGalleries();
+  const [portfolioGalleries, seriesGalleries] = await Promise.all([
+    listMediumGalleries(),
+    listSeriesGalleries(),
+  ]);
   const portfolioItems = portfolioNavDropdownItems(portfolioGalleries);
+  const seriesItems = seriesNavDropdownItems(seriesGalleries);
+  const aboutItems = aboutNavDropdownItems();
 
   return (
     <header className="border-b border-line">
@@ -124,6 +145,19 @@ export async function SiteHeader() {
                 items={portfolioItems}
               />
             </li>
+            <li className="group relative">
+              <NavDropdownLink href={SERIES_INDEX_HREF} label="Series" />
+              <NavDropdownPanel
+                ariaLabel="Series"
+                overviewHref={SERIES_INDEX_HREF}
+                overviewLabel="View series"
+                items={seriesItems}
+              />
+            </li>
+            <li className="group relative">
+              <NavDropdownLink href="/about" label="About" />
+              <NavDropdownPanel ariaLabel="About" items={aboutItems} />
+            </li>
             {navLinks.map((l) => (
               <li key={l.href}>
                 <Link href={l.href} className="hover:text-ink focus-ring rounded-sm">
@@ -133,12 +167,15 @@ export async function SiteHeader() {
             ))}
           </ul>
         </nav>
-        <div className="hidden items-center gap-5 text-xs tracking-[0.18em] text-muted uppercase md:flex">
-          <a className="hover:text-ink" href="https://www.instagram.com/marcysartspace/" rel="noreferrer" target="_blank">
-            Instagram
-          </a>
-          <a className="hover:text-ink" href="https://www.facebook.com/marcy.bergeron" rel="noreferrer" target="_blank">
-            Facebook
+        <div className="hidden items-center md:flex">
+          <a
+            className="rounded-sm text-muted hover:text-ink focus-ring"
+            href={CONTACT.instagram}
+            rel="me noreferrer"
+            target="_blank"
+            aria-label="Instagram"
+          >
+            <InstagramIcon className="block opacity-80" />
           </a>
         </div>
         <details className="relative md:hidden">
@@ -148,6 +185,8 @@ export async function SiteHeader() {
           <div className="absolute right-0 z-50 mt-2 w-[min(100vw-2.5rem,16rem)] border border-line bg-paper py-2 shadow-[0_8px_30px_rgba(31,31,31,0.08)]">
             <ul className="text-sm">
               <MobileNavSection title="Portfolio" overviewHref="/medium" overviewLabel="View portfolio" items={portfolioItems} />
+              <MobileNavSection title="Series" overviewHref={SERIES_INDEX_HREF} overviewLabel="View series" items={seriesItems} />
+              <MobileNavSection title="About" items={aboutItems} />
               {navLinks.map((l) => (
                 <li key={l.href}>
                   <Link className="block rounded-sm px-3 py-2.5 hover:bg-black/[0.03]" href={l.href}>

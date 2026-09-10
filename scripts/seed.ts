@@ -585,7 +585,7 @@ For announcements and news, follow **[@yellowchairsalon](https://www.instagram.c
     title: "At home in the studio — Porter Mill, Beverly",
     excerpt:
       "New studio …… #cleanslate #endlesspossibilities #bringit — notes from Porter Mill (1895), open studios, and the building’s artist community.",
-    category: "Studio",
+      category: "In The Studio",
     tags: "Porter Mill, Beverly MA, studio, open studios",
     featuredImage: "/images/studio.webp",
     intro: `When the boxes finally emptied and the floor read clean again, I took a breath and let the room tell me what it wanted. The first walks across that square of daylight became a reset.
