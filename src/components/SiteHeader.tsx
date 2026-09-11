@@ -151,6 +151,7 @@ export async function SiteHeader() {
           aboutItems={aboutItems}
           seriesIndexHref={SERIES_INDEX_HREF}
           navLinks={navLinks}
+          instagramHref={CONTACT.instagram}
         />
       </div>
     </header>

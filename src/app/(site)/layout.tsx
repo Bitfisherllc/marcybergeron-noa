@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AdminSiteBarGate } from "@/components/AdminSiteBarGate";
+import { BackToTop } from "@/components/BackToTop";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -18,6 +19,7 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
         {children}
       </main>
       <SiteFooter />
+      <BackToTop />
     </>
   );
 }

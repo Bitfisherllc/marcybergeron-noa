@@ -16,6 +16,16 @@ function HamburgerIcon() {
   );
 }
 
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
 function CloseIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -24,23 +34,52 @@ function CloseIcon() {
   );
 }
 
+function PlusMinusIcon({ open }: { open: boolean }) {
+  return (
+    <span className="text-lg leading-none font-light text-ink/55" aria-hidden>
+      {open ? "−" : "+"}
+    </span>
+  );
+}
+
 function MobileNavSection({
   title,
   overviewHref,
   overviewLabel,
   items,
+  expanded,
+  onToggle,
   onNavigate,
 }: {
   title: string;
   overviewHref?: string;
   overviewLabel?: string;
   items: NavItem[];
+  expanded: boolean;
+  onToggle: () => void;
   onNavigate: () => void;
 }) {
+  const listId = useId();
+
   return (
-    <li className="border-b border-line/60 pb-3">
-      <div className="px-1 py-2 text-[0.65rem] tracking-[0.2em] text-muted uppercase">{title}</div>
-      <ul className="space-y-0.5">
+    <li className="border-b border-line/60">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-3 rounded-sm px-1 py-3 text-left text-sm text-ink hover:bg-black/[0.03] focus-ring"
+        aria-expanded={expanded}
+        aria-controls={listId}
+        onClick={onToggle}
+      >
+        {title}
+        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-ink/70" aria-hidden>
+          <PlusMinusIcon open={expanded} />
+        </span>
+      </button>
+      <ul
+        id={listId}
+        hidden={!expanded}
+        className="space-y-0.5 pb-3"
+      >
         {overviewHref && overviewLabel ? (
           <li>
             <Link
@@ -74,19 +113,27 @@ export function SiteMobileMenu({
   aboutItems,
   seriesIndexHref,
   navLinks,
+  instagramHref,
 }: {
   portfolioItems: NavItem[];
   seriesItems: NavItem[];
   aboutItems: NavItem[];
   seriesIndexHref: string;
   navLinks: readonly NavItem[];
+  instagramHref: string;
 }) {
   const pathname = usePathname();
   const panelId = useId();
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   function close() {
     setOpen(false);
+    setExpanded({});
+  }
+
+  function toggleSection(key: string) {
+    setExpanded((current) => ({ ...current, [key]: !current[key] }));
   }
 
   useEffect(() => {
@@ -157,6 +204,8 @@ export function SiteMobileMenu({
             overviewHref="/medium"
             overviewLabel="View portfolio"
             items={portfolioItems}
+            expanded={Boolean(expanded.portfolio)}
+            onToggle={() => toggleSection("portfolio")}
             onNavigate={close}
           />
           <MobileNavSection
@@ -164,9 +213,17 @@ export function SiteMobileMenu({
             overviewHref={seriesIndexHref}
             overviewLabel="View series"
             items={seriesItems}
+            expanded={Boolean(expanded.series)}
+            onToggle={() => toggleSection("series")}
             onNavigate={close}
           />
-          <MobileNavSection title="About" items={aboutItems} onNavigate={close} />
+          <MobileNavSection
+            title="About"
+            items={aboutItems}
+            expanded={Boolean(expanded.about)}
+            onToggle={() => toggleSection("about")}
+            onNavigate={close}
+          />
           {navLinks.map((link) => (
             <li key={link.href}>
               <Link
@@ -179,6 +236,18 @@ export function SiteMobileMenu({
             </li>
           ))}
         </ul>
+        <div className="border-t border-line px-5 py-4">
+          <a
+            className="inline-flex h-10 w-10 items-center justify-center rounded-sm text-muted hover:bg-black/[0.03] hover:text-ink focus-ring"
+            href={instagramHref}
+            rel="me noreferrer"
+            target="_blank"
+            aria-label="Instagram"
+            onClick={close}
+          >
+            <InstagramIcon className="block opacity-80" />
+          </a>
+        </div>
       </nav>
     </div>
   );
