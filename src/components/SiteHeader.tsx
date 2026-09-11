@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteMobileMenu } from "@/components/SiteMobileMenu";
 import { listMediumGalleries, listSeriesGalleries } from "@/lib/queries";
 import { aboutNavDropdownItems, portfolioNavDropdownItems } from "@/lib/mediumGalleries";
 import { SERIES_INDEX_HREF, seriesNavDropdownItems } from "@/lib/oilColdWaxSeries";
@@ -85,40 +86,6 @@ function NavDropdownLink({ href, label }: { href: string; label: string }) {
   );
 }
 
-function MobileNavSection({
-  title,
-  overviewHref,
-  overviewLabel,
-  items,
-}: {
-  title: string;
-  overviewHref?: string;
-  overviewLabel?: string;
-  items: { href: string; label: string }[];
-}) {
-  return (
-    <li className="border-b border-line/60 pb-2">
-      <div className="px-2 py-2 text-[0.65rem] tracking-[0.2em] text-muted uppercase">{title}</div>
-      <ul className="mt-0.5 space-y-0.5">
-        {overviewHref && overviewLabel ? (
-          <li>
-            <Link className="block rounded-sm px-2 py-2 text-sm text-ink hover:bg-black/[0.03]" href={overviewHref}>
-              {overviewLabel}
-            </Link>
-          </li>
-        ) : null}
-        {items.map((item) => (
-          <li key={item.href}>
-            <Link className="block rounded-sm px-2 py-2 text-sm text-ink/85 hover:bg-black/[0.03] hover:text-ink" href={item.href}>
-              {item.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </li>
-  );
-}
-
 export async function SiteHeader() {
   const [portfolioGalleries, seriesGalleries] = await Promise.all([
     listMediumGalleries(),
@@ -178,25 +145,13 @@ export async function SiteHeader() {
             <InstagramIcon className="block opacity-80" />
           </a>
         </div>
-        <details className="relative md:hidden">
-          <summary className="cursor-pointer list-none rounded-sm px-2 py-1 text-sm tracking-wide text-ink/80 focus-ring [&::-webkit-details-marker]:hidden">
-            Menu
-          </summary>
-          <div className="absolute right-0 z-50 mt-2 w-[min(100vw-2.5rem,16rem)] border border-line bg-paper py-2 shadow-[0_8px_30px_rgba(31,31,31,0.08)]">
-            <ul className="text-sm">
-              <MobileNavSection title="Portfolio" overviewHref="/medium" overviewLabel="View portfolio" items={portfolioItems} />
-              <MobileNavSection title="Series" overviewHref={SERIES_INDEX_HREF} overviewLabel="View series" items={seriesItems} />
-              <MobileNavSection title="About" items={aboutItems} />
-              {navLinks.map((l) => (
-                <li key={l.href}>
-                  <Link className="block rounded-sm px-3 py-2.5 hover:bg-black/[0.03]" href={l.href}>
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </details>
+        <SiteMobileMenu
+          portfolioItems={portfolioItems}
+          seriesItems={seriesItems}
+          aboutItems={aboutItems}
+          seriesIndexHref={SERIES_INDEX_HREF}
+          navLinks={navLinks}
+        />
       </div>
     </header>
   );
