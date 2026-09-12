@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "predev": "dotenv -e .env.local -- tsx scripts/migrate-private-galleries.ts && dotenv -e .env.local -- tsx scripts/migrate-featured-artwork.ts && dotenv -e .env.local -- tsx scripts/migrate-image-dimensions.ts && dotenv -e .env.local -- tsx scripts/migrate-post-show-date.ts && dotenv -e .env.local -- tsx scripts/migrate-post-gallery.ts && dotenv -e .env.local -- tsx scripts/migrate-post-categories.ts && dotenv -e .env.local -- tsx scripts/migrate-series-hero-slides.ts && dotenv -e .env.local -- tsx scripts/migrate-ocw-gallery-images.ts",
+    "predev": "dotenv -e .env.local -- tsx scripts/migrate-private-galleries.ts && dotenv -e .env.local -- tsx scripts/migrate-featured-artwork.ts && dotenv -e .env.local -- tsx scripts/migrate-image-dimensions.ts && dotenv -e .env.local -- tsx scripts/migrate-post-show-date.ts && dotenv -e .env.local -- tsx scripts/migrate-post-gallery.ts && dotenv -e .env.local -- tsx scripts/migrate-post-categories.ts && dotenv -e .env.local -- tsx scripts/migrate-series-hero-slides.ts && dotenv -e .env.local -- tsx scripts/migrate-show-hero-slideshow.ts && dotenv -e .env.local -- tsx scripts/migrate-ocw-gallery-images.ts && dotenv -e .env.local -- tsx scripts/migrate-remove-general-oil-cold-wax.ts",
     "dev:turbo": "next dev",
     "prebuild": "dotenv -e .env.local -- tsx scripts/prebuild-db.ts",
     "build": "next build",
@@ -23,7 +23,9 @@
     "db:ensure-post-gallery": "dotenv -e .env.local -- tsx scripts/migrate-post-gallery.ts",
     "db:ensure-post-categories": "dotenv -e .env.local -- tsx scripts/migrate-post-categories.ts",
     "db:ensure-series-hero-slides": "dotenv -e .env.local -- tsx scripts/migrate-series-hero-slides.ts",
+    "db:ensure-show-hero-slideshow": "dotenv -e .env.local -- tsx scripts/migrate-show-hero-slideshow.ts",
     "db:ensure-ocw-gallery-images": "dotenv -e .env.local -- tsx scripts/migrate-ocw-gallery-images.ts",
+    "db:remove-general-oil-cold-wax": "dotenv -e .env.local -- tsx scripts/migrate-remove-general-oil-cold-wax.ts",
     "db:ensure-private-galleries": "dotenv -e .env.local -- tsx scripts/migrate-private-galleries.ts",
     "import:gallery": "dotenv -e .env.local -- tsx scripts/import-gallery-artworks.ts",
     "optimize:images": "tsx scripts/optimize-large-images.ts",

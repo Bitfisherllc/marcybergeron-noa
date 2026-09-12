@@ -12,8 +12,8 @@ import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
 import { AdminReorderButtons } from "@/components/AdminReorderButtons";
 import { AdminDirtySave } from "@/components/AdminSectionSave";
 import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
-import { isMediumGallerySlug } from "@/lib/mediumGalleries";
-import { isGeneralOilColdWaxSlug, isOilColdWaxChildSlug, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
+import { isMediumGallerySlug, isStudioGallerySlug } from "@/lib/mediumGalleries";
+import { isOilColdWaxChildSlug } from "@/lib/oilColdWaxSeries";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
 import { getSeriesById, listAdminSeriesMembershipOptions, listArtworksForHeroPicks, listArtworksForPublicGallery, listHeroSlideshowSlots, listMediumGalleries } from "@/lib/queries";
 
@@ -22,8 +22,8 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
   const s = await getSeriesById(id);
   if (!s) notFound();
   const isMediumGallery = isMediumGallerySlug(s.slug);
+  const isStudioGallery = isStudioGallerySlug(s.slug);
   const isOilColdWaxChild = isOilColdWaxChildSlug(s.slug);
-  const isGeneralOilColdWax = isGeneralOilColdWaxSlug(s.slug);
   const [arts, mediumGalleries, membershipOptions, deleteImpact, statementPieceOptions, heroSlots] = await Promise.all([
     listArtworksForPublicGallery(s),
     listMediumGalleries(),
@@ -32,7 +32,6 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
     listArtworksForHeroPicks(s),
     listHeroSlideshowSlots(s.id),
   ]);
-  const oilColdWaxParent = mediumGalleries.find((g) => g.slug === OIL_COLD_WAX_PARENT_SLUG) ?? null;
   const artworkSlides = arts.map((a) => ({
     src: a.image,
     alt: a.alt || a.title,
@@ -137,6 +136,8 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           slots={heroSlots}
           liveSlides={liveSlideshow}
           usingRandom={usingRandomSlideshow}
+          showOnPage={isStudioGallery || s.showHeroSlideshow}
+          lockDisplayOn={isStudioGallery}
         />
         <AdminDirtySave formId="series-edit" />
       </form>
@@ -230,8 +231,8 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           </div>
           <AdminMediumGalleryField
             galleries={mediumGalleries}
-            value={isMediumGallery ? s.id : isGeneralOilColdWax ? oilColdWaxParent?.id ?? null : null}
-            required={isMediumGallery || isGeneralOilColdWax}
+            value={isMediumGallery ? s.id : null}
+            required={isMediumGallery}
           />
           <label className="block text-sm text-muted">
             Description (optional)

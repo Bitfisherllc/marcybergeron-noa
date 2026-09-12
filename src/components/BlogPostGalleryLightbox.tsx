@@ -204,18 +204,18 @@ function BlogLightboxOverlay({
       ) : null}
 
       <div
-        className="mx-auto flex min-h-0 w-full max-w-[min(100vw-2rem,1600px)] flex-1 flex-col items-center justify-center gap-6"
+        className="mx-auto flex min-h-0 w-full max-w-[min(100vw-2rem,1600px)] flex-1 flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+        <div className="relative min-h-0 w-full flex-1 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary URLs from markdown / uploads */}
           <img
             src={slide.src}
             alt={slide.alt}
-            className="max-h-[min(85vh,1200px)] w-auto max-w-full object-contain"
+            className="absolute inset-0 h-full w-full object-contain"
           />
         </div>
-        <p id={labelId} className="max-w-2xl text-center text-xs text-white/55">
+        <p id={labelId} className="mx-auto mt-4 max-h-[28vh] max-w-2xl shrink-0 overflow-y-auto text-center text-xs text-white/55">
           {slide.alt || "Image"}{" "}
           {n > 1 ? (
             <span className="text-white/40">

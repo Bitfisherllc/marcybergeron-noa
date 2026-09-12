@@ -1,6 +1,6 @@
 /**
- * Oil and Cold Wax gallery uses General-Oil & Cold Wax paintings as its medium listing.
- * Other series keep their own pages and are not listed on the Oil and Cold Wax gallery.
+ * Oil and Cold Wax gallery lists paintings assigned via medium_series_id.
+ * The retired General-Oil & Cold Wax series is ignored when missing.
  * Safe to run multiple times.
  */
 import { eq, inArray } from "drizzle-orm";

@@ -124,7 +124,7 @@ export function StatementSlideshow({ slides }: { slides: StatementSlideshowSlide
   if (n === 1) {
     return (
       <MaybeLightbox slide={first}>
-        <div className="overflow-hidden border border-line bg-black/[0.03]">
+        <div className="overflow-hidden bg-black/[0.03]">
           <SlideImage slide={first} priority />
         </div>
       </MaybeLightbox>
@@ -141,7 +141,7 @@ export function StatementSlideshow({ slides }: { slides: StatementSlideshowSlide
       onMouseLeave={() => setPaused(false)}
     >
       <div
-        className="relative w-full overflow-hidden border border-line bg-black/[0.03]"
+        className="relative w-full overflow-hidden bg-black/[0.03]"
         style={{ aspectRatio: stageRatio }}
         role="region"
         aria-roledescription="carousel"

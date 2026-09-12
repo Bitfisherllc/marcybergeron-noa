@@ -59,8 +59,9 @@ export async function getSeriesById(id: string) {
 
 export async function getSeriesBySlug(slug: string) {
   const normalized = normalizeRouteSlug(slug);
-  const all = await listSeries();
-  const row = all.find((s) => s.slug === normalized);
+  if (!normalized) return null;
+  const rows = await getDb().select().from(series).where(eq(series.slug, normalized));
+  const row = rows[0];
   return row ? withMediumGalleryTitle(row) : null;
 }
 

@@ -102,8 +102,8 @@ function fromPiece(piece: Artwork, pieces: Artwork[]): ResolvedStatementArtwork 
 }
 
 /**
- * Large image(s) beside About on a gallery page — independent of the rotating
- * Portfolio listing card. Uses saved slideshow slots when set.
+ * Large image(s) beside About when a gallery has Display slideshow turned on.
+ * Independent of the rotating Portfolio listing card. Uses saved slots when set.
  */
 export function resolveInteriorHeroSlides(
   series: Pick<Series, "title" | "featuredImage" | "featuredArtworkMode" | "featuredArtworkId">,
@@ -137,7 +137,7 @@ export function resolveInteriorHeroSlides(
   }
   if (slides.length > 0) return slides;
 
-  const random = pickRandomArtworks(pieces, HERO_SLIDESHOW_MAX);
+  const random = pickRandomArtworks(pieces, 1);
   if (random.length > 0) return random.map((piece) => fromPiece(piece, pieces));
 
   return [

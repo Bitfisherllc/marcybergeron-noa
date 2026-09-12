@@ -164,7 +164,6 @@ function LightboxDialog({ index, onClose }: { index: number; onClose: () => void
 
   if (!slide) return null;
 
-  const hasDims = slide.width && slide.height;
   const isArtworkSlide = slide.medium !== undefined || slide.size !== undefined;
 
   return (
@@ -172,7 +171,8 @@ function LightboxDialog({ index, onClose }: { index: number; onClose: () => void
       className="fixed inset-0 z-[100] flex flex-col bg-[#0a0a0a]/94 p-4 backdrop-blur-[2px] md:p-8"
       role="dialog"
       aria-modal="true"
-      aria-labelledby={titleId}
+      aria-labelledby={slide.hideTitle ? undefined : titleId}
+      aria-label={slide.hideTitle ? slide.alt || "Image" : undefined}
       onClick={onClose}
     >
       <button
@@ -234,41 +234,37 @@ function LightboxDialog({ index, onClose }: { index: number; onClose: () => void
       ) : null}
 
       <div
-        className="mx-auto flex min-h-0 w-full max-w-[min(100vw-2rem,1600px)] flex-1 flex-col items-center justify-center gap-6"
+        className="mx-auto flex min-h-0 w-full max-w-[min(100vw-2rem,1600px)] flex-1 flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex min-h-0 w-full flex-1 items-center justify-center">
-          {slide.src.startsWith("/") && hasDims ? (
+        <div className="relative min-h-0 w-full flex-1 overflow-hidden">
+          {slide.src.startsWith("/") ? (
             <Image
               src={slide.src}
               alt={slide.alt}
-              width={slide.width!}
-              height={slide.height!}
+              fill
               sizes="100vw"
               priority
-              className="max-h-[min(85vh,1200px)] w-auto max-w-full object-contain"
+              className="object-contain"
             />
-          ) : slide.src.startsWith("/") ? (
-            <div className="relative h-[min(85vh,1200px)] w-full max-w-full">
-              <Image src={slide.src} alt={slide.alt} fill className="object-contain" sizes="100vw" priority />
-            </div>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element -- remote URLs
             <img
               src={slide.src}
               alt={slide.alt}
-              className="max-h-[min(85vh,1200px)] w-auto max-w-full object-contain"
+              className="absolute inset-0 h-full w-full object-contain"
             />
           )}
         </div>
 
-        <div className="w-full max-w-2xl shrink-0 border-t border-white/10 pt-5">
+        <div className="mx-auto mt-4 max-h-[28vh] w-full max-w-2xl shrink-0 overflow-y-auto pb-1 md:mt-5">
           {isArtworkSlide ? (
             <ArtworkGalleryCaption
               as="div"
               variant="lightbox"
               titleId={titleId}
               title={slide.title}
+              hideTitle={slide.hideTitle}
               medium={slide.medium}
               size={slide.size}
               portfolioSeries={slide.portfolioSeries ?? []}
@@ -279,10 +275,16 @@ function LightboxDialog({ index, onClose }: { index: number; onClose: () => void
             />
           ) : (
             <div className="text-center">
-              <h2 id={titleId} className="font-serif text-xl tracking-tight text-white md:text-2xl">
-                {slide.title}
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-white/65">{slide.subtitle}</p>
+              {slide.hideTitle ? null : (
+                <h2 id={titleId} className="font-serif text-xl tracking-tight text-white md:text-2xl">
+                  {slide.title}
+                </h2>
+              )}
+              {slide.subtitle ? (
+                <p className={`text-sm leading-relaxed text-white/65 ${slide.hideTitle ? "" : "mt-2"}`}>
+                  {slide.subtitle}
+                </p>
+              ) : null}
               {statusLabel(slide.status) ? (
                 <p className="mt-1 text-xs tracking-wide text-white/50">{statusLabel(slide.status)}</p>
               ) : null}

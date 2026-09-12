@@ -2,6 +2,7 @@
 import { artSeriesHref } from "@/lib/routeSlug";
 
 export const OIL_COLD_WAX_PARENT_SLUG = "Oil and Cold Wax" as const;
+/** Retired series; old URLs redirect to the Oil and Cold Wax portfolio gallery. */
 export const GENERAL_OIL_COLD_WAX_SLUG = "general-oil-and-cold-wax" as const;
 export const SERIES_INDEX_HREF = "/series";
 
@@ -24,12 +25,6 @@ export const OIL_COLD_WAX_CHILDREN = [
     uploadFolder: "mexico-as-muse",
     sortOrder: 3,
   },
-  {
-    slug: "general-oil-and-cold-wax",
-    title: "General-Oil & Cold Wax",
-    uploadFolder: "general-oil-and-cold-wax",
-    sortOrder: 4,
-  },
 ] as const;
 
 export type OilColdWaxChildSlug = (typeof OIL_COLD_WAX_CHILDREN)[number]["slug"];
@@ -51,7 +46,12 @@ export function isOilColdWaxChildSlug(slug: string): slug is OilColdWaxChildSlug
 export const isSeriesGallerySlug = isOilColdWaxChildSlug;
 
 export function isGeneralOilColdWaxSlug(slug: string): boolean {
-  return slug === GENERAL_OIL_COLD_WAX_SLUG;
+  return slug === GENERAL_OIL_COLD_WAX_SLUG || slug === "General-Oil & Cold Wax";
+}
+
+/** Old General-Oil & Cold Wax URLs → Oil and Cold Wax portfolio gallery. */
+export function retiredSeriesRedirect(slug: string): string | null {
+  return isGeneralOilColdWaxSlug(slug) ? OIL_COLD_WAX_PARENT_SLUG : null;
 }
 
 export function oilColdWaxChildUploadFolder(slug: string): string | null {

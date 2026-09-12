@@ -48,19 +48,22 @@ export function GalleryListingImage({
   }, [galleryId, src, alt, width, height]);
 
   return (
-    <div className="overflow-hidden bg-black/[0.03]">
+    <div className="relative aspect-[4/5] w-full overflow-hidden bg-black/[0.03]">
       {pick.src.startsWith("/") ? (
         <Image
           src={pick.src}
           alt={pick.alt}
-          width={pick.width || 800}
-          height={pick.height || 1000}
+          fill
           sizes={sizes}
-          className={`h-auto w-full max-w-full ${imageClassName}`}
+          className={`object-cover ${imageClassName}`}
         />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element -- remote listing URLs
-        <img src={pick.src} alt={pick.alt} className={`mx-auto block h-auto w-full max-w-full ${imageClassName}`} />
+        <img
+          src={pick.src}
+          alt={pick.alt}
+          className={`absolute inset-0 h-full w-full object-cover ${imageClassName}`}
+        />
       )}
     </div>
   );

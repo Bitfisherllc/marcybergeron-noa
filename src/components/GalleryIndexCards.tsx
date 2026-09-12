@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { GalleryListingImage } from "@/components/GalleryListingImage";
-import { StaggeredCardGrid } from "@/components/StaggeredCardGrid";
 
 export type GalleryIndexCard = {
   id: string;
@@ -15,7 +14,7 @@ export type GalleryIndexCard = {
 
 export function GalleryIndexCards({ cards, cta }: { cards: GalleryIndexCard[]; cta: string }) {
   return (
-    <StaggeredCardGrid>
+    <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-2 lg:grid-cols-3">
       {cards.map((card) => (
         <article key={card.id} className="group border border-line bg-white/40">
           <Link href={card.href} className="focus-ring block">
@@ -38,6 +37,6 @@ export function GalleryIndexCards({ cards, cta }: { cards: GalleryIndexCard[]; c
           </Link>
         </article>
       ))}
-    </StaggeredCardGrid>
+    </div>
   );
 }

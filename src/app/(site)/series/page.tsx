@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Series",
   description:
-    "Bodies of work by Marcy Bergeron-Noa—Standing Tall As Trees, Born in France, Mexico as Muse, and General-Oil & Cold Wax.",
+    "Bodies of work by Marcy Bergeron-Noa—Standing Tall As Trees, Born in France, and Mexico as Muse.",
   alternates: { canonical: `${SITE_URL}${SERIES_INDEX_HREF}` },
 };
 

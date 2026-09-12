@@ -11,6 +11,8 @@ export const series = pgTable("series", {
   featuredArtworkMode: text("featured_artwork_mode").notNull().default("random"),
   featuredArtworkId: text("featured_artwork_id"),
   sortOrder: integer("sort_order").notNull().default(0),
+  /** When true, the gallery page shows the slideshow beside About. Default is About under the title. */
+  showHeroSlideshow: boolean("show_hero_slideshow").notNull().default(false),
   /** Hidden from portfolio nav; viewable only via `/private/[accessToken]`. */
   isPrivate: boolean("is_private").notNull().default(false),
   accessToken: text("access_token").unique(),

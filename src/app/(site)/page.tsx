@@ -11,6 +11,11 @@ import { toHeroSlide } from "@/lib/heroSlides";
 
 export const revalidate = 300;
 
+/** Set to true to show the Journal carousel on the home page again. */
+const SHOW_HOME_JOURNAL = false;
+/** Set to true to show Selected works on the home page again. */
+const SHOW_HOME_SELECTED_WORKS = false;
+
 export const metadata: Metadata = {
   title: "Marcy Bergeron-Noa | Abstract Artist Portfolio",
   description:
@@ -72,7 +77,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {journalPosts.length > 0 ? (
+      {SHOW_HOME_JOURNAL && journalPosts.length > 0 ? (
         <section className="border-t border-line bg-white/35">
           <div className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">
             <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
@@ -130,40 +135,42 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">
-        <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
-          <div>
-            <h2 className="font-serif text-3xl tracking-tight">{selectedSec.title}</h2>
-            <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">{selectedSec.body}</p>
+      {SHOW_HOME_SELECTED_WORKS ? (
+        <section className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">
+          <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
+            <div>
+              <h2 className="font-serif text-3xl tracking-tight">{selectedSec.title}</h2>
+              <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">{selectedSec.body}</p>
+            </div>
+            <Link href="/medium" className="link-quiet text-sm tracking-wide">
+              Browse the full archive →
+            </Link>
           </div>
-          <Link href="/medium" className="link-quiet text-sm tracking-wide">
-            Browse the full archive →
-          </Link>
-        </div>
-        <div className="mt-10 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-          {selectedPicks.map(({ series: s, piece }) => (
-            <figure key={piece.id} className="border border-line bg-white/30 p-4">
-              <Link href={`/art/${s.slug}`} className="focus-ring block">
-                <div className="relative aspect-[3/4] overflow-hidden bg-black/[0.03]">
-                  <Image
-                    src={piece.image}
-                    alt={piece.alt}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                  />
-                </div>
-              </Link>
-              <ArtCaption
-                title={piece.title}
-                subtitle={captionSubtitle({ medium: piece.medium, size: piece.size })}
-                status={piece.status}
-                artworkId={piece.id}
-              />
-            </figure>
-          ))}
-        </div>
-      </section>
+          <div className="mt-10 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+            {selectedPicks.map(({ series: s, piece }) => (
+              <figure key={piece.id} className="border border-line bg-white/30 p-4">
+                <Link href={`/art/${s.slug}`} className="focus-ring block">
+                  <div className="relative aspect-[3/4] overflow-hidden bg-black/[0.03]">
+                    <Image
+                      src={piece.image}
+                      alt={piece.alt}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                    />
+                  </div>
+                </Link>
+                <ArtCaption
+                  title={piece.title}
+                  subtitle={captionSubtitle({ medium: piece.medium, size: piece.size })}
+                  status={piece.status}
+                  artworkId={piece.id}
+                />
+              </figure>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

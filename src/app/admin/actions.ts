@@ -116,6 +116,7 @@ export async function upsertSeries(formData: FormData) {
 
   const featuredArtworkMode = parseFeaturedArtworkMode(String(formData.get("featuredArtworkMode") ?? ""));
   const featuredArtworkIdRaw = String(formData.get("featuredArtworkId") ?? "").trim();
+  const showHeroSlideshow = String(formData.get("showHeroSlideshow") ?? "") === "on";
 
   if (!slug || !title) redirect("/admin/series?error=1");
 
@@ -178,6 +179,7 @@ export async function upsertSeries(formData: FormData) {
         featuredImage,
         featuredArtworkMode,
         featuredArtworkId,
+        showHeroSlideshow,
         sortOrder,
         isPrivate,
         accessToken,
@@ -206,6 +208,7 @@ export async function upsertSeries(formData: FormData) {
       featuredImage,
       featuredArtworkMode,
       featuredArtworkId,
+      showHeroSlideshow,
       sortOrder,
       isPrivate,
       accessToken,

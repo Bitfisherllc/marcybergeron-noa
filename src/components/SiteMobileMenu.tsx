@@ -47,6 +47,7 @@ function MobileNavSection({
   overviewHref,
   overviewLabel,
   items,
+  trailingItems,
   expanded,
   onToggle,
   onNavigate,
@@ -55,6 +56,7 @@ function MobileNavSection({
   overviewHref?: string;
   overviewLabel?: string;
   items: NavItem[];
+  trailingItems?: NavItem[];
   expanded: boolean;
   onToggle: () => void;
   onNavigate: () => void;
@@ -102,6 +104,22 @@ function MobileNavSection({
             </Link>
           </li>
         ))}
+        {trailingItems?.length ? (
+          <>
+            <li className="mx-1 my-1.5 h-px bg-line" role="separator" />
+            {trailingItems.map((item) => (
+              <li key={item.href}>
+                <Link
+                  className="block rounded-sm px-1 py-2.5 text-sm text-ink/85 hover:bg-black/[0.03] hover:text-ink"
+                  href={item.href}
+                  onClick={onNavigate}
+                >
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </>
+        ) : null}
       </ul>
     </li>
   );
@@ -109,16 +127,16 @@ function MobileNavSection({
 
 export function SiteMobileMenu({
   portfolioItems,
-  seriesItems,
   aboutItems,
-  seriesIndexHref,
+  seriesItem,
+  workshopsLink,
   navLinks,
   instagramHref,
 }: {
   portfolioItems: NavItem[];
-  seriesItems: NavItem[];
   aboutItems: NavItem[];
-  seriesIndexHref: string;
+  seriesItem: NavItem;
+  workshopsLink: NavItem;
   navLinks: readonly NavItem[];
   instagramHref: string;
 }) {
@@ -204,19 +222,20 @@ export function SiteMobileMenu({
             overviewHref="/medium"
             overviewLabel="View portfolio"
             items={portfolioItems}
+            trailingItems={[seriesItem]}
             expanded={Boolean(expanded.portfolio)}
             onToggle={() => toggleSection("portfolio")}
             onNavigate={close}
           />
-          <MobileNavSection
-            title="Series"
-            overviewHref={seriesIndexHref}
-            overviewLabel="View series"
-            items={seriesItems}
-            expanded={Boolean(expanded.series)}
-            onToggle={() => toggleSection("series")}
-            onNavigate={close}
-          />
+          <li>
+            <Link
+              className="block rounded-sm px-1 py-2.5 hover:bg-black/[0.03]"
+              href={workshopsLink.href}
+              onClick={close}
+            >
+              {workshopsLink.label}
+            </Link>
+          </li>
           <MobileNavSection
             title="About"
             items={aboutItems}

@@ -20,7 +20,7 @@ export function PostArticleGallery({ images }: { images: PostGalleryImage[] }) {
             {images.map((img, i) => {
               const label = img.caption.trim() || img.alt.trim() || `Gallery image ${i + 1}`;
               return (
-                <figure key={img.id} className="border border-line bg-white/30 p-4">
+                <figure key={img.id}>
                   <GalleryLightboxTrigger index={i} label={`Enlarge: ${label}`}>
                     <IntrinsicGalleryImage
                       src={img.image}

@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { SeriesGalleryView } from "@/components/SeriesGalleryView";
 import { getAdminSession } from "@/lib/auth";
 import { isMediumGallerySlug, legacyMediumGalleryRedirect } from "@/lib/mediumGalleries";
-import { isOilColdWaxChildSlug, OIL_COLD_WAX_CHILD_SLUGS } from "@/lib/oilColdWaxSeries";
+import { isOilColdWaxChildSlug, OIL_COLD_WAX_CHILD_SLUGS, retiredSeriesRedirect } from "@/lib/oilColdWaxSeries";
 import { isAllWorkSlug } from "@/lib/portfolioGalleries";
 import { isPrivateGallery } from "@/lib/privateGalleries";
 import { getSeriesBySlug, listMediumGalleries } from "@/lib/queries";
@@ -34,6 +34,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug: rawSlug } = await params;
   let slug = normalizeRouteSlug(rawSlug);
+  const retiredTarget = retiredSeriesRedirect(slug);
+  if (retiredTarget) slug = retiredTarget;
   const legacyTarget = legacyMediumGalleryRedirect(slug);
   if (legacyTarget) slug = legacyTarget;
   const s = await getSeriesBySlug(slug);
@@ -48,6 +50,8 @@ export async function generateMetadata({
 export default async function SeriesPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug: rawSlug } = await params;
   const slug = normalizeRouteSlug(rawSlug);
+  const retiredTarget = retiredSeriesRedirect(slug);
+  if (retiredTarget) redirect(artSeriesHref(retiredTarget));
   const legacyTarget = legacyMediumGalleryRedirect(slug);
   if (legacyTarget) redirect(artSeriesHref(legacyTarget));
 

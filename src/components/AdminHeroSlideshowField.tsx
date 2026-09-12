@@ -24,6 +24,10 @@ type AdminHeroSlideshowFieldProps = {
   usingRandom: boolean;
   variant?: SlideshowAdminVariant;
   fieldPrefix?: string;
+  /** Gallery pages only. Home slideshow is always shown. */
+  showOnPage?: boolean;
+  /** The Studio always shows the slideshow area; hide the optional Display toggle. */
+  lockDisplayOn?: boolean;
 };
 
 const COPY: Record<
@@ -41,12 +45,13 @@ const COPY: Record<
 > = {
   gallery: {
     legend: "Gallery page slideshow",
-    hint: "Large image beside About on this gallery page. One image stays as a single photo; two or three become a slideshow. You do not have to fill every slot. Upload a photo, pick one already on the site, or choose a painting from this gallery. This is separate from the rotating card on the main Portfolio page.",
+    hint: "Optional. Off by default — About then sits under the title. Turn on Display slideshow to restore the side-by-side About row. One chosen image stays as a single photo with no slideshow arrows. Two or three become a slideshow with navigation. You do not have to fill every slot. Upload a photo, pick one already on the site, or choose a painting from this gallery. This is separate from the rotating card on the main Portfolio page.",
     paintingLabel: "Or painting in this gallery",
     emptyPaintings: "Add paintings if you want to pick from this gallery’s works.",
-    afterSaveEmpty: "After you save, the gallery page will show random images from this gallery.",
+    afterSaveEmpty:
+      "After you save with Display slideshow on and no images chosen, the gallery page will show one random image from this gallery, without slideshow navigation.",
     liveEmpty:
-      "No slideshow images are chosen. The gallery page currently shows random paintings from this gallery. You can pick one image, or two or three for a slideshow, or leave this unchosen.",
+      "No slideshow images are chosen. With Display slideshow on, the gallery page shows one random painting from this gallery, without slideshow navigation. Pick one image to keep that still photo, or two or three for a slideshow with arrows.",
     previewLive: "On the gallery page",
     emptySlotRandom: "Random from this gallery",
   },
@@ -171,8 +176,11 @@ export function AdminHeroSlideshowField({
   usingRandom,
   variant = "gallery",
   fieldPrefix = "heroSlide",
+  showOnPage = false,
+  lockDisplayOn = false,
 }: AdminHeroSlideshowFieldProps) {
   const copy = COPY[variant];
+  const [displayOnPage, setDisplayOnPage] = useState(showOnPage || lockDisplayOn);
   const padded = useMemo(
     () => Array.from({ length: HERO_SLIDESHOW_MAX }, (_, i) => slots[i] ?? { artworkId: null, image: null }),
     [slots],
@@ -218,13 +226,49 @@ export function AdminHeroSlideshowField({
   return (
     <fieldset className="space-y-4 border border-line bg-paper/40 p-4">
       <legend className="px-1 text-sm font-medium text-ink">{copy.legend}</legend>
-      <p className="text-xs leading-relaxed text-muted">{copy.hint}</p>
+      <p className="text-xs leading-relaxed text-muted">
+        {lockDisplayOn
+          ? "The image sits beside About on this page. One chosen image stays as a still photo with no slideshow arrows. Two or three become a slideshow with navigation. You do not have to fill every slot. Upload a photo, pick one already on the site, or choose a painting from this gallery."
+          : copy.hint}
+      </p>
+      {variant === "gallery" && lockDisplayOn ? (
+        <>
+          <input type="hidden" name="showHeroSlideshow" value="on" />
+          <p className="text-sm leading-relaxed text-ink">
+            This gallery always shows the image area beside About. One chosen image is a still photo with no
+            arrows. Two or three become a slideshow with navigation.
+          </p>
+        </>
+      ) : variant === "gallery" ? (
+        <label className="flex items-start gap-3 text-sm text-ink">
+          <input
+            type="checkbox"
+            name="showHeroSlideshow"
+            value="on"
+            checked={displayOnPage}
+            onChange={(e) => {
+              setDisplayOnPage(e.target.checked);
+              notifyFormDirty(e.currentTarget.form);
+            }}
+            className="mt-1 border border-line"
+          />
+          <span>
+            <span className="font-medium">Display slideshow</span>
+            <span className="block text-xs leading-relaxed text-muted">
+              Off by default. When on, the image sits beside About. One chosen image has no slideshow arrows.
+              Two or three become a slideshow with navigation. When off, About appears under the title.
+            </span>
+          </span>
+        </label>
+      ) : null}
       <p className="text-sm leading-relaxed text-ink">
-        {hasEdits ? (
+        {variant === "gallery" && !displayOnPage ? (
+          <>The gallery page will not show a slideshow. About will appear under the title.</>
+        ) : hasEdits ? (
           chosenCount === 0 ? (
             <>{copy.afterSaveEmpty}</>
           ) : chosenCount === 1 ? (
-            <>Preview of the single image that will show after you save: {displayNames[0]}.</>
+            <>Preview of the single image that will show after you save, without slideshow navigation: {displayNames[0]}.</>
           ) : (
             <>
               Preview of the {chosenCount}-image slideshow that will show after you save: {formatNameList(displayNames)}.
@@ -233,7 +277,7 @@ export function AdminHeroSlideshowField({
         ) : usingRandom ? (
           <>{copy.liveEmpty}</>
         ) : chosenCount === 1 ? (
-          <>Currently showing a single image: {displayNames[0]}.</>
+          <>Currently showing a single image, without slideshow navigation: {displayNames[0]}.</>
         ) : (
           <>Currently showing a {chosenCount}-image slideshow: {formatNameList(displayNames)}.</>
         )}

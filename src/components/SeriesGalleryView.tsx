@@ -3,12 +3,10 @@ import { deleteSeries } from "@/app/admin/actions";
 import type { Series } from "@/db";
 import { AdminArtworkSiteEdit } from "@/components/AdminArtworkSiteEdit";
 import { AdminDeleteSeriesForm } from "@/components/AdminDeleteSeriesForm";
-import { ArtworkGalleryCaption } from "@/components/ArtworkGalleryCaption";
 import { GalleryLightboxProvider, GalleryLightboxTrigger } from "@/components/GalleryLightbox";
 import { IntrinsicGalleryImage } from "@/components/IntrinsicGalleryImage";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
 import { StatementSlideshow } from "@/components/StatementSlideshow";
-import { StaggeredCardGrid } from "@/components/StaggeredCardGrid";
 import { getAdminSession } from "@/lib/auth";
 import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
 import { slideFromArtwork, slideFromArtworkCached, slideFromSeriesHero, type GallerySlide } from "@/lib/gallerySlides";
@@ -34,10 +32,36 @@ type SeriesGalleryViewProps = {
   variant: "public" | "private";
 };
 
+function GalleryAbout({
+  heading,
+  content,
+  inquireHref,
+}: {
+  heading: string;
+  content: string;
+  inquireHref?: string;
+}) {
+  return (
+    <div className="space-y-8">
+      <h2 className="font-serif text-2xl tracking-tight">{heading}</h2>
+      <ProseMarkdown content={content} />
+      {inquireHref ? (
+        <div className="border-t border-line pt-8">
+          <Link href={inquireHref} className="link-quiet text-sm tracking-wide">
+            Inquire about this series →
+          </Link>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryViewProps) {
+  const isStudioGallery = isStudioGallerySlug(s.slug);
+  const showSlideshow = isStudioGallery || s.showHeroSlideshow;
   const [pieces, heroSlots] = await Promise.all([
     listArtworksForPublicGallery(s),
-    listHeroSlideshowSlots(s.id),
+    showSlideshow ? listHeroSlideshowSlots(s.id) : Promise.resolve([]),
   ]);
   const isDeletableGallery = isPrivateGallery(s);
   const session = variant === "private" ? await getAdminSession() : null;
@@ -46,7 +70,6 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
     ? await Promise.all([listMediumGalleries(), listAdminSeriesMembershipOptions()])
     : null;
   const isChildSeries = isOilColdWaxChildSlug(s.slug);
-  const isStudioGallery = isStudioGallerySlug(s.slug);
   const deleteImpact = session && isDeletableGallery ? await getSeriesDeleteImpact(s.id) : null;
   const { prev, next } =
     variant === "public"
@@ -58,7 +81,9 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       : { prev: null, next: null };
   const returnPath = variant === "private" && s.accessToken ? `/private/${s.accessToken}` : artSeriesHref(s.slug);
 
-  const heroResolved = resolveInteriorHeroSlides(s, pieces, heroSlots);
+  const aboutHeading = isChildSeries ? "Series statement" : "About";
+  const inquireHref = isStudioGallery ? undefined : seriesInquiryHref(s.slug);
+  const heroResolved = showSlideshow ? resolveInteriorHeroSlides(s, pieces, heroSlots) : [];
   const lightboxByArtworkId = new Map<string, number>();
   const lightboxSlides: GallerySlide[] = [];
   const heroLightboxIndex: number[] = [];
@@ -73,7 +98,11 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       ? slideFromArtworkCached(piece, slideMeta)
       : await slideFromArtwork(piece, slideMeta);
     lightboxByArtworkId.set(piece.id, lightboxSlides.length);
-    lightboxSlides.push(slide);
+    lightboxSlides.push(
+      isStudioGallery
+        ? { ...slide, hideTitle: true, title: "", portfolioSeries: [], mediumGallery: null }
+        : slide,
+    );
   };
   for (const [slot, hero] of heroResolved.entries()) {
     if (hero.artwork) {
@@ -81,7 +110,10 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       heroLightboxIndex.push(lightboxByArtworkId.get(hero.artwork.id) ?? 0);
     } else {
       heroLightboxIndex.push(lightboxSlides.length);
-      lightboxSlides.push(await slideFromSeriesHero(s, { subtitle: "Featured work", image: hero.image, slot }));
+      lightboxSlides.push({
+        ...(await slideFromSeriesHero(s, { subtitle: "Featured work", image: hero.image, slot })),
+        ...(isStudioGallery ? { hideTitle: true, subtitle: "" } : {}),
+      });
     }
   }
   for (const piece of pieces) {
@@ -99,65 +131,72 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
     };
   });
 
+  const studioHero = isStudioGallery && showSlideshow;
+
   return (
     <article>
+      <GalleryLightboxProvider slides={lightboxSlides}>
       <header className="border-b border-line">
         <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
-          <p className="text-xs tracking-[0.22em] text-muted uppercase">
-            {variant === "private"
-              ? "Private gallery"
-              : isChildSeries
-                ? "Series"
-                : isStudioGallery
-                  ? "Studio"
-                  : "Portfolio"}
-          </p>
-          <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
-          <p className="mt-6 max-w-3xl text-base leading-relaxed text-muted">{s.excerpt}</p>
-          {isChildSeries ? (
-            <p className="mt-4">
-              <Link href={SERIES_INDEX_HREF} className="link-quiet text-sm tracking-wide">
-                ← All series
-              </Link>
-            </p>
-          ) : null}
-          {variant === "private" ? (
-            <p className="mt-4 max-w-3xl text-sm text-muted">
-              This gallery is shared privately for review—it is not listed on the public portfolio.
-            </p>
-          ) : null}
+          {studioHero ? (
+            <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
+              <div>
+                <p className="text-xs tracking-[0.22em] text-muted uppercase">Studio</p>
+                <h1 className="mt-4 font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
+                <p className="mt-6 text-base leading-relaxed text-muted">{s.excerpt}</p>
+                <div className="mt-10">
+                  <GalleryAbout heading={aboutHeading} content={s.content} inquireHref={inquireHref} />
+                </div>
+              </div>
+              <StatementSlideshow slides={slideshowSlides} />
+            </div>
+          ) : (
+            <>
+              <p className="text-xs tracking-[0.22em] text-muted uppercase">
+                {variant === "private" ? "Private gallery" : isChildSeries ? "Series" : "Portfolio"}
+              </p>
+              <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
+              <p className="mt-6 max-w-3xl text-base leading-relaxed text-muted">{s.excerpt}</p>
+              {isChildSeries ? (
+                <p className="mt-4">
+                  <Link href={SERIES_INDEX_HREF} className="link-quiet text-sm tracking-wide">
+                    ← All series
+                  </Link>
+                </p>
+              ) : null}
+              {variant === "private" ? (
+                <p className="mt-4 max-w-3xl text-sm text-muted">
+                  This gallery is shared privately for review—it is not listed on the public portfolio.
+                </p>
+              ) : null}
+              {!showSlideshow ? (
+                <div className="mt-10 max-w-3xl">
+                  <GalleryAbout heading={aboutHeading} content={s.content} inquireHref={inquireHref} />
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
       </header>
 
-      <GalleryLightboxProvider slides={lightboxSlides}>
-        <section className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
-          <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
-            <StatementSlideshow slides={slideshowSlides} />
-            <div className="space-y-8">
-              <h2 className="font-serif text-2xl tracking-tight">
-                {isChildSeries ? "Series statement" : "About"}
-              </h2>
-              <ProseMarkdown content={s.content} />
-              <div className="border-t border-line pt-8">
-                <Link href={seriesInquiryHref(s.slug)} className="link-quiet text-sm tracking-wide">
-                  Inquire about this series →
-                </Link>
-              </div>
+        {showSlideshow && !isStudioGallery ? (
+          <section className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
+            <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
+              <StatementSlideshow slides={slideshowSlides} />
+              <GalleryAbout heading={aboutHeading} content={s.content} inquireHref={inquireHref} />
             </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
 
-        <section className="border-t border-line bg-white/35">
+        <section className={`${showSlideshow && !isStudioGallery ? "border-t border-line " : ""}bg-white/35`}>
           <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
             <h2 className="font-serif text-3xl tracking-tight">{s.title}</h2>
             <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
-              Click an image to view it larger. Captions appear beneath each thumbnail and in the lightbox.
+              Click an image to view it larger, with title and details.
             </p>
-            <StaggeredCardGrid className="mt-12">
-              {pieces.map((p) => {
-                const meta = galleryMeta.get(p.id);
-                return (
-                  <figure key={p.id} className="border border-line bg-white/30 p-4">
+            <div className="mt-12 grid grid-cols-1 items-start gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {pieces.map((p) => (
+                  <figure key={p.id}>
                     <GalleryLightboxTrigger
                       index={lightboxByArtworkId.get(p.id) ?? 0}
                       label={`Enlarge: ${p.title}`}
@@ -168,18 +207,9 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                         width={p.imageWidth}
                         height={p.imageHeight}
                         sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        frame="portrait"
                       />
                     </GalleryLightboxTrigger>
-                    <ArtworkGalleryCaption
-                      title={p.title}
-                      medium={p.medium}
-                      size={p.size}
-                      portfolioSeries={meta?.portfolioSeries ?? []}
-                      mediumGallery={meta?.mediumSeries ?? null}
-                      description={p.description || undefined}
-                      status={p.status}
-                      artworkId={p.id}
-                    />
                     {session && adminLists ? (
                       <AdminArtworkSiteEdit
                         artworkId={p.id}
@@ -191,9 +221,8 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                       />
                     ) : null}
                   </figure>
-                );
-              })}
-            </StaggeredCardGrid>
+              ))}
+            </div>
           </div>
         </section>
       </GalleryLightboxProvider>

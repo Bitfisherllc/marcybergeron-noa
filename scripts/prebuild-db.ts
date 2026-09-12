@@ -114,12 +114,32 @@ function main() {
   }
 
   try {
+    execSync("npx tsx scripts/migrate-show-hero-slideshow.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] gallery slideshow visibility column migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
     execSync("npx tsx scripts/migrate-ocw-gallery-images.ts", {
       stdio: "inherit",
       env: process.env,
     });
   } catch (e) {
     console.error("[prebuild] Oil and Cold Wax gallery image assignment failed.", e);
+    process.exit(1);
+  }
+
+  try {
+    execSync("npx tsx scripts/migrate-remove-general-oil-cold-wax.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] General-Oil & Cold Wax series removal failed.", e);
     process.exit(1);
   }
 

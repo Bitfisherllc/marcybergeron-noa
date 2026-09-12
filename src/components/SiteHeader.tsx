@@ -1,9 +1,12 @@
+import Image from "next/image";
 import Link from "next/link";
 import { SiteMobileMenu } from "@/components/SiteMobileMenu";
-import { listMediumGalleries, listSeriesGalleries } from "@/lib/queries";
+import { listMediumGalleries } from "@/lib/queries";
 import { aboutNavDropdownItems, portfolioNavDropdownItems } from "@/lib/mediumGalleries";
-import { SERIES_INDEX_HREF, seriesNavDropdownItems } from "@/lib/oilColdWaxSeries";
+import { SERIES_INDEX_HREF } from "@/lib/oilColdWaxSeries";
 import { CONTACT, SITE_NAME } from "@/lib/site";
+
+const workshopsLink = { href: "/workshops", label: "Workshops" } as const;
 
 const navLinks = [
   { href: "/news", label: "News" },
@@ -31,16 +34,24 @@ function ChevronDown({ className }: { className?: string }) {
 const dropdownPanelClass =
   "invisible absolute left-0 top-full z-50 pt-2 opacity-0 transition-[opacity,visibility] duration-150 ease-out group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100";
 
+function dropdownItemClass(emphasized?: boolean) {
+  return emphasized
+    ? "block px-4 py-2.5 text-sm text-ink/90 transition-colors hover:bg-black/[0.04] hover:text-ink focus-visible:bg-black/[0.04] focus-visible:outline-none"
+    : "block px-4 py-2 text-[0.8125rem] leading-snug text-ink/75 transition-colors hover:bg-black/[0.04] hover:text-ink focus-visible:bg-black/[0.04] focus-visible:outline-none";
+}
+
 function NavDropdownPanel({
   ariaLabel,
   overviewHref,
   overviewLabel,
   items,
+  trailingItems,
 }: {
   ariaLabel: string;
   overviewHref?: string;
   overviewLabel?: string;
   items: { href: string; label: string }[];
+  trailingItems?: { href: string; label: string }[];
 }) {
   return (
     <div className={dropdownPanelClass} role="region" aria-label={ariaLabel}>
@@ -48,10 +59,7 @@ function NavDropdownPanel({
         {overviewHref && overviewLabel ? (
           <>
             <li>
-              <Link
-                href={overviewHref}
-                className="block px-4 py-2.5 text-sm text-ink/90 transition-colors hover:bg-black/[0.04] hover:text-ink focus-visible:bg-black/[0.04] focus-visible:outline-none"
-              >
+              <Link href={overviewHref} className={dropdownItemClass(true)}>
                 {overviewLabel}
               </Link>
             </li>
@@ -60,14 +68,23 @@ function NavDropdownPanel({
         ) : null}
         {items.map((item) => (
           <li key={item.href}>
-            <Link
-              href={item.href}
-              className="block px-4 py-2 text-[0.8125rem] leading-snug text-ink/75 transition-colors hover:bg-black/[0.04] hover:text-ink focus-visible:bg-black/[0.04] focus-visible:outline-none"
-            >
+            <Link href={item.href} className={dropdownItemClass()}>
               {item.label}
             </Link>
           </li>
         ))}
+        {trailingItems?.length ? (
+          <>
+            <li className="mx-3 my-1 h-px bg-line" role="separator" />
+            {trailingItems.map((item) => (
+              <li key={item.href}>
+                <Link href={item.href} className={dropdownItemClass()}>
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </>
+        ) : null}
       </ul>
     </div>
   );
@@ -87,19 +104,27 @@ function NavDropdownLink({ href, label }: { href: string; label: string }) {
 }
 
 export async function SiteHeader() {
-  const [portfolioGalleries, seriesGalleries] = await Promise.all([
-    listMediumGalleries(),
-    listSeriesGalleries(),
-  ]);
+  const portfolioGalleries = await listMediumGalleries();
   const portfolioItems = portfolioNavDropdownItems(portfolioGalleries);
-  const seriesItems = seriesNavDropdownItems(seriesGalleries);
   const aboutItems = aboutNavDropdownItems();
+  const seriesNavItem = { href: SERIES_INDEX_HREF, label: "Series" };
 
   return (
     <header className="border-b border-line">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-5 py-6 md:px-8">
-        <Link href="/" className="font-serif text-2xl tracking-tight text-ink focus-ring rounded-sm" aria-label={`${SITE_NAME} — home`}>
-          {SITE_NAME}
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 rounded-sm font-serif text-2xl tracking-tight text-ink focus-ring"
+          aria-label={`${SITE_NAME} — home`}
+        >
+          <Image
+            src="/images/logo.svg"
+            alt=""
+            width={512}
+            height={1254}
+            className="h-[1.45em] w-auto shrink-0 object-contain object-left brightness-0"
+          />
+          <span>{SITE_NAME}</span>
         </Link>
         <nav aria-label="Primary" className="hidden md:block">
           <ul className="flex items-center gap-8 text-sm tracking-wide text-ink/80">
@@ -110,16 +135,13 @@ export async function SiteHeader() {
                 overviewHref="/medium"
                 overviewLabel="View portfolio"
                 items={portfolioItems}
+                trailingItems={[seriesNavItem]}
               />
             </li>
-            <li className="group relative">
-              <NavDropdownLink href={SERIES_INDEX_HREF} label="Series" />
-              <NavDropdownPanel
-                ariaLabel="Series"
-                overviewHref={SERIES_INDEX_HREF}
-                overviewLabel="View series"
-                items={seriesItems}
-              />
+            <li>
+              <Link href={workshopsLink.href} className="hover:text-ink focus-ring rounded-sm">
+                {workshopsLink.label}
+              </Link>
             </li>
             <li className="group relative">
               <NavDropdownLink href="/about" label="About" />
@@ -147,9 +169,9 @@ export async function SiteHeader() {
         </div>
         <SiteMobileMenu
           portfolioItems={portfolioItems}
-          seriesItems={seriesItems}
           aboutItems={aboutItems}
-          seriesIndexHref={SERIES_INDEX_HREF}
+          seriesItem={seriesNavItem}
+          workshopsLink={workshopsLink}
           navLinks={navLinks}
           instagramHref={CONTACT.instagram}
         />

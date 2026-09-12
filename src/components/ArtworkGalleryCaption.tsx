@@ -18,6 +18,7 @@ type ArtworkGalleryCaptionProps = {
   /** Light text for the lightbox overlay. */
   variant?: "default" | "lightbox";
   titleId?: string;
+  hideTitle?: boolean;
 };
 
 export function ArtworkGalleryCaption({
@@ -32,6 +33,7 @@ export function ArtworkGalleryCaption({
   as: Tag = "figcaption",
   variant = "default",
   titleId,
+  hideTitle = false,
 }: ArtworkGalleryCaptionProps) {
   const subtitle = captionSubtitle({ medium, size });
   const isLightbox = variant === "lightbox";
@@ -47,9 +49,11 @@ export function ArtworkGalleryCaption({
 
   return (
     <Tag className={`max-w-prose space-y-2 ${isLightbox ? "w-full text-center" : "mt-4"}`}>
-      <div id={titleId} className={titleClass}>
-        {title}
-      </div>
+      {hideTitle ? null : (
+        <div id={titleId} className={titleClass}>
+          {title}
+        </div>
+      )}
       {subtitle ? <div className={`text-sm leading-relaxed ${textClass}`}>{subtitle}</div> : null}
       {portfolioSeries.length > 0 ? (
         <div className={`text-sm ${textClass}`}>

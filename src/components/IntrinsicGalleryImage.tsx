@@ -13,6 +13,8 @@ type Props = {
   frameClassName?: string;
   /** Applied to the image element when dimensions are known (e.g. hover zoom). */
   imageClassName?: string;
+  /** `portrait` crops every thumbnail to the same vertical frame. */
+  frame?: "natural" | "portrait";
 };
 
 function storedFromProps(width?: number | null, height?: number | null): ImageDimensions | null {
@@ -33,7 +35,34 @@ export async function IntrinsicGalleryImage({
   height,
   frameClassName = "",
   imageClassName = "",
+  frame = "natural",
 }: Props) {
+  if (frame === "portrait") {
+    return (
+      <div className={`relative aspect-[4/5] w-full overflow-hidden bg-black/[0.03] ${frameClassName}`}>
+        {src.startsWith("/") ? (
+          <Image
+            src={src}
+            alt={alt}
+            fill
+            sizes={sizes}
+            priority={priority}
+            className={`object-cover ${imageClassName}`}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element -- remote URLs
+          <img
+            src={src}
+            alt={alt}
+            className={`absolute inset-0 h-full w-full object-cover ${imageClassName}`}
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
+          />
+        )}
+      </div>
+    );
+  }
+
   if (!src.startsWith("/")) {
     return (
       <div className={`overflow-hidden bg-black/[0.03] ${frameClassName}`}>

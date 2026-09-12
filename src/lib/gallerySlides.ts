@@ -9,6 +9,8 @@ export type GallerySlide = {
   alt: string;
   title: string;
   subtitle: string;
+  /** Hide the title in the lightbox (used for The Studio documentary photos). */
+  hideTitle?: boolean;
   medium?: string;
   size?: string;
   portfolioSeries?: GallerySeriesLink[];
