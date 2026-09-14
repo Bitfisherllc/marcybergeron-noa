@@ -128,14 +128,12 @@ function MobileNavSection({
 export function SiteMobileMenu({
   portfolioItems,
   aboutItems,
-  seriesItem,
   workshopsLink,
   navLinks,
   instagramHref,
 }: {
   portfolioItems: NavItem[];
   aboutItems: NavItem[];
-  seriesItem: NavItem;
   workshopsLink: NavItem;
   navLinks: readonly NavItem[];
   instagramHref: string;
@@ -222,7 +220,6 @@ export function SiteMobileMenu({
             overviewHref="/medium"
             overviewLabel="View portfolio"
             items={portfolioItems}
-            trailingItems={[seriesItem]}
             expanded={Boolean(expanded.portfolio)}
             onToggle={() => toggleSection("portfolio")}
             onNavigate={close}

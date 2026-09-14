@@ -94,12 +94,52 @@ function main() {
   }
 
   try {
+    execSync("npx tsx scripts/migrate-post-kind.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] post kind column migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
     execSync("npx tsx scripts/migrate-post-categories.ts", {
       stdio: "inherit",
       env: process.env,
     });
   } catch (e) {
     console.error("[prebuild] post category table migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
+    execSync("npx tsx scripts/migrate-post-index-copy.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] post index copy table migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
+    execSync("npx tsx scripts/migrate-post-price.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] post price column migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
+    execSync("npx tsx scripts/migrate-workshop-inquiry.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] workshop inquiry table migration failed.", e);
     process.exit(1);
   }
 

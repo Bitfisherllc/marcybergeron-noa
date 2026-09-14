@@ -1,12 +1,17 @@
 /**
- * Oil and Cold Wax gallery lists paintings assigned via medium_series_id.
- * The retired General-Oil & Cold Wax series is ignored when missing.
+ * Oil and Cold Wax gallery lists paintings via medium_series_id.
+ * General (non-series) works come first. Then the same paintings that live on
+ * the Series pages, in this order: Mexico as Muse, Born in France, Standing Tall As Trees.
+ * Series membership is unchanged — these are the same records, not copies.
  * Safe to run multiple times.
  */
-import { eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { closeDb, getDb } from "@/db";
 import { artwork, artworkSeries, series } from "@/db/schema";
-import { GENERAL_OIL_COLD_WAX_SLUG, OIL_COLD_WAX_CHILD_SLUGS, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
+import {
+  OIL_COLD_WAX_GALLERY_SERIES_ORDER,
+  OIL_COLD_WAX_PARENT_SLUG,
+} from "@/lib/oilColdWaxSeries";
 
 export async function ensureOilColdWaxGalleryImages(): Promise<void> {
   const db = getDb();
@@ -20,40 +25,77 @@ export async function ensureOilColdWaxGalleryImages(): Promise<void> {
     return;
   }
 
-  const rows = await db
+  const childRows = await db
     .select({ id: series.id, slug: series.slug })
     .from(series)
-    .where(inArray(series.slug, [...OIL_COLD_WAX_CHILD_SLUGS]));
-  const generalId = rows.find((r) => r.slug === GENERAL_OIL_COLD_WAX_SLUG)?.id;
-  if (!generalId) {
-    console.log("General-Oil & Cold Wax series not found; skip medium assignment.");
-    return;
-  }
+    .where(inArray(series.slug, [...OIL_COLD_WAX_GALLERY_SERIES_ORDER]));
+  const childBySlug = new Map(childRows.map((row) => [row.slug, row.id]));
+  const childIds = childRows.map((row) => row.id);
 
-  const generalMembers = await db
-    .select({ artworkId: artworkSeries.artworkId })
-    .from(artworkSeries)
-    .where(eq(artworkSeries.seriesId, generalId));
-  const generalArtworkIds = generalMembers.map((row) => row.artworkId);
-  if (generalArtworkIds.length > 0) {
-    await db.update(artwork).set({ mediumSeriesId: parent.id }).where(inArray(artwork.id, generalArtworkIds));
-  }
+  const seriesMembers =
+    childIds.length > 0
+      ? await db
+          .select({ artworkId: artworkSeries.artworkId, seriesId: artworkSeries.seriesId })
+          .from(artworkSeries)
+          .where(inArray(artworkSeries.seriesId, childIds))
+      : [];
+  const seriesArtworkIds = new Set(seriesMembers.map((row) => row.artworkId));
 
-  const otherIds = rows.filter((r) => r.slug !== GENERAL_OIL_COLD_WAX_SLUG).map((r) => r.id);
-  if (otherIds.length > 0) {
-    const otherMembers = await db
-      .select({ artworkId: artworkSeries.artworkId })
-      .from(artworkSeries)
-      .where(inArray(artworkSeries.seriesId, otherIds));
-    const generalSet = new Set(generalArtworkIds);
-    const toClear = otherMembers.map((row) => row.artworkId).filter((id) => !generalSet.has(id));
-    if (toClear.length > 0) {
-      await db.update(artwork).set({ mediumSeriesId: null }).where(inArray(artwork.id, toClear));
+  const ocwPieces = await db
+    .select({
+      id: artwork.id,
+      title: artwork.title,
+      sortOrder: artwork.sortOrder,
+      mediumSeriesId: artwork.mediumSeriesId,
+    })
+    .from(artwork)
+    .where(eq(artwork.mediumSeriesId, parent.id))
+    .orderBy(asc(artwork.sortOrder), asc(artwork.title));
+
+  const general = ocwPieces
+    .filter((piece) => !seriesArtworkIds.has(piece.id))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+
+  const ordered: { id: string; title: string; sortOrder: number; mediumSeriesId: string | null }[] = [...general];
+  const seen = new Set(ordered.map((piece) => piece.id));
+
+  for (const slug of OIL_COLD_WAX_GALLERY_SERIES_ORDER) {
+    const seriesId = childBySlug.get(slug);
+    if (!seriesId) continue;
+    const members = await db
+      .select({
+        id: artwork.id,
+        title: artwork.title,
+        sortOrder: artwork.sortOrder,
+        mediumSeriesId: artwork.mediumSeriesId,
+      })
+      .from(artwork)
+      .innerJoin(artworkSeries, eq(artworkSeries.artworkId, artwork.id))
+      .where(eq(artworkSeries.seriesId, seriesId))
+      .orderBy(asc(artwork.sortOrder), asc(artwork.title));
+    for (const piece of members) {
+      if (seen.has(piece.id)) continue;
+      seen.add(piece.id);
+      ordered.push(piece);
     }
   }
 
+  const now = new Date();
+  let sortOrder = 100;
+  let updated = 0;
+  for (const piece of ordered) {
+    if (piece.mediumSeriesId !== parent.id || piece.sortOrder !== sortOrder) {
+      await db
+        .update(artwork)
+        .set({ mediumSeriesId: parent.id, sortOrder, updatedAt: now })
+        .where(eq(artwork.id, piece.id));
+      updated += 1;
+    }
+    sortOrder += 100;
+  }
+
   console.log(
-    `Oil and Cold Wax gallery paintings: ${generalArtworkIds.length}. Other series remain on Series pages only.`,
+    `Oil and Cold Wax gallery: ${general.length} general + ${ordered.length - general.length} series works (${updated} updated).`,
   );
 }
 

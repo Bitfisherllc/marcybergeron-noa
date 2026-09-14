@@ -61,3 +61,4 @@ export type Post = typeof schema.post.$inferSelect;
 export type PostCategory = typeof schema.postCategory.$inferSelect;
 export type PostGalleryImage = typeof schema.postGalleryImage.$inferSelect;
 export type MailingListSignup = typeof schema.mailingListSignup.$inferSelect;
+export type WorkshopInquiry = typeof schema.workshopInquiry.$inferSelect;

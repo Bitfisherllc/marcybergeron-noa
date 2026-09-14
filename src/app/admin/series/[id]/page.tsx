@@ -12,6 +12,8 @@ import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
 import { AdminReorderButtons } from "@/components/AdminReorderButtons";
 import { AdminDirtySave } from "@/components/AdminSectionSave";
 import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
+import { isPlaceholderGalleryStatement } from "@/lib/galleryCopy";
+import { mediumGalleryAbout } from "@/lib/mediumGalleryCopy";
 import { isMediumGallerySlug, isStudioGallerySlug } from "@/lib/mediumGalleries";
 import { isOilColdWaxChildSlug } from "@/lib/oilColdWaxSeries";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
@@ -42,6 +44,9 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
     src: hero.image,
     title: hero.artwork?.title ?? hero.title,
   }));
+  const aboutValue = isPlaceholderGalleryStatement(s.content)
+    ? (mediumGalleryAbout(s.slug) ?? s.content)
+    : s.content;
 
   return (
     <div className="space-y-12">
@@ -94,12 +99,22 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           </label>
         </div>
         <label className="block text-sm text-muted">
-          Excerpt
+          Listing excerpt
           <textarea name="excerpt" rows={4} defaultValue={s.excerpt} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+          <span className="mt-2 block text-xs">
+            {isOilColdWaxChild
+              ? "Shown on Series listing cards. Not used as the About paragraph on the gallery page."
+              : isStudioGallery
+                ? "Optional listing blurb. Not used as the About paragraph on the gallery page."
+                : isMediumGallery
+                  ? "Shown on Portfolio listing cards. Not used as the About paragraph on the gallery page."
+                  : "Shown on listing cards. Not used as the About paragraph on the gallery page."}
+          </span>
         </label>
         <label className="block text-sm text-muted">
-          Full statement (Markdown)
-          <textarea name="content" rows={10} defaultValue={s.content} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+          About (Markdown)
+          <textarea name="content" rows={10} defaultValue={aboutValue} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+          <span className="mt-2 block text-xs">Shown under the title on the public gallery page.</span>
         </label>
         <div className="grid gap-6 md:grid-cols-2">
           <label className="block text-sm text-muted">

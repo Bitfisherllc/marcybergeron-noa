@@ -63,7 +63,7 @@ export default async function AdminHomePage({
     listHomeSlideshowForAdmin(),
     getHomePickStateForAdmin(),
     listMediumGalleries(),
-    listAllPostsAdmin(),
+    listAllPostsAdmin("news"),
     listArtworksWithSeriesForPicker(),
   ]);
 

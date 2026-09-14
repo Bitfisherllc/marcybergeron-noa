@@ -3,6 +3,7 @@ import { artwork, post, series } from "@/db/schema";
 import { getDb } from "@/db";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
 import { isOilColdWaxChildSlug } from "@/lib/oilColdWaxSeries";
+import { postPublicHref } from "@/lib/postKind";
 import { artSeriesHref } from "@/lib/routeSlug";
 
 export type AdminEditTarget = {
@@ -24,7 +25,20 @@ export async function resolveAdminEditTarget(pathname: string): Promise<AdminEdi
     return { href: "/admin/series", label: "Edit galleries" };
   }
   if (path === "/news") return { href: "/admin/posts", label: "Edit posts" };
+  if (path === "/workshops") return { href: "/admin/workshops", label: "Edit workshops" };
   if (path === "/mailing-list") return { href: "/admin/mailing-list", label: "View mailing list" };
+
+  const workshopInterestMatch = path.match(/^\/workshops\/([^/]+)\/interest$/);
+  if (workshopInterestMatch) {
+    const slug = decodeURIComponent(workshopInterestMatch[1]!);
+    const row = await getDb()
+      .select({ id: post.id, title: post.title })
+      .from(post)
+      .where(eq(post.slug, slug))
+      .then((r) => r[0]);
+    if (row) return { href: `/admin/workshops/${row.id}`, label: `Edit “${row.title}”` };
+    return { href: "/admin/workshops", label: "Edit workshops" };
+  }
 
   const artMatch = path.match(/^\/art\/([^/]+)$/);
   if (artMatch) {
@@ -50,6 +64,18 @@ export async function resolveAdminEditTarget(pathname: string): Promise<AdminEdi
     return { href: "/admin/posts", label: "Edit posts" };
   }
 
+  const workshopMatch = path.match(/^\/workshops\/([^/]+)$/);
+  if (workshopMatch) {
+    const slug = decodeURIComponent(workshopMatch[1]!);
+    const row = await getDb()
+      .select({ id: post.id, title: post.title })
+      .from(post)
+      .where(eq(post.slug, slug))
+      .then((r) => r[0]);
+    if (row) return { href: `/admin/workshops/${row.id}`, label: `Edit “${row.title}”` };
+    return { href: "/admin/workshops", label: "Edit workshops" };
+  }
+
   return { href: "/admin", label: "Admin menu" };
 }
 
@@ -62,6 +88,10 @@ export async function resolveLiveViewTarget(pathname: string): Promise<AdminEdit
   if (path === "/admin/series" || path === "/admin/series/new") return { href: "/medium", label: "View portfolio" };
   if (path === "/admin/artworks/new") return { href: "/medium", label: "View portfolio" };
   if (path === "/admin/posts" || path === "/admin/posts/new") return { href: "/news", label: "View news" };
+  if (path === "/admin/workshops" || path === "/admin/workshops/new") {
+    return { href: "/workshops", label: "View workshops" };
+  }
+  if (path === "/admin/workshop-inquiries") return { href: "/workshops", label: "View workshops" };
   if (path === "/admin/mailing-list") return { href: "/mailing-list", label: "View signup page" };
 
   const seriesMatch = path.match(/^\/admin\/series\/([^/]+)$/);
@@ -90,8 +120,20 @@ export async function resolveLiveViewTarget(pathname: string): Promise<AdminEdit
       .from(post)
       .where(eq(post.id, id))
       .then((r) => r[0]);
-    if (row) return { href: `/news/${row.slug}`, label: `View “${row.title}”` };
+    if (row) return { href: postPublicHref("news", row.slug), label: `View “${row.title}”` };
     return { href: "/news", label: "View news" };
+  }
+
+  const workshopAdminMatch = path.match(/^\/admin\/workshops\/([^/]+)$/);
+  if (workshopAdminMatch) {
+    const id = decodeURIComponent(workshopAdminMatch[1]!);
+    const row = await getDb()
+      .select({ slug: post.slug, title: post.title })
+      .from(post)
+      .where(eq(post.id, id))
+      .then((r) => r[0]);
+    if (row) return { href: postPublicHref("workshop", row.slug), label: `View “${row.title}”` };
+    return { href: "/workshops", label: "View workshops" };
   }
 
   const artworkMatch = path.match(/^\/admin\/artworks\/([^/]+)$/);

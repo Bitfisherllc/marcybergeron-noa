@@ -1,9 +1,14 @@
 import { AdminLink } from "@/components/AdminLink";
 import { countContactMessages } from "@/lib/contactMessages";
+import { countWorkshopInquiries } from "@/lib/workshopInquiries";
 import { listSeries } from "@/lib/queries";
 
 export default async function AdminHomePage() {
-  const [rows, messageCount] = await Promise.all([listSeries(), countContactMessages()]);
+  const [rows, messageCount, workshopInterestCount] = await Promise.all([
+    listSeries(),
+    countContactMessages(),
+    countWorkshopInquiries(),
+  ]);
   return (
     <div className="space-y-8">
       <div>
@@ -34,6 +39,20 @@ export default async function AdminHomePage() {
           <div className="text-xs tracking-[0.18em] text-muted uppercase">News</div>
           <div className="mt-2 font-serif text-2xl tracking-tight">Posts</div>
           <p className="mt-3 text-sm text-muted">Exhibitions, updates, press</p>
+        </AdminLink>
+        <AdminLink variant="menu" href="/admin/workshops">
+          <div className="text-xs tracking-[0.18em] text-muted uppercase">Workshops</div>
+          <div className="mt-2 font-serif text-2xl tracking-tight">Workshops</div>
+          <p className="mt-3 text-sm text-muted">Dates, details, and class notes</p>
+        </AdminLink>
+        <AdminLink variant="menu" href="/admin/workshop-inquiries">
+          <div className="text-xs tracking-[0.18em] text-muted uppercase">Inbox</div>
+          <div className="mt-2 font-serif text-2xl tracking-tight">Workshop interest</div>
+          <p className="mt-3 text-sm text-muted">
+            {workshopInterestCount === 0
+              ? "No unread interest notes"
+              : `${workshopInterestCount} unread ${workshopInterestCount === 1 ? "note" : "notes"}`}
+          </p>
         </AdminLink>
         <AdminLink variant="menu" href="/admin/mailing-list">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">Audience</div>

@@ -1,26 +1,32 @@
 import type { Metadata } from "next";
+import { PostIndexView } from "@/components/PostIndexView";
+import { getResolvedPostIndexCopy } from "@/lib/postIndexCopy";
+import { listPostCategories, listPublishedPosts } from "@/lib/queries";
+import { postKindCopy } from "@/lib/postKind";
 import { SITE_URL } from "@/lib/site";
 
 export const revalidate = 300;
 
+const copy = postKindCopy("workshop");
+
 export const metadata: Metadata = {
-  title: "Workshops",
-  description: "Workshops with Marcy Bergeron-Noa—dates and details will be posted here.",
+  title: copy.metaTitle,
+  description: copy.metaDescription,
   alternates: { canonical: `${SITE_URL}/workshops` },
 };
 
-export default function WorkshopsPage() {
+export default async function WorkshopsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>;
+}) {
+  const { category: categorySlug } = await searchParams;
+  const [posts, categories, header] = await Promise.all([
+    listPublishedPosts("workshop"),
+    listPostCategories("workshop"),
+    getResolvedPostIndexCopy("workshop"),
+  ]);
   return (
-    <div>
-      <section className="border-b border-line">
-        <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-20">
-          <p className="text-xs tracking-[0.22em] text-muted uppercase">Workshops</p>
-          <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">Workshops</h1>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted">
-            Details about upcoming workshops will appear here.
-          </p>
-        </div>
-      </section>
-    </div>
+    <PostIndexView kind="workshop" posts={posts} categories={categories} activeSlug={categorySlug} header={header} />
   );
 }

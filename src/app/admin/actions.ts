@@ -2,9 +2,9 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { artwork, contactMessage, post, postCategory, postGalleryImage, series, seriesHeroSlide } from "@/db/schema";
+import { artwork, contactMessage, post, postCategory, postGalleryImage, postIndexCopy, series, seriesHeroSlide, workshopInquiry } from "@/db/schema";
 import { getDb } from "@/db";
 import {
   getArtworkPortfolioOnlySeriesIds,
@@ -17,6 +17,8 @@ import { createAdminSession, destroyAdminSession, requireAdminSession, verifyAdm
 import { readExistingImageField } from "@/lib/resolveAdminImage";
 import { saveUpload } from "@/lib/save-upload";
 import { slugifyPostCategory } from "@/lib/postCategories";
+import { parsePostKind, postAdminBasePath, postPublicBasePath, postPublicHref, type PostKind } from "@/lib/postKind";
+import { parseWorkshopPrice } from "@/lib/workshopPrice";
 import { CACHE_REVALIDATE_PROFILE, CACHE_TAGS } from "@/lib/cacheConfig";
 import { measureImageBuffer, measureImageSrc } from "@/lib/imageDimensions";
 import { GALLERY_PLACEHOLDER_IMAGE } from "@/lib/galleryDefaults";
@@ -616,6 +618,47 @@ export async function reorderArtwork(formData: FormData) {
   redirect(`/admin/series/${seriesId}`);
 }
 
+function adminPostsPath(kind: PostKind, suffix = "") {
+  return `${postAdminBasePath(kind)}${suffix}`;
+}
+
+function revalidatePostPublic(kind: PostKind, slug?: string, previousSlug?: string) {
+  revalidateTag(CACHE_TAGS.posts, CACHE_REVALIDATE_PROFILE);
+  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
+  revalidatePath(postPublicBasePath(kind));
+  const slugs = [...new Set([slug, previousSlug].filter((value): value is string => Boolean(value)))];
+  for (const s of slugs) {
+    revalidatePath(postPublicHref(kind, s));
+    if (kind === "workshop") revalidatePath(`${postPublicHref(kind, s)}/interest`);
+  }
+  revalidatePath("/");
+}
+
+export async function savePostIndexCopy(formData: FormData) {
+  const kind = parsePostKind(formData.get("kind"));
+  const eyebrow = String(formData.get("eyebrow") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const intro = String(formData.get("intro") ?? "").trim();
+  const t = now();
+
+  await getDb()
+    .insert(postIndexCopy)
+    .values({
+      kind,
+      eyebrow,
+      title,
+      intro,
+      updatedAt: t,
+    })
+    .onConflictDoUpdate({
+      target: postIndexCopy.kind,
+      set: { eyebrow, title, intro, updatedAt: t },
+    });
+
+  revalidatePostPublic(kind);
+  redirect(`${adminPostsPath(kind)}?saved=page`);
+}
+
 export async function upsertPost(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "").trim();
@@ -628,15 +671,33 @@ export async function upsertPost(formData: FormData) {
   const showDate = String(formData.get("showDate") ?? "") === "on";
   const featured = formData.get("featured") as File | null;
   const featuredExisting = readExistingImageField(formData, "featuredExisting");
+  const db = getDb();
 
-  if (!title || !slug || !excerpt || !content) redirect("/admin/posts?error=1");
-  const knownCategories = await listPostCategories();
+  let kind = parsePostKind(formData.get("kind"));
+  let previousSlug: string | undefined;
+  if (id) {
+    const existing = await db
+      .select({ kind: post.kind, slug: post.slug })
+      .from(post)
+      .where(eq(post.id, id))
+      .then((r) => r[0]);
+    if (!existing) redirect(adminPostsPath(kind));
+    kind = parsePostKind(existing.kind);
+    previousSlug = existing.slug;
+  }
+
+  if (!title || !slug || !excerpt || !content) redirect(`${adminPostsPath(kind)}?error=1`);
+  const knownCategories = await listPostCategories(kind);
   const categoryRow = knownCategories.find((row) => row.name === category);
-  if (!categoryRow) redirect(id ? `/admin/posts/${id}?error=category` : "/admin/posts/new?error=category");
+  if (!categoryRow) {
+    redirect(id ? `${adminPostsPath(kind)}/${id}?error=category` : `${adminPostsPath(kind)}/new?error=category`);
+  }
 
   const featuredImage = (await saveUpload(featured)) || (featuredExisting.trim() ? featuredExisting : null);
-  const db = getDb();
   const publishedAt = published ? now() : null;
+  const price = kind === "workshop" ? parseWorkshopPrice(formData.get("price")) : null;
+  const sessionDates = kind === "workshop" ? String(formData.get("sessionDates") ?? "").trim() : "";
+  const materialsNote = kind === "workshop" ? String(formData.get("materialsNote") ?? "").trim() : "";
 
   if (id) {
     await db
@@ -652,6 +713,9 @@ export async function upsertPost(formData: FormData) {
         showDate,
         publishedAt,
         featuredImage,
+        price,
+        sessionDates,
+        materialsNote,
         updatedAt: now(),
       })
       .where(eq(post.id, id));
@@ -664,36 +728,33 @@ export async function upsertPost(formData: FormData) {
       content,
       category,
       tags,
+      kind,
       published,
       showDate,
       publishedAt,
       featuredImage,
+      price,
+      sessionDates,
+      materialsNote,
       createdAt: now(),
       updatedAt: now(),
     });
   }
 
-  revalidateTag(CACHE_TAGS.posts, CACHE_REVALIDATE_PROFILE);
-  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
-  revalidatePath("/news");
-  revalidatePath(`/news/${slug}`);
-  revalidatePath("/");
-  redirect("/admin/posts");
+  revalidatePostPublic(kind, slug, previousSlug);
+  redirect(adminPostsPath(kind));
 }
 
 async function revalidatePostById(postId: string, fallbackSlug?: string) {
   const row = await getDb()
-    .select({ slug: post.slug })
+    .select({ slug: post.slug, kind: post.kind })
     .from(post)
     .where(eq(post.id, postId))
     .then((r) => r[0]);
+  const kind = parsePostKind(row?.kind);
   const slug = row?.slug ?? fallbackSlug ?? "";
-  revalidateTag(CACHE_TAGS.posts, CACHE_REVALIDATE_PROFILE);
-  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
-  revalidatePath("/news");
-  if (slug) revalidatePath(`/news/${slug}`);
-  revalidatePath("/");
-  redirect(`/admin/posts/${postId}`);
+  revalidatePostPublic(kind, slug);
+  redirect(`${adminPostsPath(kind)}/${postId}`);
 }
 
 export async function addPostGalleryImage(formData: FormData) {
@@ -701,15 +762,16 @@ export async function addPostGalleryImage(formData: FormData) {
   if (!postId) redirect("/admin/posts");
 
   const existingPost = await getDb()
-    .select({ slug: post.slug })
+    .select({ slug: post.slug, kind: post.kind })
     .from(post)
     .where(eq(post.id, postId))
     .then((r) => r[0]);
   if (!existingPost) redirect("/admin/posts");
+  const kind = parsePostKind(existingPost.kind);
 
   const file = formData.get("image") as File | null;
   const image = (await saveUpload(file, existingPost.slug)) || readExistingImageField(formData, "imageExisting");
-  if (!image) redirect(`/admin/posts/${postId}?error=gallery`);
+  if (!image) redirect(`${adminPostsPath(kind)}/${postId}?error=gallery`);
 
   const caption = String(formData.get("caption") ?? "").trim();
   const alt = String(formData.get("alt") ?? "").trim() || caption || "Gallery image";
@@ -774,13 +836,21 @@ export async function reorderPostGalleryImage(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   const postId = String(formData.get("postId") ?? "").trim();
   const dir = String(formData.get("dir") ?? "");
-  if (!id || !postId || (dir !== "up" && dir !== "down")) redirect(postId ? `/admin/posts/${postId}` : "/admin/posts");
+  const kindRow = postId
+    ? await getDb()
+        .select({ kind: post.kind })
+        .from(post)
+        .where(eq(post.id, postId))
+        .then((r) => r[0])
+    : null;
+  const editPath = postId ? `${adminPostsPath(parsePostKind(kindRow?.kind))}/${postId}` : "/admin/posts";
+  if (!id || !postId || (dir !== "up" && dir !== "down")) redirect(editPath);
 
   const items = await listPostGalleryImages(postId);
   const idx = items.findIndex((row) => row.id === id);
-  if (idx === -1) redirect(`/admin/posts/${postId}`);
+  if (idx === -1) redirect(editPath);
   const swapWith = dir === "up" ? idx - 1 : idx + 1;
-  if (swapWith < 0 || swapWith >= items.length) redirect(`/admin/posts/${postId}`);
+  if (swapWith < 0 || swapWith >= items.length) redirect(editPath);
 
   const ordered = swapOrderedIds(
     items.map((row) => row.id),
@@ -800,13 +870,17 @@ export async function reorderPostGalleryImage(formData: FormData) {
 
 export async function deletePost(formData: FormData) {
   const id = String(formData.get("id") ?? "");
-  if (!id) redirect("/admin/posts");
+  const kindFromForm = parsePostKind(formData.get("kind"));
+  if (!id) redirect(adminPostsPath(kindFromForm));
+  const existing = await getDb()
+    .select({ slug: post.slug, kind: post.kind })
+    .from(post)
+    .where(eq(post.id, id))
+    .then((r) => r[0]);
+  const kind = parsePostKind(existing?.kind ?? kindFromForm);
   await getDb().delete(post).where(eq(post.id, id));
-  revalidateTag(CACHE_TAGS.posts, CACHE_REVALIDATE_PROFILE);
-  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
-  revalidatePath("/news");
-  revalidatePath("/");
-  redirect("/admin/posts");
+  revalidatePostPublic(kind, existing?.slug);
+  redirect(adminPostsPath(kind));
 }
 
 export async function markContactMessageRead(formData: FormData) {
@@ -832,25 +906,49 @@ export async function deleteContactMessage(formData: FormData) {
   redirect("/admin/contact");
 }
 
-async function revalidatePostTaxonomy() {
-  revalidateTag(CACHE_TAGS.posts, CACHE_REVALIDATE_PROFILE);
-  revalidateTag(CACHE_TAGS.home, CACHE_REVALIDATE_PROFILE);
-  revalidatePath("/news");
-  revalidatePath("/");
+export async function markWorkshopInquiryRead(formData: FormData) {
+  await requireAdminSession();
+  const id = String(formData.get("id") ?? "");
+  if (!id) redirect("/admin/workshop-inquiries");
+  await getDb()
+    .update(workshopInquiry)
+    .set({ readAt: new Date() })
+    .where(eq(workshopInquiry.id, id));
+  revalidatePath("/admin");
+  revalidatePath("/admin/workshop-inquiries");
+  revalidatePath("/admin/workshops");
+  redirect("/admin/workshop-inquiries");
+}
+
+export async function deleteWorkshopInquiry(formData: FormData) {
+  await requireAdminSession();
+  const id = String(formData.get("id") ?? "");
+  if (!id) redirect("/admin/workshop-inquiries");
+  await getDb().delete(workshopInquiry).where(eq(workshopInquiry.id, id));
+  revalidatePath("/admin");
+  revalidatePath("/admin/workshop-inquiries");
+  revalidatePath("/admin/workshops");
+  redirect("/admin/workshop-inquiries");
+}
+
+async function revalidatePostTaxonomy(kind: PostKind) {
+  revalidatePostPublic(kind);
 }
 
 export async function addPostCategory(formData: FormData) {
+  const kind = parsePostKind(formData.get("kind"));
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) redirect("/admin/posts?error=category-name");
+  if (!name) redirect(`${adminPostsPath(kind)}?error=category-name`);
 
   const db = getDb();
-  const rows = await listPostCategories();
+  const rows = await listPostCategories(kind);
   if (rows.some((row) => row.name.toLowerCase() === name.toLowerCase())) {
-    redirect("/admin/posts?error=category-exists");
+    redirect(`${adminPostsPath(kind)}?error=category-exists`);
   }
 
+  const allSlugs = await db.select({ slug: postCategory.slug }).from(postCategory);
   let slug = slugifyPostCategory(name);
-  const slugs = new Set(rows.map((row) => row.slug));
+  const slugs = new Set(allSlugs.map((row) => row.slug));
   if (slugs.has(slug)) {
     let n = 2;
     while (slugs.has(`${slug}-${n}`)) n += 1;
@@ -862,29 +960,33 @@ export async function addPostCategory(formData: FormData) {
     id: nanoid(),
     name,
     slug,
+    kind,
     sortOrder: nextOrder,
     createdAt: now(),
   });
-  await revalidatePostTaxonomy();
-  redirect("/admin/posts?saved=category");
+  await revalidatePostTaxonomy(kind);
+  redirect(`${adminPostsPath(kind)}?saved=category`);
 }
 
 export async function savePostCategory(formData: FormData) {
+  const kindFromForm = parsePostKind(formData.get("kind"));
   const id = String(formData.get("id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
-  if (!id || !name) redirect("/admin/posts?error=category-name");
+  if (!id || !name) redirect(`${adminPostsPath(kindFromForm)}?error=category-name`);
 
   const db = getDb();
   const current = await db.select().from(postCategory).where(eq(postCategory.id, id)).then((r) => r[0]);
-  if (!current) redirect("/admin/posts");
+  if (!current) redirect(adminPostsPath(kindFromForm));
+  const kind = parsePostKind(current.kind);
 
-  const others = (await listPostCategories()).filter((row) => row.id !== id);
+  const others = (await listPostCategories(kind)).filter((row) => row.id !== id);
   if (others.some((row) => row.name.toLowerCase() === name.toLowerCase())) {
-    redirect("/admin/posts?error=category-exists");
+    redirect(`${adminPostsPath(kind)}?error=category-exists`);
   }
 
+  const allOthers = await db.select({ id: postCategory.id, slug: postCategory.slug }).from(postCategory);
   let slug = slugifyPostCategory(name);
-  const slugs = new Set(others.map((row) => row.slug));
+  const slugs = new Set(allOthers.filter((row) => row.id !== id).map((row) => row.slug));
   if (slugs.has(slug)) {
     let n = 2;
     while (slugs.has(`${slug}-${n}`)) n += 1;
@@ -893,39 +995,45 @@ export async function savePostCategory(formData: FormData) {
 
   await db.update(postCategory).set({ name, slug }).where(eq(postCategory.id, id));
   if (current.name !== name) {
-    await db.update(post).set({ category: name, updatedAt: now() }).where(eq(post.category, current.name));
+    await db
+      .update(post)
+      .set({ category: name, updatedAt: now() })
+      .where(and(eq(post.category, current.name), eq(post.kind, kind)));
   }
-  await revalidatePostTaxonomy();
-  redirect("/admin/posts?saved=category");
+  await revalidatePostTaxonomy(kind);
+  redirect(`${adminPostsPath(kind)}?saved=category`);
 }
 
 export async function deletePostCategory(formData: FormData) {
+  const kindFromForm = parsePostKind(formData.get("kind"));
   const id = String(formData.get("id") ?? "").trim();
-  if (!id) redirect("/admin/posts");
+  if (!id) redirect(adminPostsPath(kindFromForm));
   const db = getDb();
   const current = await db.select().from(postCategory).where(eq(postCategory.id, id)).then((r) => r[0]);
-  if (!current) redirect("/admin/posts");
+  if (!current) redirect(adminPostsPath(kindFromForm));
+  const kind = parsePostKind(current.kind);
   const inUse = await db
     .select({ id: post.id })
     .from(post)
-    .where(eq(post.category, current.name))
+    .where(and(eq(post.category, current.name), eq(post.kind, kind)))
     .then((r) => r[0]);
-  if (inUse) redirect("/admin/posts?error=category-in-use");
+  if (inUse) redirect(`${adminPostsPath(kind)}?error=category-in-use`);
   await db.delete(postCategory).where(eq(postCategory.id, id));
-  await revalidatePostTaxonomy();
-  redirect("/admin/posts?saved=category");
+  await revalidatePostTaxonomy(kind);
+  redirect(`${adminPostsPath(kind)}?saved=category`);
 }
 
 export async function reorderPostCategory(formData: FormData) {
+  const kindFromForm = parsePostKind(formData.get("kind"));
   const id = String(formData.get("id") ?? "").trim();
   const dir = String(formData.get("dir") ?? "");
-  if (!id || (dir !== "up" && dir !== "down")) redirect("/admin/posts");
+  if (!id || (dir !== "up" && dir !== "down")) redirect(adminPostsPath(kindFromForm));
 
-  const items = await listPostCategories();
+  const items = await listPostCategories(kindFromForm);
   const idx = items.findIndex((row) => row.id === id);
-  if (idx === -1) redirect("/admin/posts");
+  if (idx === -1) redirect(adminPostsPath(kindFromForm));
   const swapWith = dir === "up" ? idx - 1 : idx + 1;
-  if (swapWith < 0 || swapWith >= items.length) redirect("/admin/posts");
+  if (swapWith < 0 || swapWith >= items.length) redirect(adminPostsPath(kindFromForm));
 
   const ordered = swapOrderedIds(
     items.map((row) => row.id),
@@ -936,6 +1044,6 @@ export async function reorderPostCategory(formData: FormData) {
   for (let i = 0; i < ordered.length; i++) {
     await db.update(postCategory).set({ sortOrder: i }).where(eq(postCategory.id, ordered[i]!));
   }
-  await revalidatePostTaxonomy();
-  redirect("/admin/posts?saved=category");
+  await revalidatePostTaxonomy(kindFromForm);
+  redirect(`${adminPostsPath(kindFromForm)}?saved=category`);
 }

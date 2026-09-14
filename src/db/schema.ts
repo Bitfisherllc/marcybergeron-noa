@@ -83,18 +83,37 @@ export const post = pgTable("post", {
   showDate: boolean("show_date").notNull().default(false),
   publishedAt: timestamp("published_at", { withTimezone: true, mode: "date" }),
   category: text("category").notNull().default("News"),
+  /** `news` appears under /news; `workshop` appears under /workshops. */
+  kind: text("kind").notNull().default("news"),
+  /** Workshop cost in whole USD. News posts leave this null. Workshops default to 350 in the app if unset. */
+  price: integer("price"),
+  /** Offering dates, one per line. Empty means dates TBA. */
+  sessionDates: text("session_dates").notNull().default(""),
+  /** If set, shown instead of the default “all materials included” line. */
+  materialsNote: text("materials_note").notNull().default(""),
   tags: text("tags").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });
 
-/** Admin-managed news categories (posts store the category name on `post.category`). */
+/** Admin-managed news/workshop categories (posts store the category name on `post.category`). */
 export const postCategory = pgTable("post_category", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  /** Matches `post.kind`: news categories and workshop categories are separate lists. */
+  kind: text("kind").notNull().default("news"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+});
+
+/** Public listing header copy for `/news` and `/workshops` (keyed by `post.kind`). */
+export const postIndexCopy = pgTable("post_index_copy", {
+  kind: text("kind").primaryKey(),
+  eyebrow: text("eyebrow").notNull().default(""),
+  title: text("title").notNull().default(""),
+  intro: text("intro").notNull().default(""),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });
 
 /** Lightbox gallery images for an individual news post. */
@@ -118,6 +137,24 @@ export const contactMessage = pgTable("contact_message", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   message: text("message").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+  readAt: timestamp("read_at", { withTimezone: true, mode: "date" }),
+});
+
+/** Public interest form submissions for workshops. */
+export const workshopInquiry = pgTable("workshop_inquiry", {
+  id: text("id").primaryKey(),
+  workshopId: text("workshop_id").references(() => post.id, { onDelete: "set null" }),
+  workshopSlug: text("workshop_slug").notNull().default(""),
+  workshopTitle: text("workshop_title").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull().default(""),
+  format: text("format").notNull(),
+  otherWorkshops: text("other_workshops").notNull().default(""),
+  groupDates: text("group_dates").notNull().default(""),
+  soloDate: text("solo_date").notNull().default(""),
+  notes: text("notes").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
   readAt: timestamp("read_at", { withTimezone: true, mode: "date" }),
 });

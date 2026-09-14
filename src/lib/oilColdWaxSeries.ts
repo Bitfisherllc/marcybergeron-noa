@@ -33,6 +33,13 @@ export const OIL_COLD_WAX_CHILD_SLUGS: readonly OilColdWaxChildSlug[] = OIL_COLD
   (c) => c.slug,
 );
 
+/** After general Oil and Cold Wax gallery works, append these series in this order. */
+export const OIL_COLD_WAX_GALLERY_SERIES_ORDER = [
+  "mexico-as-muse",
+  "born-in-france",
+  "standing-tall-as-trees",
+] as const satisfies readonly OilColdWaxChildSlug[];
+
 const childSlugSet = new Set<string>(OIL_COLD_WAX_CHILD_SLUGS);
 
 export function isOilColdWaxParentSlug(slug: string): boolean {
@@ -62,6 +69,12 @@ export function oilColdWaxChildUploadFolder(slug: string): string | null {
 export function oilColdWaxChildTitle(slug: string): string | null {
   const row = OIL_COLD_WAX_CHILDREN.find((c) => c.slug === slug);
   return row?.title ?? null;
+}
+
+/** Portfolio medium shown on Series cards. Current series are all Oil and Cold Wax. */
+export function seriesPortfolioType(slug: string): string | null {
+  if (isOilColdWaxChildSlug(slug)) return OIL_COLD_WAX_PARENT_SLUG;
+  return null;
 }
 
 export function seriesNavDropdownItems(galleries: { slug: string; title: string }[]): { href: string; label: string }[] {

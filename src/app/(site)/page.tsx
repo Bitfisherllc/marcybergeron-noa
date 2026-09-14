@@ -8,6 +8,7 @@ import { HomeMarkdown } from "@/components/HomeMarkdown";
 import { getPublicHomePayload } from "@/lib/homePage";
 import { postCategoryLine } from "@/lib/postDisplay";
 import { toHeroSlide } from "@/lib/heroSlides";
+import { postPublicHref } from "@/lib/postKind";
 
 export const revalidate = 300;
 
@@ -33,6 +34,7 @@ export default async function HomePage() {
     excerpt: p.excerpt,
     category: postCategoryLine(p, "short"),
     featuredImage: p.featuredImage,
+    href: postPublicHref("news", p.slug),
   }));
 
   let heroSlides = slides;

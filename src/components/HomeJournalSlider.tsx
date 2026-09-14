@@ -10,6 +10,7 @@ export type HomeJournalPost = {
   excerpt: string;
   category: string;
   featuredImage: string | null;
+  href: string;
 };
 
 const AUTO_ADVANCE_MS = 6000;
@@ -183,7 +184,7 @@ export function HomeJournalSlider({
             data-journal-card
             className="box-border w-[min(100%,20rem)] shrink-0 snap-start border border-line bg-white/35 sm:w-[22.5rem]"
           >
-            <Link href={`/news/${p.slug}`} className="focus-ring flex h-full flex-col">
+            <Link href={p.href} className="focus-ring flex h-full flex-col">
               <div className="relative aspect-[16/10] shrink-0 overflow-hidden bg-black/[0.03]">
                 {p.featuredImage ? (
                   <Image

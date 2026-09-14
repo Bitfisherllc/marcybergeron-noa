@@ -18,6 +18,7 @@ import {
   OIL_COLD_WAX_CHILD_SLUGS,
   oilColdWaxChildTitle,
 } from "@/lib/oilColdWaxSeries";
+import type { PostKind } from "@/lib/postKind";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 
 async function listSeriesUncached() {
@@ -161,7 +162,7 @@ async function listArtworksForSeriesUncached(seriesId: string) {
   return rows.map((r) => r.piece);
 }
 
-export const listArtworksForSeries = unstable_cache(listArtworksForSeriesUncached, ["list-artworks-for-series"], {
+export const listArtworksForSeries = unstable_cache(listArtworksForSeriesUncached, ["list-artworks-for-series", "v2"], {
   revalidate: SITE_REVALIDATE_SECONDS,
   tags: [CACHE_TAGS.artwork],
 });
@@ -177,7 +178,7 @@ async function listArtworksForMediumGalleryUncached(mediumSeriesId: string) {
 /** Paintings assigned to a Medium nav gallery via `medium_series_id`. */
 export const listArtworksForMediumGallery = unstable_cache(
   listArtworksForMediumGalleryUncached,
-  ["list-artworks-medium-gallery", "v2"],
+  ["list-artworks-medium-gallery", "v3"],
   { revalidate: SITE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.artwork] },
 );
 
@@ -341,32 +342,48 @@ export async function heroHomeSlides(): Promise<HeroSlide[]> {
   return out.slice(0, 7);
 }
 
-async function listPublishedPostsUncached() {
+async function listPublishedPostsUncached(kind: PostKind) {
   return getDb()
     .select()
     .from(post)
-    .where(eq(post.published, true))
+    .where(and(eq(post.published, true), eq(post.kind, kind)))
     .orderBy(desc(post.updatedAt));
 }
 
-export const listPublishedPosts = unstable_cache(listPublishedPostsUncached, ["list-published-posts", "v2"], {
+const listPublishedNews = unstable_cache(() => listPublishedPostsUncached("news"), ["list-published-posts", "v7", "news"], {
   revalidate: SITE_REVALIDATE_SECONDS,
   tags: [CACHE_TAGS.posts],
 });
 
-/** Next post in journal order (same sequence as `/news`): newer posts first, so "next" is the following row. */
-export async function getPublishedPostNext(slug: string) {
-  const posts = await listPublishedPosts();
-  const idx = posts.findIndex((p) => p.slug === slug);
+const listPublishedWorkshops = unstable_cache(
+  () => listPublishedPostsUncached("workshop"),
+  ["list-published-posts", "v7", "workshop"],
+  {
+    revalidate: SITE_REVALIDATE_SECONDS,
+    tags: [CACHE_TAGS.posts],
+  },
+);
+
+export function listPublishedPosts(kind: PostKind = "news") {
+  return kind === "workshop" ? listPublishedWorkshops() : listPublishedNews();
+}
+
+/** Next post in section order (same sequence as `/news` or `/workshops`): newer posts first. */
+export async function getPublishedPostNext(slug: string, kind: PostKind = "news") {
+  const normalized = normalizeRouteSlug(slug);
+  const posts = await listPublishedPosts(kind);
+  const idx = posts.findIndex((p) => p.slug === normalized);
   if (idx === -1 || idx >= posts.length - 1) return null;
   return posts[idx + 1]!;
 }
 
 export async function getPostBySlug(slug: string) {
-  const published = await listPublishedPosts();
-  const cached = published.find((p) => p.slug === slug);
+  const normalized = normalizeRouteSlug(slug);
+  if (!normalized) return null;
+  const [news, workshops] = await Promise.all([listPublishedPosts("news"), listPublishedPosts("workshop")]);
+  const cached = news.find((p) => p.slug === normalized) ?? workshops.find((p) => p.slug === normalized);
   if (cached) return cached;
-  const rows = await getDb().select().from(post).where(eq(post.slug, slug));
+  const rows = await getDb().select().from(post).where(eq(post.slug, normalized));
   return rows[0] ?? null;
 }
 
@@ -378,11 +395,18 @@ export async function listPostGalleryImages(postId: string) {
     .orderBy(asc(postGalleryImage.sortOrder), asc(postGalleryImage.createdAt));
 }
 
-export async function listPostCategories() {
-  return getDb().select().from(postCategory).orderBy(asc(postCategory.sortOrder), asc(postCategory.name));
+export async function listPostCategories(kind: PostKind = "news") {
+  return getDb()
+    .select()
+    .from(postCategory)
+    .where(eq(postCategory.kind, kind))
+    .orderBy(asc(postCategory.sortOrder), asc(postCategory.name));
 }
 
-export async function listAllPostsAdmin() {
+export async function listAllPostsAdmin(kind?: PostKind) {
+  if (kind) {
+    return getDb().select().from(post).where(eq(post.kind, kind)).orderBy(desc(post.updatedAt));
+  }
   return getDb().select().from(post).orderBy(desc(post.updatedAt));
 }
 

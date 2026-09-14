@@ -3,7 +3,6 @@ import Link from "next/link";
 import { SiteMobileMenu } from "@/components/SiteMobileMenu";
 import { listMediumGalleries } from "@/lib/queries";
 import { aboutNavDropdownItems, portfolioNavDropdownItems } from "@/lib/mediumGalleries";
-import { SERIES_INDEX_HREF } from "@/lib/oilColdWaxSeries";
 import { CONTACT, SITE_NAME } from "@/lib/site";
 
 const workshopsLink = { href: "/workshops", label: "Workshops" } as const;
@@ -107,7 +106,6 @@ export async function SiteHeader() {
   const portfolioGalleries = await listMediumGalleries();
   const portfolioItems = portfolioNavDropdownItems(portfolioGalleries);
   const aboutItems = aboutNavDropdownItems();
-  const seriesNavItem = { href: SERIES_INDEX_HREF, label: "Series" };
 
   return (
     <header className="border-b border-line">
@@ -135,7 +133,6 @@ export async function SiteHeader() {
                 overviewHref="/medium"
                 overviewLabel="View portfolio"
                 items={portfolioItems}
-                trailingItems={[seriesNavItem]}
               />
             </li>
             <li>
@@ -170,7 +167,6 @@ export async function SiteHeader() {
         <SiteMobileMenu
           portfolioItems={portfolioItems}
           aboutItems={aboutItems}
-          seriesItem={seriesNavItem}
           workshopsLink={workshopsLink}
           navLinks={navLinks}
           instagramHref={CONTACT.instagram}

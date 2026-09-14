@@ -26,6 +26,7 @@ import {
 } from "@/lib/queries";
 import { artSeriesHref } from "@/lib/routeSlug";
 import { publicGalleryExcerpt, publicGalleryStatement } from "@/lib/galleryCopy";
+import { mediumGalleryAbout } from "@/lib/mediumGalleryCopy";
 import { seriesInquiryHref } from "@/lib/seriesInquiry";
 
 type SeriesGalleryViewProps = {
@@ -48,7 +49,7 @@ function GalleryAbout({
   if (!statement && !inquireHref) return null;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {statement ? (
         <>
           <h2 className="font-serif text-2xl tracking-tight">{heading}</h2>
@@ -56,7 +57,7 @@ function GalleryAbout({
         </>
       ) : null}
       {inquireHref ? (
-        <div className={statement ? "border-t border-line pt-8" : ""}>
+        <div className={statement ? "border-t border-line pt-6" : ""}>
           <Link href={inquireHref} className="link-quiet text-sm tracking-wide">
             {inquireLabel ?? "Contact Marcy to learn more →"}
           </Link>
@@ -92,7 +93,9 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
   const returnPath = variant === "private" && s.accessToken ? `/private/${s.accessToken}` : artSeriesHref(s.slug);
 
   const aboutHeading = "About";
-  const publicExcerpt = publicGalleryExcerpt(s.excerpt);
+  const aboutContent = publicGalleryStatement(s.content) ?? mediumGalleryAbout(s.slug) ?? s.content;
+  const statement = publicGalleryStatement(aboutContent);
+  const publicExcerpt = statement ? null : publicGalleryExcerpt(s.excerpt);
   const inquireHref = isStudioGallery ? undefined : seriesInquiryHref(s.slug);
   const inquireLabel = isChildSeries
     ? "Contact Marcy to learn more about this series and how to purchase →"
@@ -163,7 +166,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                 <div className="mt-10">
                   <GalleryAbout
                     heading={aboutHeading}
-                    content={s.content}
+                    content={aboutContent}
                     inquireHref={inquireHref}
                     inquireLabel={inquireLabel}
                   />
@@ -192,16 +195,14 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                   This gallery is shared privately for review—it is not listed on the public portfolio.
                 </p>
               ) : null}
-              {!showSlideshow ? (
-                <div className="mt-10 max-w-3xl">
-                  <GalleryAbout
-                    heading={aboutHeading}
-                    content={s.content}
-                    inquireHref={inquireHref}
-                    inquireLabel={inquireLabel}
-                  />
-                </div>
-              ) : null}
+              <div className="mt-10 max-w-3xl">
+                <GalleryAbout
+                  heading={aboutHeading}
+                  content={aboutContent}
+                  inquireHref={inquireHref}
+                  inquireLabel={inquireLabel}
+                />
+              </div>
             </>
           )}
         </div>
@@ -209,15 +210,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
 
         {showSlideshow && !isStudioGallery ? (
           <section className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
-            <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
-              <StatementSlideshow slides={slideshowSlides} />
-              <GalleryAbout
-                heading={aboutHeading}
-                content={s.content}
-                inquireHref={inquireHref}
-                inquireLabel={inquireLabel}
-              />
-            </div>
+            <StatementSlideshow slides={slideshowSlides} />
           </section>
         ) : null}
 

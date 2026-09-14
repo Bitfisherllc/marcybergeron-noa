@@ -112,7 +112,7 @@ export async function getResolvedJournalPostsForHome(): Promise<Post[]> {
   for (const id of slots) {
     if (!id) continue;
     const p = map.get(id);
-    if (p?.published) ordered.push(p);
+    if (p?.published && p.kind !== "workshop") ordered.push(p);
   }
   if (ordered.length === 0) {
     return all;

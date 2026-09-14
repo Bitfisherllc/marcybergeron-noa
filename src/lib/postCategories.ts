@@ -1,8 +1,20 @@
-export const STARTER_POST_CATEGORIES = [
+import type { PostKind } from "@/lib/postKind";
+
+export const STARTER_NEWS_CATEGORIES = [
   { name: "In The Studio", slug: "in-the-studio" },
-  { name: "Workshops", slug: "workshops" },
   { name: "Juried Exhibitions", slug: "juried-exhibitions" },
 ] as const;
+
+export const STARTER_WORKSHOP_CATEGORIES = [
+  { name: "Upcoming", slug: "upcoming" },
+  { name: "Past", slug: "past" },
+] as const;
+
+export const STARTER_POST_CATEGORIES = STARTER_NEWS_CATEGORIES;
+
+export function starterCategoriesForKind(kind: PostKind) {
+  return kind === "workshop" ? STARTER_WORKSHOP_CATEGORIES : STARTER_NEWS_CATEGORIES;
+}
 
 export function slugifyPostCategory(name: string): string {
   const slug = name

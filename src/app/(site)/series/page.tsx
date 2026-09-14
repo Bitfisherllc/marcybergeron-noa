@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { GalleryIndexCards } from "@/components/GalleryIndexCards";
 import { resolveStatementArtwork } from "@/lib/featuredArtwork";
-import { SERIES_INDEX_HREF } from "@/lib/oilColdWaxSeries";
+import { SERIES_INDEX_HREF, seriesPortfolioType } from "@/lib/oilColdWaxSeries";
 import { listArtworksForSeries, listSeriesGalleries } from "@/lib/queries";
 import { SITE_URL } from "@/lib/site";
 import { artSeriesHref } from "@/lib/routeSlug";
@@ -26,6 +26,7 @@ export default async function SeriesIndexPage() {
         href: artSeriesHref(s.slug),
         title: s.title,
         excerpt: s.excerpt,
+        portfolioType: seriesPortfolioType(s.slug),
         image: featured.image,
         alt: featured.alt,
         imageWidth: featured.artwork?.imageWidth,

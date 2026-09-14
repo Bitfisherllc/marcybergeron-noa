@@ -1,9 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Series } from "@/db";
+import { seriesPortfolioType } from "@/lib/oilColdWaxSeries";
 import { artSeriesHref } from "@/lib/routeSlug";
 
 export function SeriesCard({ s }: { s: Series }) {
+  const portfolioType = seriesPortfolioType(s.slug);
   return (
     <article className="group flex flex-col border border-line bg-white/40">
       <Link href={artSeriesHref(s.slug)} className="focus-ring block">
@@ -18,6 +20,9 @@ export function SeriesCard({ s }: { s: Series }) {
           />
         </div>
         <div className="space-y-3 px-6 py-7">
+          {portfolioType ? (
+            <p className="text-xs tracking-[0.18em] text-muted uppercase">{portfolioType}</p>
+          ) : null}
           <h3 className="font-serif text-2xl tracking-tight">{s.title}</h3>
           <p className="text-sm leading-relaxed text-muted">{s.excerpt}</p>
           <span className="inline-flex items-center gap-2 text-xs tracking-[0.18em] text-ink/70 uppercase">

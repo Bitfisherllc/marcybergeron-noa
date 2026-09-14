@@ -1,5 +1,7 @@
 import nodemailer from "nodemailer";
 import { CONTACT, LIVE_SITE_URL, SITE_NAME } from "@/lib/site";
+import { postPublicHref } from "@/lib/postKind";
+import { workshopFormatLabel } from "@/lib/workshopCopy";
 import {
   contactReceiptHtml,
   contactReceiptSubject,
@@ -151,6 +153,72 @@ export async function sendMailingListSignupEmail(payload: MailingListSignupPaylo
       `Email: ${payload.email}`,
       "",
       `View in admin: ${LIVE_SITE_URL}/admin/mailing-list`,
+    ].join("\n"),
+  });
+}
+
+export type WorkshopInquiryEmailPayload = {
+  name: string;
+  email: string;
+  phone: string;
+  workshopTitle: string;
+  workshopSlug: string;
+  format: "scheduled" | "group" | "solo";
+  otherWorkshops: string[];
+  groupDates: string[];
+  soloDate: string;
+  notes: string;
+};
+
+export async function sendWorkshopInquiryEmail(payload: WorkshopInquiryEmailPayload): Promise<void> {
+  const transport = createTransport();
+  if (!transport) return;
+
+  const from = contactFromAddress();
+  const lines = [
+    `${payload.name} is interested in a workshop.`,
+    "",
+    `Workshop: ${payload.workshopTitle}`,
+    `Page: ${LIVE_SITE_URL}${postPublicHref("workshop", payload.workshopSlug)}`,
+    `Format: ${workshopFormatLabel(payload.format)}`,
+    "",
+    `Name: ${payload.name}`,
+    `Email: ${payload.email}`,
+    `Phone: ${payload.phone || "—"}`,
+    payload.otherWorkshops.length
+      ? `Also interested in: ${payload.otherWorkshops.join("; ")}`
+      : "Also interested in: —",
+    payload.format === "group" ? `Group dates: ${payload.groupDates.join(", ")}` : null,
+    payload.format === "solo" ? `Solo date: ${payload.soloDate || "—"}` : null,
+    "",
+    payload.notes ? `Note:\n${payload.notes}` : "Note: —",
+    "",
+    `View in admin: ${LIVE_SITE_URL}/admin/workshop-inquiries`,
+  ].filter((line): line is string => line != null);
+
+  await transport.sendMail({
+    from,
+    to: contactRecipients(),
+    replyTo: payload.email,
+    subject: `[${SITE_NAME}] Workshop interest: ${payload.workshopTitle}`,
+    text: lines.join("\n"),
+  });
+
+  await transport.sendMail({
+    from,
+    to: payload.email,
+    replyTo: CONTACT.email,
+    subject: `Thank you — ${payload.workshopTitle}`,
+    text: [
+      `Hello ${payload.name},`,
+      "",
+      `Thank you for writing about ${payload.workshopTitle}. Marcy has your note and will follow up about dates and availability.`,
+      "",
+      "Workshops include all materials unless otherwise noted, and start at $350.",
+      "",
+      `If anything else comes to mind, reply to this email or write ${CONTACT.email}.`,
+      "",
+      SITE_NAME,
     ].join("\n"),
   });
 }

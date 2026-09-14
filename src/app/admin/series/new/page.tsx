@@ -40,7 +40,7 @@ export default async function NewSeriesPage({
           </label>
         </div>
         <label className="block text-sm text-muted">
-          Excerpt (shown at the top of the gallery)
+          Listing excerpt
           <textarea
             name="excerpt"
             rows={4}
@@ -49,8 +49,9 @@ export default async function NewSeriesPage({
           />
         </label>
         <label className="block text-sm text-muted">
-          Full statement (Markdown supported)
+          About (Markdown)
           <textarea name="content" rows={10} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+          <span className="mt-2 block text-xs">Shown under the title on the gallery page.</span>
         </label>
         <div className="grid gap-6 md:grid-cols-2">
           <label className="block text-sm text-muted">

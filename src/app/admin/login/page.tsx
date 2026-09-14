@@ -10,7 +10,7 @@ export default async function AdminLoginPage({
   return (
     <div className="mx-auto max-w-md px-5 py-16">
       <h1 className="font-serif text-3xl tracking-tight">Admin login</h1>
-      <p className="mt-3 text-sm text-muted">Sign in to manage series, artwork, and news posts.</p>
+      <p className="mt-3 text-sm text-muted">Sign in to manage series, artwork, news, and workshops.</p>
 
       <form action={loginAction} className="mt-8 space-y-4 border border-line bg-white/50 p-6">
         <label className="block text-sm text-muted">

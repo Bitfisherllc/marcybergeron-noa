@@ -11,6 +11,8 @@ export type GalleryIndexCard = {
   alt: string;
   imageWidth?: number | null;
   imageHeight?: number | null;
+  /** Optional portfolio type, e.g. “Oil and Cold Wax”, shown above the title. */
+  portfolioType?: string | null;
 };
 
 export function GalleryIndexCards({ cards, cta }: { cards: GalleryIndexCard[]; cta: string }) {
@@ -31,7 +33,12 @@ export function GalleryIndexCards({ cards, cta }: { cards: GalleryIndexCard[]; c
               imageClassName="transition duration-500 group-hover:scale-[1.01]"
             />
             <div className="px-6 py-7">
-              <h2 className="font-serif text-3xl tracking-tight">{card.title}</h2>
+              {card.portfolioType ? (
+                <p className="text-xs tracking-[0.18em] text-muted uppercase">{card.portfolioType}</p>
+              ) : null}
+              <h2 className={`font-serif text-3xl tracking-tight ${card.portfolioType ? "mt-3" : ""}`}>
+                {card.title}
+              </h2>
               {excerpt ? (
                 <p className="mt-3 text-sm leading-relaxed text-muted">{excerpt}</p>
               ) : null}
