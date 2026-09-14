@@ -36,10 +36,12 @@ function GalleryAbout({
   heading,
   content,
   inquireHref,
+  inquireLabel,
 }: {
   heading: string;
   content: string;
   inquireHref?: string;
+  inquireLabel?: string;
 }) {
   return (
     <div className="space-y-8">
@@ -48,7 +50,7 @@ function GalleryAbout({
       {inquireHref ? (
         <div className="border-t border-line pt-8">
           <Link href={inquireHref} className="link-quiet text-sm tracking-wide">
-            Inquire about this series →
+            {inquireLabel ?? "Contact Marcy to learn more →"}
           </Link>
         </div>
       ) : null}
@@ -83,6 +85,9 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
 
   const aboutHeading = isChildSeries ? "Series statement" : "About";
   const inquireHref = isStudioGallery ? undefined : seriesInquiryHref(s.slug);
+  const inquireLabel = isChildSeries
+    ? "Contact Marcy to learn more about this series and how to purchase →"
+    : "Contact Marcy to learn more about this medium and how to purchase →";
   const heroResolved = showSlideshow ? resolveInteriorHeroSlides(s, pieces, heroSlots) : [];
   const lightboxByArtworkId = new Map<string, number>();
   const lightboxSlides: GallerySlide[] = [];
@@ -145,7 +150,12 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                 <h1 className="mt-4 font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
                 <p className="mt-6 text-base leading-relaxed text-muted">{s.excerpt}</p>
                 <div className="mt-10">
-                  <GalleryAbout heading={aboutHeading} content={s.content} inquireHref={inquireHref} />
+                  <GalleryAbout
+                    heading={aboutHeading}
+                    content={s.content}
+                    inquireHref={inquireHref}
+                    inquireLabel={inquireLabel}
+                  />
                 </div>
               </div>
               <StatementSlideshow slides={slideshowSlides} frame="landscape" />
@@ -171,7 +181,12 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
               ) : null}
               {!showSlideshow ? (
                 <div className="mt-10 max-w-3xl">
-                  <GalleryAbout heading={aboutHeading} content={s.content} inquireHref={inquireHref} />
+                  <GalleryAbout
+                    heading={aboutHeading}
+                    content={s.content}
+                    inquireHref={inquireHref}
+                    inquireLabel={inquireLabel}
+                  />
                 </div>
               ) : null}
             </>
@@ -183,7 +198,12 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
           <section className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
             <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
               <StatementSlideshow slides={slideshowSlides} />
-              <GalleryAbout heading={aboutHeading} content={s.content} inquireHref={inquireHref} />
+              <GalleryAbout
+                heading={aboutHeading}
+                content={s.content}
+                inquireHref={inquireHref}
+                inquireLabel={inquireLabel}
+              />
             </div>
           </section>
         ) : null}
