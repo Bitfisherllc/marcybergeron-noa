@@ -12,29 +12,52 @@ export type MailingListSignupPayload = {
   email: string;
 };
 
-const DEFAULT_TEST_EMAIL = "bitfisherllc@gmail.com";
-
 function envFlag(value: string | undefined): boolean {
   const v = value?.trim().toLowerCase();
   return v === "1" || v === "true" || v === "yes";
+}
+
+function isGmailValue(value: string): boolean {
+  return /gmail\.com/i.test(value);
 }
 
 function studioInboxEmail(): string {
   return CONTACT.email;
 }
 
-function contactTestEmail(): string {
-  return process.env.CONTACT_TEST_EMAIL?.trim() || DEFAULT_TEST_EMAIL;
+/** Microsoft 365 mailbox that sends and receives studio form mail. */
+function smtpUser(): string {
+  const user = process.env.SMTP_USER?.trim();
+  if (user && !isGmailValue(user)) return user;
+  return studioInboxEmail();
 }
 
-/** Recipients for public form notifications (studio inbox always; test copy optional). */
+function smtpHost(): string {
+  const host = process.env.SMTP_HOST?.trim();
+  if (host && !isGmailValue(host)) return host;
+  return "smtp.office365.com";
+}
+
+function smtpPass(): string {
+  const pass = process.env.SMTP_PASS?.trim() ?? "";
+  if (!pass) return "";
+  const lower = pass.toLowerCase();
+  if (lower.includes("gmail") || lower === "your_gmail_app_password" || lower === "change-me") return "";
+  return pass;
+}
+
+function contactTestEmail(): string {
+  return process.env.CONTACT_TEST_EMAIL?.trim() || "";
+}
+
+/** Recipients: studio Microsoft 365 inbox. Optional extra copy must not be Gmail. */
 export function contactRecipients(): string[] {
   const owner = studioInboxEmail();
   const recipients = [owner];
 
   if (envFlag(process.env.CONTACT_TEST_EMAIL_ENABLED)) {
     const test = contactTestEmail();
-    if (test && test.toLowerCase() !== owner.toLowerCase()) {
+    if (test && test.toLowerCase() !== owner.toLowerCase() && !isGmailValue(test)) {
       recipients.push(test);
     }
   }
@@ -44,28 +67,27 @@ export function contactRecipients(): string[] {
 
 function contactFromAddress(): string {
   const from = process.env.CONTACT_FROM_EMAIL?.trim();
-  if (from) return from;
-  const user = process.env.SMTP_USER?.trim();
-  if (user) return `${SITE_NAME} <${user}>`;
-  return SITE_NAME;
+  if (from && !isGmailValue(from)) return from;
+  return `${SITE_NAME} <${smtpUser()}>`;
 }
 
 export function isContactEmailConfigured(): boolean {
-  return Boolean(process.env.SMTP_USER?.trim() && process.env.SMTP_PASS?.trim());
+  return Boolean(smtpPass());
 }
 
 async function sendStudioMail(opts: { subject: string; text: string; replyTo?: string }): Promise<void> {
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.trim();
-  if (!user || !pass) return;
+  const user = smtpUser();
+  const pass = smtpPass();
+  if (!pass) return;
 
-  const host = process.env.SMTP_HOST?.trim() || "smtp.gmail.com";
+  const host = smtpHost();
   const port = Number(process.env.SMTP_PORT?.trim() || "587");
 
   const transport = nodemailer.createTransport({
     host,
     port,
     secure: port === 465,
+    requireTLS: port === 587,
     auth: { user, pass },
   });
 

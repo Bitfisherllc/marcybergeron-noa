@@ -1,6 +1,7 @@
 import { AdminExternalLink } from "@/components/AdminLink";
 import { AdminContactMessageActions } from "@/components/AdminContactMessageActions";
 import { listContactMessages } from "@/lib/contactMessages";
+import { CONTACT } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +20,8 @@ export default async function AdminContactPage() {
       <div>
         <h1 className="font-serif text-3xl tracking-tight">Contact messages</h1>
         <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
-          Messages from the public contact form. Each submission is saved here and triggers a Gmail notification when
-          SMTP is configured.
+          Messages from the public contact form. Each submission is saved here and emailed to {CONTACT.email} when
+          Microsoft 365 SMTP is configured.
         </p>
       </div>
 
