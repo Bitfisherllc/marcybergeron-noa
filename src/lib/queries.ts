@@ -454,6 +454,7 @@ export async function listSeriesAdminOverview(): Promise<SeriesAdminOverview[]> 
       featuredArtworkMode: series.featuredArtworkMode,
       featuredArtworkId: series.featuredArtworkId,
       sortOrder: series.sortOrder,
+      showHeroSlideshow: series.showHeroSlideshow,
       isPrivate: series.isPrivate,
       accessToken: series.accessToken,
       createdAt: series.createdAt,

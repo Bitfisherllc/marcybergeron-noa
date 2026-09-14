@@ -26,7 +26,8 @@ export async function removeGeneralOilColdWaxSeries(): Promise<void> {
     .where(eq(series.slug, OIL_COLD_WAX_PARENT_SLUG))
     .then((r) => r[0]);
   if (!parent) {
-    throw new Error("Oil and Cold Wax gallery not found; cannot reassign paintings.");
+    console.log("Oil and Cold Wax gallery not found; skip General-Oil & Cold Wax removal.");
+    return;
   }
 
   const now = new Date();
