@@ -26,6 +26,7 @@ import {
 } from "@/lib/queries";
 import { artSeriesHref } from "@/lib/routeSlug";
 import { publicGalleryExcerpt, publicGalleryStatement } from "@/lib/galleryCopy";
+import { seriesInquiryHref } from "@/lib/seriesInquiry";
 
 type SeriesGalleryViewProps = {
   series: Series;
