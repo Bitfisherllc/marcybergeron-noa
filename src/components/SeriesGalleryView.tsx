@@ -25,7 +25,7 @@ import {
   listMediumGalleries,
 } from "@/lib/queries";
 import { artSeriesHref } from "@/lib/routeSlug";
-import { seriesInquiryHref } from "@/lib/seriesInquiry";
+import { publicGalleryExcerpt, publicGalleryStatement } from "@/lib/galleryCopy";
 
 type SeriesGalleryViewProps = {
   series: Series;
@@ -43,12 +43,19 @@ function GalleryAbout({
   inquireHref?: string;
   inquireLabel?: string;
 }) {
+  const statement = publicGalleryStatement(content);
+  if (!statement && !inquireHref) return null;
+
   return (
     <div className="space-y-8">
-      <h2 className="font-serif text-2xl tracking-tight">{heading}</h2>
-      <ProseMarkdown content={content} />
+      {statement ? (
+        <>
+          <h2 className="font-serif text-2xl tracking-tight">{heading}</h2>
+          <ProseMarkdown content={statement} />
+        </>
+      ) : null}
       {inquireHref ? (
-        <div className="border-t border-line pt-8">
+        <div className={statement ? "border-t border-line pt-8" : ""}>
           <Link href={inquireHref} className="link-quiet text-sm tracking-wide">
             {inquireLabel ?? "Contact Marcy to learn more →"}
           </Link>
@@ -83,7 +90,8 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       : { prev: null, next: null };
   const returnPath = variant === "private" && s.accessToken ? `/private/${s.accessToken}` : artSeriesHref(s.slug);
 
-  const aboutHeading = isChildSeries ? "Series statement" : "About";
+  const aboutHeading = "About";
+  const publicExcerpt = publicGalleryExcerpt(s.excerpt);
   const inquireHref = isStudioGallery ? undefined : seriesInquiryHref(s.slug);
   const inquireLabel = isChildSeries
     ? "Contact Marcy to learn more about this series and how to purchase →"
@@ -148,7 +156,9 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
               <div>
                 <p className="text-xs tracking-[0.22em] text-muted uppercase">Studio</p>
                 <h1 className="mt-4 font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
-                <p className="mt-6 text-base leading-relaxed text-muted">{s.excerpt}</p>
+                {publicExcerpt ? (
+                  <p className="mt-6 text-base leading-relaxed text-muted">{publicExcerpt}</p>
+                ) : null}
                 <div className="mt-10">
                   <GalleryAbout
                     heading={aboutHeading}
@@ -166,7 +176,9 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                 {variant === "private" ? "Private gallery" : isChildSeries ? "Series" : "Portfolio"}
               </p>
               <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
-              <p className="mt-6 max-w-3xl text-base leading-relaxed text-muted">{s.excerpt}</p>
+              {publicExcerpt ? (
+                <p className="mt-6 max-w-3xl text-base leading-relaxed text-muted">{publicExcerpt}</p>
+              ) : null}
               {isChildSeries ? (
                 <p className="mt-4">
                   <Link href={SERIES_INDEX_HREF} className="link-quiet text-sm tracking-wide">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GalleryListingImage } from "@/components/GalleryListingImage";
+import { publicGalleryExcerpt } from "@/lib/galleryCopy";
 
 export type GalleryIndexCard = {
   id: string;
@@ -15,7 +16,9 @@ export type GalleryIndexCard = {
 export function GalleryIndexCards({ cards, cta }: { cards: GalleryIndexCard[]; cta: string }) {
   return (
     <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-2 lg:grid-cols-3">
-      {cards.map((card) => (
+      {cards.map((card) => {
+        const excerpt = publicGalleryExcerpt(card.excerpt);
+        return (
         <article key={card.id} className="group border border-line bg-white/40">
           <Link href={card.href} className="focus-ring block">
             <GalleryListingImage
@@ -29,14 +32,15 @@ export function GalleryIndexCards({ cards, cta }: { cards: GalleryIndexCard[]; c
             />
             <div className="px-6 py-7">
               <h2 className="font-serif text-3xl tracking-tight">{card.title}</h2>
-              {card.excerpt ? (
-                <p className="mt-3 text-sm leading-relaxed text-muted">{card.excerpt}</p>
+              {excerpt ? (
+                <p className="mt-3 text-sm leading-relaxed text-muted">{excerpt}</p>
               ) : null}
               <span className="mt-3 inline-flex text-xs tracking-[0.18em] text-ink/70 uppercase">{cta}</span>
             </div>
           </Link>
         </article>
-      ))}
+        );
+      })}
     </div>
   );
 }
