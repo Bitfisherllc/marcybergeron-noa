@@ -129,8 +129,8 @@ export default async function ContactPage({
                   <p className="text-xs tracking-[0.22em] text-muted uppercase">Message sent</p>
                   <h2 className="mt-4 font-serif text-2xl tracking-tight md:text-3xl">Thank you</h2>
                   <p className="mt-5 max-w-prose text-base leading-relaxed text-muted">
-                    Your note is on its way to the studio. Marcy will read it and reply as soon as she can—usually
-                    by email, to the address you shared.
+                    Your note is on its way to the studio. A confirmation is also going to the email address you
+                    shared. Marcy will read your message and reply as soon as she can.
                   </p>
                   <p className="mt-4 max-w-prose text-sm leading-relaxed text-muted">
                     If you think of anything else, you are welcome to send another message, or write directly to{" "}

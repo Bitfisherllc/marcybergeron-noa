@@ -1,5 +1,10 @@
 import nodemailer from "nodemailer";
 import { CONTACT, LIVE_SITE_URL, SITE_NAME } from "@/lib/site";
+import {
+  contactReceiptHtml,
+  contactReceiptSubject,
+  contactReceiptText,
+} from "@/lib/contactReceiptEmail";
 
 export type ContactPayload = {
   name: string;
@@ -75,21 +80,26 @@ export function isContactEmailConfigured(): boolean {
   return Boolean(smtpPass());
 }
 
-async function sendStudioMail(opts: { subject: string; text: string; replyTo?: string }): Promise<void> {
+function createTransport() {
   const user = smtpUser();
   const pass = smtpPass();
-  if (!pass) return;
+  if (!pass) return null;
 
   const host = smtpHost();
   const port = Number(process.env.SMTP_PORT?.trim() || "587");
 
-  const transport = nodemailer.createTransport({
+  return nodemailer.createTransport({
     host,
     port,
     secure: port === 465,
     requireTLS: port === 587,
     auth: { user, pass },
   });
+}
+
+async function sendStudioMail(opts: { subject: string; text: string; replyTo?: string }): Promise<void> {
+  const transport = createTransport();
+  if (!transport) return;
 
   await transport.sendMail({
     from: contactFromAddress(),
@@ -101,9 +111,15 @@ async function sendStudioMail(opts: { subject: string; text: string; replyTo?: s
 }
 
 export async function sendContactEmail(payload: ContactPayload): Promise<void> {
-  await sendStudioMail({
-    subject: `[${SITE_NAME}] Message from ${payload.name}`,
+  const transport = createTransport();
+  if (!transport) return;
+
+  const from = contactFromAddress();
+  await transport.sendMail({
+    from,
+    to: contactRecipients(),
     replyTo: payload.email,
+    subject: `[${SITE_NAME}] Message from ${payload.name}`,
     text: [
       `Name: ${payload.name}`,
       `Email: ${payload.email}`,
@@ -112,6 +128,15 @@ export async function sendContactEmail(payload: ContactPayload): Promise<void> {
       "",
       `View in admin: ${LIVE_SITE_URL}/admin/contact`,
     ].join("\n"),
+  });
+
+  await transport.sendMail({
+    from,
+    to: payload.email,
+    replyTo: CONTACT.email,
+    subject: contactReceiptSubject(),
+    text: contactReceiptText(payload),
+    html: contactReceiptHtml(payload),
   });
 }
 
