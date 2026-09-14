@@ -17,11 +17,15 @@ function SlideImage({
   slide,
   priority,
   fill,
+  fit = "contain",
 }: {
   slide: StatementSlideshowSlide;
   priority?: boolean;
   fill?: boolean;
+  fit?: "contain" | "cover";
 }) {
+  const objectClass = fit === "cover" ? "object-cover" : "object-contain";
+
   if (fill) {
     return (
       <Image
@@ -30,8 +34,23 @@ function SlideImage({
         fill
         priority={priority}
         sizes="(max-width: 1024px) 100vw, 50vw"
-        className="object-contain"
+        className={objectClass}
       />
+    );
+  }
+
+  if (fit === "cover") {
+    return (
+      <div className="relative aspect-[3/2] w-full">
+        <Image
+          src={slide.src}
+          alt={slide.alt}
+          fill
+          priority={priority}
+          sizes="(max-width: 1024px) 100vw, 50vw"
+          className="object-cover"
+        />
+      </div>
     );
   }
 
@@ -82,11 +101,19 @@ function MaybeLightbox({
   );
 }
 
-export function StatementSlideshow({ slides }: { slides: StatementSlideshowSlide[] }) {
+export function StatementSlideshow({
+  slides,
+  frame = "natural",
+}: {
+  slides: StatementSlideshowSlide[];
+  frame?: "natural" | "landscape";
+}) {
   const n = slides.length;
   const [index, setIndex] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [paused, setPaused] = useState(false);
+  const landscape = frame === "landscape";
+  const fit = landscape ? "cover" : "contain";
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -125,14 +152,17 @@ export function StatementSlideshow({ slides }: { slides: StatementSlideshowSlide
     return (
       <MaybeLightbox slide={first}>
         <div className="overflow-hidden bg-black/[0.03]">
-          <SlideImage slide={first} priority />
+          <SlideImage slide={first} priority fit={fit} />
         </div>
       </MaybeLightbox>
     );
   }
 
-  const stageRatio =
-    first.width && first.height ? `${first.width} / ${first.height}` : "4 / 5";
+  const stageRatio = landscape
+    ? "3 / 2"
+    : first.width && first.height
+      ? `${first.width} / ${first.height}`
+      : "4 / 5";
 
   return (
     <div
@@ -157,7 +187,7 @@ export function StatementSlideshow({ slides }: { slides: StatementSlideshowSlide
           >
             <MaybeLightbox slide={slide}>
               <div className="relative h-full w-full">
-                <SlideImage slide={slide} priority={i === 0} fill />
+                <SlideImage slide={slide} priority={i === 0} fill fit={fit} />
               </div>
             </MaybeLightbox>
           </div>

@@ -148,7 +148,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                   <GalleryAbout heading={aboutHeading} content={s.content} inquireHref={inquireHref} />
                 </div>
               </div>
-              <StatementSlideshow slides={slideshowSlides} />
+              <StatementSlideshow slides={slideshowSlides} frame="landscape" />
             </div>
           ) : (
             <>
