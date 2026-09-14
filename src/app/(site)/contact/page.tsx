@@ -145,7 +145,7 @@ export default async function ContactPage({
                     .
                   </p>
                   <Link
-                    href="/contact#message"
+                    href="/contact"
                     className="mt-8 inline-flex items-center border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90 focus-ring"
                   >
                     Send another message
