@@ -15,7 +15,6 @@ export const CONTACT = {
     "Beverly, MA 01915",
   ],
   instagram: "https://www.instagram.com/marcysartspace/",
-  facebook: "https://www.facebook.com/marcy.bergeron",
 } as const;
 
 /** Porter Mill / Rantoul St — used for maps, directions, and distance. */

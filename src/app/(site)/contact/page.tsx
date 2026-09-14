@@ -118,11 +118,6 @@ export default async function ContactPage({
                     Instagram
                   </a>
                 </li>
-                <li>
-                  <a className="link-quiet" href={CONTACT.facebook} rel="noreferrer" target="_blank">
-                    Facebook
-                  </a>
-                </li>
               </ul>
             </div>
           </div>
