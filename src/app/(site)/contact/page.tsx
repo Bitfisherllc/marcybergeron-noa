@@ -131,8 +131,7 @@ export default async function ContactPage({
             <div className="border border-line bg-white/50 p-6">
               <h2 className="font-serif text-2xl tracking-tight">Send a message</h2>
               <p className="mt-3 text-sm text-muted">
-                Your message is saved in the studio inbox and a notification is emailed when configured. For urgent
-                requests, email directly.
+                Your message is emailed to the studio at {CONTACT.email}. For urgent requests, email directly.
               </p>
 
               {inquiryPiece ? (

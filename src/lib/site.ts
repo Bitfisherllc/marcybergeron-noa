@@ -6,7 +6,7 @@ export const SITE_URL = `https://${SITE_DOMAIN.toLowerCase()}`;
 export const LIVE_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || SITE_URL).replace(/\/$/, "");
 
 export const CONTACT = {
-  email: "marcynoaart@gmail.com",
+  email: "marcy@marcybergeron-noa.com",
   phone: "617 515 7915",
   studioLines: [
     "Porter Mill Studios",

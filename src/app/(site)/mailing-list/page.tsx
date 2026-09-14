@@ -17,6 +17,7 @@ export default async function MailingListPage({
   searchParams: Promise<{ ok?: string; error?: string }>;
 }) {
   const sp = await searchParams;
+  const formError = sp.error === "send" ? "send" : sp.error ? "fields" : null;
 
   return (
     <div>
@@ -47,7 +48,14 @@ export default async function MailingListPage({
             {sp.ok ? (
               <p className="text-sm text-ink">Thank you—you are on the list (or already were).</p>
             ) : null}
-            {sp.error ? <p className="text-sm text-red-700">Please enter a valid email address.</p> : null}
+            {formError === "fields" ? (
+              <p className="text-sm text-red-700">Please enter a valid email address.</p>
+            ) : null}
+            {formError === "send" ? (
+              <p className="text-sm text-red-700">
+                You were added to the list, but the studio email could not be sent. Please try again or email directly.
+              </p>
+            ) : null}
 
             {!sp.ok ? (
               <form action={submitMailingListSignup} className="mt-2 space-y-4">

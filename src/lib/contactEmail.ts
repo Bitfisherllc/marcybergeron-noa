@@ -7,6 +7,11 @@ export type ContactPayload = {
   message: string;
 };
 
+export type MailingListSignupPayload = {
+  name: string;
+  email: string;
+};
+
 const DEFAULT_TEST_EMAIL = "bitfisherllc@gmail.com";
 
 function envFlag(value: string | undefined): boolean {
@@ -14,17 +19,17 @@ function envFlag(value: string | undefined): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
-function contactOwnerEmail(): string {
-  return process.env.CONTACT_OWNER_EMAIL?.trim() || CONTACT.email;
+function studioInboxEmail(): string {
+  return CONTACT.email;
 }
 
 function contactTestEmail(): string {
   return process.env.CONTACT_TEST_EMAIL?.trim() || DEFAULT_TEST_EMAIL;
 }
 
-/** Recipients for contact form notifications (owner always; test optional). */
+/** Recipients for public form notifications (studio inbox always; test copy optional). */
 export function contactRecipients(): string[] {
-  const owner = contactOwnerEmail();
+  const owner = studioInboxEmail();
   const recipients = [owner];
 
   if (envFlag(process.env.CONTACT_TEST_EMAIL_ENABLED)) {
@@ -49,7 +54,7 @@ export function isContactEmailConfigured(): boolean {
   return Boolean(process.env.SMTP_USER?.trim() && process.env.SMTP_PASS?.trim());
 }
 
-export async function sendContactEmail(payload: ContactPayload): Promise<void> {
+async function sendStudioMail(opts: { subject: string; text: string; replyTo?: string }): Promise<void> {
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS?.trim();
   if (!user || !pass) return;
@@ -67,8 +72,16 @@ export async function sendContactEmail(payload: ContactPayload): Promise<void> {
   await transport.sendMail({
     from: contactFromAddress(),
     to: contactRecipients(),
-    replyTo: payload.email,
+    replyTo: opts.replyTo,
+    subject: opts.subject,
+    text: opts.text,
+  });
+}
+
+export async function sendContactEmail(payload: ContactPayload): Promise<void> {
+  await sendStudioMail({
     subject: `[${SITE_NAME}] Message from ${payload.name}`,
+    replyTo: payload.email,
     text: [
       `Name: ${payload.name}`,
       `Email: ${payload.email}`,
@@ -76,6 +89,21 @@ export async function sendContactEmail(payload: ContactPayload): Promise<void> {
       payload.message,
       "",
       `View in admin: ${LIVE_SITE_URL}/admin/contact`,
+    ].join("\n"),
+  });
+}
+
+export async function sendMailingListSignupEmail(payload: MailingListSignupPayload): Promise<void> {
+  await sendStudioMail({
+    subject: `[${SITE_NAME}] Mailing list signup`,
+    replyTo: payload.email,
+    text: [
+      `${payload.name || "Someone"} joined the mailing list.`,
+      "",
+      `Name: ${payload.name || "—"}`,
+      `Email: ${payload.email}`,
+      "",
+      `View in admin: ${LIVE_SITE_URL}/admin/mailing-list`,
     ].join("\n"),
   });
 }
