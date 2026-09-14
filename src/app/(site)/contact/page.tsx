@@ -128,60 +128,85 @@ export default async function ContactPage({
           </div>
 
           <div className="space-y-8 lg:col-span-7">
-            <div className="border border-line bg-white/50 p-6">
-              <h2 className="font-serif text-2xl tracking-tight">Send a message</h2>
-              <p className="mt-3 text-sm text-muted">
-                Your message is emailed to the studio at {CONTACT.email}. For urgent requests, email directly.
-              </p>
+            <div className="border border-line bg-white/50 p-6 md:p-8" id="message">
+              {sp.sent ? (
+                <div role="status">
+                  <p className="text-xs tracking-[0.22em] text-muted uppercase">Message sent</p>
+                  <h2 className="mt-4 font-serif text-2xl tracking-tight md:text-3xl">Thank you</h2>
+                  <p className="mt-5 max-w-prose text-base leading-relaxed text-muted">
+                    Your note is on its way to the studio. Marcy will read it and reply as soon as she can—usually
+                    by email, to the address you shared.
+                  </p>
+                  <p className="mt-4 max-w-prose text-sm leading-relaxed text-muted">
+                    If you think of anything else, you are welcome to send another message, or write directly to{" "}
+                    <a className="link-quiet text-ink/90" href={`mailto:${CONTACT.email}`}>
+                      {CONTACT.email}
+                    </a>
+                    .
+                  </p>
+                  <Link
+                    href="/contact#message"
+                    className="mt-8 inline-flex items-center border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90 focus-ring"
+                  >
+                    Send another message
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <h2 className="font-serif text-2xl tracking-tight">Send a message</h2>
+                  <p className="mt-3 text-sm text-muted">
+                    Your message is emailed to the studio at {CONTACT.email}. For urgent requests, email directly.
+                  </p>
 
-              {inquiryPiece ? (
-                <p className="mt-4 text-sm text-muted">
-                  Inquiring about <span className="text-ink/90">{inquiryPiece.title}</span>. The message below is a
-                  starting point—you can edit it before sending.
-                </p>
-              ) : null}
-              {inquirySeries ? (
-                <p className="mt-4 text-sm text-muted">
-                  Inquiring about the <span className="text-ink/90">{inquirySeries.title}</span> series. The message
-                  below is a starting point—you can edit it before sending.
-                </p>
-              ) : null}
+                  {inquiryPiece ? (
+                    <p className="mt-4 text-sm text-muted">
+                      Inquiring about <span className="text-ink/90">{inquiryPiece.title}</span>. The message below is a
+                      starting point—you can edit it before sending.
+                    </p>
+                  ) : null}
+                  {inquirySeries ? (
+                    <p className="mt-4 text-sm text-muted">
+                      Inquiring about the <span className="text-ink/90">{inquirySeries.title}</span> series. The message
+                      below is a starting point—you can edit it before sending.
+                    </p>
+                  ) : null}
 
-              {sp.sent ? <p className="mt-4 text-sm text-ink">Thank you—your message was sent.</p> : null}
-              {formError === "fields" ? (
-                <p className="mt-4 text-sm text-red-700">Please complete all fields and try again.</p>
-              ) : null}
-              {formError === "send" ? (
-                <p className="mt-4 text-sm text-red-700">
-                  Your message was saved, but the email could not be sent. Please try again or email directly.
-                </p>
-              ) : null}
+                  {formError === "fields" ? (
+                    <p className="mt-4 text-sm text-red-700">Please complete all fields and try again.</p>
+                  ) : null}
+                  {formError === "send" ? (
+                    <p className="mt-4 text-sm text-red-700">
+                      Your message was saved, but the email could not be sent. Please try again or email directly.
+                    </p>
+                  ) : null}
 
-              <form action={submitContact} className="mt-6 space-y-4">
-                {artworkId && inquiryPiece ? <input type="hidden" name="artwork" value={artworkId} /> : null}
-                {seriesSlug && inquirySeries ? <input type="hidden" name="series" value={seriesSlug} /> : null}
-                <label className="block text-sm text-muted">
-                  Name
-                  <input name="name" required className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
-                </label>
-                <label className="block text-sm text-muted">
-                  Email
-                  <input name="email" type="email" required className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
-                </label>
-                <label className="block text-sm text-muted">
-                  Message
-                  <textarea
-                    name="message"
-                    required
-                    rows={6}
-                    defaultValue={defaultMessage}
-                    className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
-                  />
-                </label>
-                <button className="border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase" type="submit">
-                  Send
-                </button>
-              </form>
+                  <form action={submitContact} className="mt-6 space-y-4">
+                    {artworkId && inquiryPiece ? <input type="hidden" name="artwork" value={artworkId} /> : null}
+                    {seriesSlug && inquirySeries ? <input type="hidden" name="series" value={seriesSlug} /> : null}
+                    <label className="block text-sm text-muted">
+                      Name
+                      <input name="name" required className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+                    </label>
+                    <label className="block text-sm text-muted">
+                      Email
+                      <input name="email" type="email" required className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+                    </label>
+                    <label className="block text-sm text-muted">
+                      Message
+                      <textarea
+                        name="message"
+                        required
+                        rows={6}
+                        defaultValue={defaultMessage}
+                        className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
+                      />
+                    </label>
+                    <button className="border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase" type="submit">
+                      Send
+                    </button>
+                  </form>
+                </>
+              )}
             </div>
           </div>
         </div>

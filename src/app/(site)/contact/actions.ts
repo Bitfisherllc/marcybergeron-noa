@@ -43,5 +43,5 @@ export async function submitContact(formData: FormData) {
     }
   }
 
-  redirect("/contact?sent=1");
+  redirect("/contact?sent=1#message");
 }
