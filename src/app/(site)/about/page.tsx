@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
 import { artSeriesHref } from "@/lib/routeSlug";
 import { SITE_URL } from "@/lib/site";
+import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 import { getResolvedAboutPortrait, getResolvedAboutSection } from "@/lib/aboutPage";
 
 export const revalidate = 300;
@@ -61,6 +62,7 @@ export default async function AboutPage() {
                 src={portrait.image}
                 alt={portrait.alt}
                 fill
+                quality={SITE_IMAGE_QUALITY}
                 className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 40vw"
                 priority

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 
 export type HomeJournalPost = {
   slug: string;
@@ -191,6 +192,7 @@ export function HomeJournalSlider({
                     src={p.featuredImage}
                     alt=""
                     fill
+                    quality={SITE_IMAGE_QUALITY}
                     className="object-cover"
                     sizes="(max-width: 640px) 90vw, 360px"
                   />

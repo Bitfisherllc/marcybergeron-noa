@@ -13,6 +13,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { GallerySlide } from "@/lib/gallerySlides";
+import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 import { ArtworkGalleryCaption } from "@/components/ArtworkGalleryCaption";
 
 export type { GallerySlide } from "@/lib/gallerySlides";
@@ -244,6 +245,7 @@ function LightboxDialog({ index, onClose }: { index: number; onClose: () => void
               alt={slide.alt}
               fill
               sizes="100vw"
+              quality={SITE_IMAGE_QUALITY}
               priority
               className="object-contain"
             />

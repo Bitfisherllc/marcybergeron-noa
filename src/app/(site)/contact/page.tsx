@@ -7,6 +7,16 @@ import { getArtwork, getArtworkGalleryMeta, getSeriesBySlug } from "@/lib/querie
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 import { CONTACT, SITE_URL } from "@/lib/site";
 
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -112,13 +122,17 @@ export default async function ContactPage({
             <div>
               <h2 className="font-serif text-2xl tracking-tight">Social</h2>
               <div className="mt-5 h-px w-16 bg-line" />
-              <ul className="mt-8 space-y-3 text-sm">
-                <li>
-                  <a className="link-quiet" href={CONTACT.instagram} rel="me noreferrer" target="_blank">
-                    Instagram
-                  </a>
-                </li>
-              </ul>
+              <div className="mt-8">
+                <a
+                  className="inline-flex text-ink/80 transition-colors hover:text-ink focus-ring rounded-sm"
+                  href={CONTACT.instagram}
+                  rel="me noreferrer"
+                  target="_blank"
+                  aria-label="Instagram"
+                >
+                  <InstagramIcon />
+                </a>
+              </div>
             </div>
           </div>
 

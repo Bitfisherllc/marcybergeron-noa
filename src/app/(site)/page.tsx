@@ -9,6 +9,7 @@ import { getPublicHomePayload } from "@/lib/homePage";
 import { postCategoryLine } from "@/lib/postDisplay";
 import { toHeroSlide } from "@/lib/heroSlides";
 import { postPublicHref } from "@/lib/postKind";
+import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 
 export const revalidate = 300;
 
@@ -157,6 +158,7 @@ export default async function HomePage() {
                       src={piece.image}
                       alt={piece.alt}
                       fill
+                      quality={SITE_IMAGE_QUALITY}
                       className="object-cover"
                       sizes="(max-width: 768px) 100vw, 33vw"
                     />

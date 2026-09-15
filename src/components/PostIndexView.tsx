@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Post, PostCategory } from "@/db";
 import { PostCategoryNav } from "@/components/PostCategoryNav";
 import { postCategoryLine } from "@/lib/postDisplay";
+import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 import { postKindCopy, postPublicHref, type PostIndexHeader, type PostKind } from "@/lib/postKind";
 import { formatWorkshopPrice } from "@/lib/workshopPrice";
 import { WorkshopDetailsNote, WorkshopInterestButton } from "@/components/WorkshopCta";
@@ -64,6 +65,7 @@ export function PostIndexView({
                           src={p.featuredImage}
                           alt=""
                           fill
+                          quality={SITE_IMAGE_QUALITY}
                           className="pointer-events-none object-cover transition-transform duration-[1.35s] ease-out group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
                           sizes="(max-width: 768px) 100vw, 40vw"
                         />

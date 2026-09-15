@@ -8,6 +8,7 @@ import { ProseMarkdown } from "@/components/ProseMarkdown";
 import { formatPostDate, postCategoryLine } from "@/lib/postDisplay";
 import { postKindCopy, postPublicBasePath, postPublicHref, type PostKind } from "@/lib/postKind";
 import { formatWorkshopPrice } from "@/lib/workshopPrice";
+import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 import { WorkshopDetailsNote, WorkshopInterestButton } from "@/components/WorkshopCta";
 
 export function PostArticleView({
@@ -63,7 +64,7 @@ export function PostArticleView({
       {kind !== "workshop" && p.featuredImage ? (
         <section className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-14">
           <div className="relative aspect-[16/9] overflow-hidden border border-line bg-black/[0.03]">
-            <Image src={p.featuredImage} alt="" fill className="object-cover" priority sizes="(max-width:1200px) 100vw, 1152px" />
+            <Image src={p.featuredImage} alt="" fill className="object-cover" priority quality={SITE_IMAGE_QUALITY} sizes="(max-width:1200px) 100vw, 1152px" />
           </div>
         </section>
       ) : null}

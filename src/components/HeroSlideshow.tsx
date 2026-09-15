@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import type { HeroSlide } from "@/lib/heroSlides";
+import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 
 function SlideCaption({ slide }: { slide: HeroSlide }) {
   if (!slide.title && !slide.subtitle) return null;
@@ -70,7 +71,7 @@ export function HeroSlideshow({ slides }: { slides: HeroSlide[] }) {
     return (
       <div className="space-y-4">
         <div className="relative aspect-[4/5] overflow-hidden bg-black/[0.03]">
-          <Image src={s.src} alt={s.alt} fill priority className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+          <Image src={s.src} alt={s.alt} fill priority quality={SITE_IMAGE_QUALITY} className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
         </div>
         <SlideCaption slide={s} />
       </div>
@@ -98,6 +99,7 @@ export function HeroSlideshow({ slides }: { slides: HeroSlide[] }) {
               alt={slide.alt}
               fill
               priority={i === 0}
+              quality={SITE_IMAGE_QUALITY}
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 50vw"
             />

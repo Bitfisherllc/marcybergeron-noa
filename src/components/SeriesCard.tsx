@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Series } from "@/db";
 import { seriesPortfolioType } from "@/lib/oilColdWaxSeries";
+import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 import { artSeriesHref } from "@/lib/routeSlug";
 
 export function SeriesCard({ s }: { s: Series }) {
@@ -14,6 +15,7 @@ export function SeriesCard({ s }: { s: Series }) {
             src={s.featuredImage}
             alt={`${s.title} — featured artwork`}
             fill
+            quality={SITE_IMAGE_QUALITY}
             className="object-cover transition duration-500 group-hover:scale-[1.02]"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             priority={false}

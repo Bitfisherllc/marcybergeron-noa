@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { GalleryLightboxTrigger } from "@/components/GalleryLightbox";
+import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 
 export type StatementSlideshowSlide = {
   src: string;
@@ -34,6 +35,7 @@ function SlideImage({
         fill
         priority={priority}
         sizes="(max-width: 1024px) 100vw, 50vw"
+        quality={SITE_IMAGE_QUALITY}
         className={objectClass}
       />
     );
@@ -48,6 +50,7 @@ function SlideImage({
           fill
           priority={priority}
           sizes="(max-width: 1024px) 100vw, 50vw"
+          quality={SITE_IMAGE_QUALITY}
           className="object-cover"
         />
       </div>
@@ -63,6 +66,7 @@ function SlideImage({
         height={slide.height}
         priority={priority}
         sizes="(max-width: 1024px) 100vw, 50vw"
+        quality={SITE_IMAGE_QUALITY}
         className="h-auto w-full max-w-full"
       />
     );
@@ -76,6 +80,7 @@ function SlideImage({
         fill
         priority={priority}
         sizes="(max-width: 1024px) 100vw, 50vw"
+        quality={SITE_IMAGE_QUALITY}
         className="object-contain"
       />
     </div>

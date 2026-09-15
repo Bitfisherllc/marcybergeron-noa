@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { resolveImageDimensions, type ImageDimensions } from "@/lib/imageDimensions";
+import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 
 type Props = {
   src: string;
@@ -46,6 +47,7 @@ export async function IntrinsicGalleryImage({
             alt={alt}
             fill
             sizes={sizes}
+            quality={SITE_IMAGE_QUALITY}
             priority={priority}
             className={`object-cover ${imageClassName}`}
           />
@@ -88,6 +90,7 @@ export async function IntrinsicGalleryImage({
           width={dim.width}
           height={dim.height}
           sizes={sizes}
+          quality={SITE_IMAGE_QUALITY}
           priority={priority}
           className={`h-auto w-full max-w-full ${imageClassName}`}
         />
@@ -102,6 +105,7 @@ export async function IntrinsicGalleryImage({
         alt={alt}
         fill
         sizes={sizes}
+        quality={SITE_IMAGE_QUALITY}
         priority={priority}
         className={`object-contain ${imageClassName}`}
       />

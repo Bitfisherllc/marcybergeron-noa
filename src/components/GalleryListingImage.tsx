@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useLayoutEffect, useState } from "react";
+import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 
 type ListingPick = {
   src: string;
@@ -55,6 +56,7 @@ export function GalleryListingImage({
           alt={pick.alt}
           fill
           sizes={sizes}
+          quality={SITE_IMAGE_QUALITY}
           className={`object-cover ${imageClassName}`}
         />
       ) : (
