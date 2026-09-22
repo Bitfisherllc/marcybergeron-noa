@@ -3,8 +3,10 @@
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import type { Artwork } from "@/db";
+import { AdminArtworkSelect } from "@/components/AdminArtworkSelect";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { HERO_SLIDESHOW_MAX, type HeroSlideshowSlot } from "@/lib/featuredArtwork";
+import type { HomeSlideLinkGroup } from "@/lib/homeSlideLinks";
 
 export type AdminHeroLiveSlide = {
   src: string;
@@ -13,6 +15,8 @@ export type AdminHeroLiveSlide = {
 
 export type AdminSlideshowPiece = Pick<Artwork, "id" | "title" | "image"> & {
   label?: string;
+  href?: string;
+  gallery?: string;
 };
 
 type SlideshowAdminVariant = "gallery" | "home";
@@ -24,10 +28,14 @@ type AdminHeroSlideshowFieldProps = {
   usingRandom: boolean;
   variant?: SlideshowAdminVariant;
   fieldPrefix?: string;
+  /** Defaults to three (gallery). Home page passes five. */
+  maxSlots?: number;
   /** Gallery pages only. Home slideshow is always shown. */
   showOnPage?: boolean;
   /** The Studio always shows the slideshow area; hide the optional Display toggle. */
   lockDisplayOn?: boolean;
+  /** Home page only — pages the slide can open instead of a lightbox. */
+  linkGroups?: HomeSlideLinkGroup[];
 };
 
 const COPY: Record<
@@ -57,12 +65,12 @@ const COPY: Record<
   },
   home: {
     legend: "Home page slideshow",
-    hint: "Large image beside the opening text on the home page. One image stays as a single photo; two or three become a slideshow. You do not have to fill every slot. Upload a photo, pick one already on the site, or choose a painting. If none are chosen, the home page uses the automatic mix of series and artwork images.",
-    paintingLabel: "Or painting from a gallery",
+    hint: "Large image beside the opening text on the home page. One image stays as a single photo; two to five become a slideshow. You do not have to fill every slot. Upload a photo, pick one already on the site, or choose a painting from a visual grid. Each slide can link to a gallery, series, or other page — it does not open a lightbox. If none are chosen, the home page uses the automatic mix of series and artwork images.",
+    paintingLabel: "Or choose a painting visually",
     emptyPaintings: "Add paintings if you want to pick from your galleries.",
     afterSaveEmpty: "After you save, the home page will use the automatic mix of series and artwork images.",
     liveEmpty:
-      "No slideshow images are chosen. The home page currently uses the automatic mix of series and artwork images. You can pick one image, or two or three for a slideshow, or leave this unchosen.",
+      "No slideshow images are chosen. The home page currently uses the automatic mix of series and artwork images. You can pick one image, or up to five for a slideshow, or leave this unchosen.",
     previewLive: "On the home page",
     emptySlotRandom: "Automatic mix",
   },
@@ -71,8 +79,10 @@ const COPY: Record<
 type SlotDraft = {
   pickerSrc: string;
   artworkId: string;
+  href: string;
   initialSrc: string;
   initialArtworkId: string;
+  initialHref: string;
 };
 
 function imageFileLabel(src: string): string {
@@ -176,32 +186,40 @@ export function AdminHeroSlideshowField({
   usingRandom,
   variant = "gallery",
   fieldPrefix = "heroSlide",
+  maxSlots = HERO_SLIDESHOW_MAX,
   showOnPage = false,
   lockDisplayOn = false,
+  linkGroups = [],
 }: AdminHeroSlideshowFieldProps) {
   const copy = COPY[variant];
   const [displayOnPage, setDisplayOnPage] = useState(showOnPage || lockDisplayOn);
   const padded = useMemo(
-    () => Array.from({ length: HERO_SLIDESHOW_MAX }, (_, i) => slots[i] ?? { artworkId: null, image: null }),
-    [slots],
+    () => Array.from({ length: maxSlots }, (_, i) => slots[i] ?? { artworkId: null, image: null }),
+    [slots, maxSlots],
   );
   const byId = useMemo(() => new Map(pieces.map((piece) => [piece.id, piece])), [pieces]);
   const [drafts, setDrafts] = useState<SlotDraft[]>(() =>
     padded.map((slot) => {
       const initialSrc = slotSavedImage(slot, byId);
+      const initialHref = slot.href ?? "";
       return {
         pickerSrc: initialSrc,
         artworkId: slot.artworkId ?? "",
+        href: initialHref,
         initialSrc,
         initialArtworkId: slot.artworkId ?? "",
+        initialHref,
       };
     }),
   );
 
   const hasEdits = drafts.some(
-    (draft) => draft.pickerSrc !== draft.initialSrc || draft.artworkId !== draft.initialArtworkId,
+    (draft) =>
+      draft.pickerSrc !== draft.initialSrc ||
+      draft.artworkId !== draft.initialArtworkId ||
+      draft.href !== draft.initialHref,
   );
-  const displaySrcs = Array.from({ length: HERO_SLIDESHOW_MAX }, (_, i) => {
+  const displaySrcs = Array.from({ length: maxSlots }, (_, i) => {
     if (hasEdits) return resolvedSlotSrc(drafts[i]!, byId);
     if (!usingRandom) return drafts[i]?.initialSrc ?? "";
     return liveSlides[i]?.src ?? "";
@@ -288,27 +306,26 @@ export function AdminHeroSlideshowField({
           {variant === "home" ? "home" : "gallery"} page.
         </p>
       ) : null}
-      <div className="grid gap-4 sm:grid-cols-3">
-        {displaySrcs.map((src, i) => (
-          <div key={`preview-${i}`}>
-            <p className="mb-2 text-xs tracking-wide text-muted uppercase">
-              {hasEdits ? "Preview" : copy.previewLive} · {i + 1}
-            </p>
-            <SlidePreview
-              src={src}
-              pending={hasEdits && Boolean(src)}
-              emptyLabel={
-                hasEdits ? "Not used after save" : usingRandom ? copy.emptySlotRandom : "Not used"
-              }
-            />
-          </div>
-        ))}
-      </div>
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div
+        className={`grid items-start gap-6 ${
+          maxSlots > 3 ? "sm:grid-cols-2 lg:grid-cols-5" : "sm:grid-cols-2 lg:grid-cols-3"
+        }`}
+      >
         {drafts.map((draft, i) => {
           const existingImage = draft.initialSrc;
+          const src = displaySrcs[i] ?? "";
           return (
-            <div key={i} className="space-y-3">
+            <div key={i} className="min-w-0 space-y-3">
+              <p className="text-xs tracking-wide text-muted uppercase">
+                {hasEdits ? "Preview" : copy.previewLive} · {i + 1}
+              </p>
+              <SlidePreview
+                src={src}
+                pending={hasEdits && Boolean(src)}
+                emptyLabel={
+                  hasEdits ? "Not used after save" : usingRandom ? copy.emptySlotRandom : "Not used"
+                }
+              />
               <p className="text-sm text-muted">Image {i + 1} (optional)</p>
               <input type="hidden" name={`${fieldPrefix}${i}Initial`} value={existingImage} />
               <AdminFilePicker
@@ -318,31 +335,66 @@ export function AdminHeroSlideshowField({
                 buttonLabel="Upload image"
                 allowClear
                 preview="none"
+                layout="stack"
                 onPreviewChange={(src) => updateDraft(i, { pickerSrc: src })}
               />
               {pieces.length > 0 ? (
-                <label className="block text-sm text-muted">
-                  {copy.paintingLabel}
-                  <select
+                <div className="space-y-2 text-sm text-muted">
+                  <p>{copy.paintingLabel}</p>
+                  <AdminArtworkSelect
                     name={`${fieldPrefix}Artwork${i}`}
                     value={draft.artworkId}
-                    onChange={(e) => {
-                      updateDraft(i, { artworkId: e.target.value });
-                      notifyFormDirty(e.currentTarget.form);
+                    visual={variant === "home"}
+                    compact={variant === "home"}
+                    options={pieces.map((piece) => ({
+                      id: piece.id,
+                      label: piece.label ?? piece.title,
+                      image: piece.image,
+                      gallery: piece.gallery,
+                    }))}
+                    onChange={(next) => {
+                      const previousHref = byId.get(draft.artworkId)?.href ?? "";
+                      const nextHref = byId.get(next)?.href ?? "";
+                      const keepCustom = draft.href && draft.href !== previousHref;
+                      updateDraft(i, {
+                        artworkId: next,
+                        href: keepCustom ? draft.href : nextHref,
+                      });
                     }}
-                    className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm text-ink"
-                  >
-                    <option value="">— None —</option>
-                    {pieces.map((piece) => (
-                      <option key={piece.id} value={piece.id}>
-                        {piece.label ?? piece.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  />
+                </div>
               ) : (
                 <p className="text-xs text-muted">{copy.emptyPaintings}</p>
               )}
+              {variant === "home" && linkGroups.length > 0 ? (
+                <label className="block text-sm text-muted">
+                  Link this slide to
+                  <select
+                    name={`${fieldPrefix}Href${i}`}
+                    value={draft.href}
+                    className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm text-ink"
+                    onChange={(event) => {
+                      updateDraft(i, { href: event.target.value });
+                      notifyFormDirty(event.currentTarget.form);
+                    }}
+                  >
+                    <option value="">— No link —</option>
+                    {draft.href &&
+                    !linkGroups.some((group) => group.options.some((option) => option.href === draft.href)) ? (
+                      <option value={draft.href}>{draft.href}</option>
+                    ) : null}
+                    {linkGroups.map((group) => (
+                      <optgroup key={group.label} label={group.label}>
+                        {group.options.map((option) => (
+                          <option key={option.href} value={option.href}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
             </div>
           );
         })}

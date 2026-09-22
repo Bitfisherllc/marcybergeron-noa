@@ -1,18 +1,17 @@
 import { eq } from "drizzle-orm";
 import { artwork, post, series } from "@/db/schema";
 import { getDb } from "@/db";
+import { normalizeAdminPath, resolveLiveViewTargetSync, type AdminEditTarget } from "@/lib/adminEditTarget";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
 import { isOilColdWaxChildSlug } from "@/lib/oilColdWaxSeries";
 import { postPublicHref } from "@/lib/postKind";
 import { artSeriesHref } from "@/lib/routeSlug";
 
-export type AdminEditTarget = {
-  href: string;
-  label: string;
-};
+export type { AdminEditTarget } from "@/lib/adminEditTarget";
+export { resolveLiveViewTargetSync } from "@/lib/adminEditTarget";
 
 function normalizePath(pathname: string): string {
-  return (pathname.split("?")[0] || "/").replace(/\/$/, "") || "/";
+  return normalizeAdminPath(pathname);
 }
 
 /** Map a public site path to the best admin screen for editing that page. */
@@ -82,17 +81,8 @@ export async function resolveAdminEditTarget(pathname: string): Promise<AdminEdi
 /** Map an admin path to the matching public page (preview while editing). */
 export async function resolveLiveViewTarget(pathname: string): Promise<AdminEditTarget> {
   const path = normalizePath(pathname);
-
-  if (path === "/admin" || path === "/admin/home") return { href: "/", label: "View home page" };
-  if (path === "/admin/about") return { href: "/about", label: "View about page" };
-  if (path === "/admin/series" || path === "/admin/series/new") return { href: "/medium", label: "View portfolio" };
-  if (path === "/admin/artworks/new") return { href: "/medium", label: "View portfolio" };
-  if (path === "/admin/posts" || path === "/admin/posts/new") return { href: "/news", label: "View news" };
-  if (path === "/admin/workshops" || path === "/admin/workshops/new") {
-    return { href: "/workshops", label: "View workshops" };
-  }
-  if (path === "/admin/workshop-inquiries") return { href: "/workshops", label: "View workshops" };
-  if (path === "/admin/mailing-list") return { href: "/mailing-list", label: "View signup page" };
+  const sync = resolveLiveViewTargetSync(path);
+  if (sync) return sync;
 
   const seriesMatch = path.match(/^\/admin\/series\/([^/]+)$/);
   if (seriesMatch) {

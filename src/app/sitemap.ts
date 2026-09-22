@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next";
 import { listMediumGalleries, listPublishedPosts, listSeriesGalleries } from "@/lib/queries";
 import { postPublicHref } from "@/lib/postKind";
-import { SERIES_INDEX_HREF } from "@/lib/oilColdWaxSeries";
 import { SITE_URL } from "@/lib/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -21,7 +20,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: `${SITE_URL}/`, lastModified: new Date() },
     { url: `${SITE_URL}/medium`, lastModified: new Date() },
-    { url: `${SITE_URL}${SERIES_INDEX_HREF}`, lastModified: new Date() },
     ...galleries.map((s) => ({
       url: `${SITE_URL}/art/${s.slug}`,
       lastModified: s.updatedAt,

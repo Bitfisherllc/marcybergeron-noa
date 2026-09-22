@@ -14,9 +14,9 @@ import {
 import { getDb } from "@/db";
 import { CACHE_TAGS, SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
 import { HOME_SECTION_DEFAULTS, HOME_SECTION_KEYS, type HomeSectionKey } from "@/lib/homeDefaults";
-import { isMediumGallerySlug } from "@/lib/mediumGalleries";
-import { featuredHomePieces, getPrimarySeriesForArtworks, heroHomeSlides, listMediumGalleries, listPublishedPosts } from "@/lib/queries";
-import { HERO_SLIDESHOW_MAX } from "@/lib/featuredArtwork";
+import { isOilColdWaxChildSlug, oilColdWaxChildTitle } from "@/lib/oilColdWaxSeries";
+import { featuredHomePieces, getPrimarySeriesForArtworks, heroHomeSlides, listOilColdWaxChildSeries, listPublishedPosts } from "@/lib/queries";
+import { HOME_SLIDESHOW_MAX } from "@/lib/featuredArtwork";
 import { heroSlideAlt, type HeroSlide, toHeroSlide } from "@/lib/heroSlides";
 
 export type HomeSectionResolved = {
@@ -24,6 +24,7 @@ export type HomeSectionResolved = {
   title: string;
   quote: string;
   body: string;
+  visible: boolean;
 };
 
 export async function getResolvedHomeSection(key: HomeSectionKey): Promise<HomeSectionResolved> {
@@ -40,7 +41,7 @@ export async function getResolvedHomeSections(): Promise<Record<HomeSectionKey, 
     const row = byKey.get(key);
     const def = HOME_SECTION_DEFAULTS[key];
     out[key] = row
-      ? { eyebrow: row.eyebrow, title: row.title, quote: row.quote, body: row.body }
+      ? { eyebrow: row.eyebrow, title: row.title, quote: row.quote, body: row.body, visible: row.visible }
       : { ...def };
   }
   return out;
@@ -49,12 +50,13 @@ export async function getResolvedHomeSections(): Promise<Record<HomeSectionKey, 
 export async function getResolvedHeroSlides(): Promise<HeroSlide[]> {
   const rows = await getDb().select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder), asc(homeSlideshow.createdAt));
   if (rows.length > 0) {
-    return rows.slice(0, HERO_SLIDESHOW_MAX).map((r) =>
+    return rows.slice(0, HOME_SLIDESHOW_MAX).map((r) =>
       toHeroSlide(
         r.image,
         r.title,
         r.subtitle,
         r.title || r.subtitle ? heroSlideAlt(r.title, r.subtitle) : r.alt,
+        r.href,
       ),
     );
   }
@@ -70,11 +72,16 @@ async function slotSeriesIds(): Promise<(string | null)[]> {
   return bySlot;
 }
 
+function withSeriesTitle(s: Series): Series {
+  const title = oilColdWaxChildTitle(s.slug);
+  return title && title !== s.title ? { ...s, title } : s;
+}
+
 export async function getResolvedFeaturedSeries(): Promise<Series[]> {
   const slots = await slotSeriesIds();
   const ids = slots.filter((id): id is string => Boolean(id));
   if (ids.length === 0) {
-    return (await listMediumGalleries()).slice(0, 3);
+    return (await listOilColdWaxChildSeries()).slice(0, 3);
   }
   const db = getDb();
   const found = await db.select().from(series).where(inArray(series.id, ids));
@@ -83,9 +90,9 @@ export async function getResolvedFeaturedSeries(): Promise<Series[]> {
   for (const id of slots) {
     if (!id) continue;
     const s = map.get(id);
-    if (s && isMediumGallerySlug(s.slug)) ordered.push(s);
+    if (s && isOilColdWaxChildSlug(s.slug)) ordered.push(withSeriesTitle(s));
   }
-  if (ordered.length === 0) return (await listMediumGalleries()).slice(0, 3);
+  if (ordered.length === 0) return (await listOilColdWaxChildSeries()).slice(0, 3);
   return ordered.slice(0, 3);
 }
 
@@ -177,7 +184,7 @@ async function getPublicHomePayloadUncached() {
 }
 
 /** Cached home payload so public visitors don't hit Railway on every request. */
-export const getPublicHomePayload = unstable_cache(getPublicHomePayloadUncached, ["public-home-payload", "v2"], {
+export const getPublicHomePayload = unstable_cache(getPublicHomePayloadUncached, ["public-home-payload", "v6"], {
   revalidate: SITE_REVALIDATE_SECONDS,
   tags: [CACHE_TAGS.home, CACHE_TAGS.posts, CACHE_TAGS.artwork, CACHE_TAGS.series],
 });
@@ -192,7 +199,7 @@ export async function listHomeSectionsForAdmin(): Promise<Record<HomeSectionKey,
     const row = map.get(key);
     const def = HOME_SECTION_DEFAULTS[key];
     out[key] = row
-      ? { eyebrow: row.eyebrow, title: row.title, quote: row.quote, body: row.body }
+      ? { eyebrow: row.eyebrow, title: row.title, quote: row.quote, body: row.body, visible: row.visible }
       : { ...def };
   }
   return out;

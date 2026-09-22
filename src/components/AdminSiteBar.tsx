@@ -3,13 +3,14 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AdminGallerySwitcher } from "@/components/AdminGallerySwitcher";
-import { AdminLink } from "@/components/AdminLink";
+import { AdminExternalLink, AdminLink } from "@/components/AdminLink";
 import {
+  clearAdminSessionAction,
   getAdminSiteBarStateAction,
   type AdminGallerySwitcherOption,
   logoutFromSiteAction,
 } from "@/lib/adminBarActions";
-import type { AdminEditTarget } from "@/lib/adminEditLink";
+import { needsRemoteAdminBarState, resolveLiveViewTargetSync, type AdminEditTarget } from "@/lib/adminEditTarget";
 
 const btnClose =
   "inline-flex h-9 w-9 shrink-0 items-center justify-center border border-paper/25 bg-paper/10 text-lg leading-none text-paper transition hover:bg-paper/20 focus-ring";
@@ -35,12 +36,28 @@ type AdminSiteBarProps = {
 
 export function AdminSiteBar({ contactCount = 0 }: AdminSiteBarProps) {
   const pathname = usePathname() ?? "/";
-  const [action, setAction] = useState<AdminEditTarget | null>(null);
-  const [addArt, setAddArt] = useState<AdminEditTarget | null>(null);
+  const [action, setAction] = useState<AdminEditTarget | null>(() => resolveLiveViewTargetSync(pathname));
+  const [addArt, setAddArt] = useState<AdminEditTarget | null>({ href: "/admin/artworks/new", label: "Add art" });
   const [galleries, setGalleries] = useState<AdminGallerySwitcherOption[]>([]);
+  const [closed, setClosed] = useState(false);
   const inAdmin = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
 
+  async function signOut() {
+    setClosed(true);
+    try {
+      await clearAdminSessionAction();
+    } finally {
+      window.location.assign(inAdmin ? "/" : pathname);
+    }
+  }
+
   useEffect(() => {
+    const sync = resolveLiveViewTargetSync(pathname);
+    setAction(sync);
+    if (!needsRemoteAdminBarState(pathname)) {
+      setAddArt({ href: "/admin/artworks/new", label: "Add art" });
+      return;
+    }
     let cancelled = false;
     void getAdminSiteBarStateAction(pathname).then((state) => {
       if (cancelled || !state) return;
@@ -53,13 +70,24 @@ export function AdminSiteBar({ contactCount = 0 }: AdminSiteBarProps) {
     };
   }, [pathname]);
 
+  if (closed) return null;
+
   return (
     <>
       <div className="border-b border-ink/20 bg-ink text-paper">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-5 py-2.5 md:px-8">
           <form action={logoutFromSiteAction}>
             <input type="hidden" name="returnTo" value={pathname} />
-            <button type="submit" className={btnClose} aria-label="Sign out and hide admin bar" title="Sign out">
+            <button
+              type="submit"
+              className={btnClose}
+              aria-label="Sign out and hide admin bar"
+              title="Sign out"
+              onClick={(event) => {
+                event.preventDefault();
+                void signOut();
+              }}
+            >
               <span aria-hidden="true">×</span>
             </button>
           </form>
@@ -97,9 +125,17 @@ export function AdminSiteBar({ contactCount = 0 }: AdminSiteBarProps) {
       {inAdmin && action ? (
         <div className="border-b border-green-400/40 bg-green-950 text-green-100">
           <div className="mx-auto flex max-w-6xl items-center justify-center px-5 py-2 md:px-8">
-            <AdminLink variant="bar" href={action.href} className={viewBarLinkClass}>
+            <AdminExternalLink
+              variant="bar"
+              href={action.href}
+              className={viewBarLinkClass}
+              onClick={(event) => {
+                event.preventDefault();
+                window.location.assign(action.href);
+              }}
+            >
               {formatViewBarLabel(action.label)}
-            </AdminLink>
+            </AdminExternalLink>
           </div>
         </div>
       ) : null}

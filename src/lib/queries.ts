@@ -4,10 +4,11 @@ import type { Artwork, Series } from "@/db";
 import { artwork, artworkSeries, mailingListSignup, post, postCategory, postGalleryImage, series, seriesHeroSlide } from "@/db/schema";
 import { getDb } from "@/db";
 import { CACHE_TAGS, SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
-import { parseFeaturedArtworkMode, type HeroSlideshowSlot } from "@/lib/featuredArtwork";
+import { parseFeaturedArtworkMode, resolveStatementArtwork, type HeroSlideshowSlot } from "@/lib/featuredArtwork";
 import { toHeroSlide, type HeroSlide } from "@/lib/heroSlides";
 import {
   isMediumGallerySlug,
+  isStudioGallerySlug,
   MEDIUM_GALLERY_SLUGS,
   publicPortfolioGalleries,
   resolveMediumGalleryRow,
@@ -19,7 +20,7 @@ import {
   oilColdWaxChildTitle,
 } from "@/lib/oilColdWaxSeries";
 import type { PostKind } from "@/lib/postKind";
-import { normalizeRouteSlug } from "@/lib/routeSlug";
+import { artSeriesHref, normalizeRouteSlug } from "@/lib/routeSlug";
 
 async function listSeriesUncached() {
   return getDb().select().from(series).orderBy(asc(series.sortOrder), asc(series.title));
@@ -89,6 +90,27 @@ export async function listOilColdWaxChildSeries(): Promise<Series[]> {
 
 /** Series tab galleries, in display order. */
 export const listSeriesGalleries = listOilColdWaxChildSeries;
+
+/** Cards for the three Oil and Cold Wax series on the medium gallery page. */
+export async function listOilColdWaxSeriesIndexCards() {
+  const galleries = await listOilColdWaxChildSeries();
+  return Promise.all(
+    galleries.map(async (s) => {
+      const pieces = await listArtworksForSeries(s.id);
+      const featured = resolveStatementArtwork(s, pieces);
+      return {
+        id: s.id,
+        href: artSeriesHref(s.slug),
+        title: s.title,
+        excerpt: s.excerpt,
+        image: featured.image,
+        alt: featured.alt,
+        imageWidth: featured.artwork?.imageWidth,
+        imageHeight: featured.artwork?.imageHeight,
+      };
+    }),
+  );
+}
 
 /** One round trip: artworks per medium gallery for `/medium` card picks. */
 export async function listArtworksGroupedForMediumGalleries(galleries: Series[]): Promise<Map<string, Artwork[]>> {
@@ -416,24 +438,38 @@ export async function listMailingListSignups() {
 
 export { listContactMessages } from "@/lib/contactMessages";
 
-/** Admin home picker: artworks with series title for labels. */
-export async function listArtworksWithSeriesForPicker() {
-  const rows = await listAllArtworksWithSeries();
-  const seen = new Set<string>();
-  const out: { id: string; title: string; label: string; image: string; alt: string }[] = [];
-  for (const { piece, ser } of rows) {
-    if (seen.has(piece.id)) continue;
-    seen.add(piece.id);
-    out.push({
-      id: piece.id,
-      title: piece.title,
-      label: `${piece.title} — ${ser.title}`,
-      image: piece.image,
-      alt: piece.alt,
-    });
-  }
-  return out;
+async function listArtworksWithSeriesForPickerUncached() {
+  const rows = await getDb()
+    .select({
+      id: artwork.id,
+      title: artwork.title,
+      image: artwork.image,
+      alt: artwork.alt,
+      seriesTitle: series.title,
+      seriesSlug: series.slug,
+    })
+    .from(artwork)
+    .leftJoin(series, eq(artwork.mediumSeriesId, series.id))
+    .orderBy(asc(artwork.title));
+
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    label: row.seriesTitle ? `${row.title} — ${row.seriesTitle}` : row.title,
+    image: row.image,
+    alt: row.alt,
+    href: row.seriesSlug ? artSeriesHref(row.seriesSlug) : "",
+    gallery:
+      row.seriesSlug && isStudioGallerySlug(row.seriesSlug) ? "The Studio" : (row.seriesTitle ?? ""),
+  }));
 }
+
+/** Admin painting pickers — one lightweight query, cached until artwork changes. */
+export const listArtworksWithSeriesForPicker = unstable_cache(
+  listArtworksWithSeriesForPickerUncached,
+  ["artwork-picker", "v4"],
+  { revalidate: SITE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.artwork] },
+);
 
 /** All artworks grouped for All Work — portfolio memberships plus medium-only pieces. */
 export async function listAllArtworksWithSeries() {
@@ -466,36 +502,38 @@ export async function listAllArtworksWithSeries() {
 export type SeriesAdminOverview = Series & { artworkCount: number };
 
 /** Series list for admin with artwork counts per gallery. */
-export async function listSeriesAdminOverview(): Promise<SeriesAdminOverview[]> {
-  const rows = await getDb()
-    .select({
-      id: series.id,
-      slug: series.slug,
-      title: series.title,
-      excerpt: series.excerpt,
-      content: series.content,
-      featuredImage: series.featuredImage,
-      featuredArtworkMode: series.featuredArtworkMode,
-      featuredArtworkId: series.featuredArtworkId,
-      sortOrder: series.sortOrder,
-      showHeroSlideshow: series.showHeroSlideshow,
-      isPrivate: series.isPrivate,
-      accessToken: series.accessToken,
-      createdAt: series.createdAt,
-      updatedAt: series.updatedAt,
-      artworkCount: count(artwork.id),
-    })
-    .from(series)
-    .leftJoin(artworkSeries, eq(artworkSeries.seriesId, series.id))
-    .leftJoin(artwork, eq(artworkSeries.artworkId, artwork.id))
-    .groupBy(series.id)
-    .orderBy(asc(series.sortOrder), asc(series.title));
-
-  const mediumCounts = await getDb()
-    .select({ mediumSeriesId: artwork.mediumSeriesId, artworkCount: count() })
-    .from(artwork)
-    .where(isNotNull(artwork.mediumSeriesId))
-    .groupBy(artwork.mediumSeriesId);
+async function listSeriesAdminOverviewUncached(): Promise<SeriesAdminOverview[]> {
+  const db = getDb();
+  const [rows, mediumCounts] = await Promise.all([
+    db
+      .select({
+        id: series.id,
+        slug: series.slug,
+        title: series.title,
+        excerpt: series.excerpt,
+        content: series.content,
+        featuredImage: series.featuredImage,
+        featuredArtworkMode: series.featuredArtworkMode,
+        featuredArtworkId: series.featuredArtworkId,
+        sortOrder: series.sortOrder,
+        showHeroSlideshow: series.showHeroSlideshow,
+        isPrivate: series.isPrivate,
+        accessToken: series.accessToken,
+        createdAt: series.createdAt,
+        updatedAt: series.updatedAt,
+        artworkCount: count(artwork.id),
+      })
+      .from(series)
+      .leftJoin(artworkSeries, eq(artworkSeries.seriesId, series.id))
+      .leftJoin(artwork, eq(artworkSeries.artworkId, artwork.id))
+      .groupBy(series.id)
+      .orderBy(asc(series.sortOrder), asc(series.title)),
+    db
+      .select({ mediumSeriesId: artwork.mediumSeriesId, artworkCount: count() })
+      .from(artwork)
+      .where(isNotNull(artwork.mediumSeriesId))
+      .groupBy(artwork.mediumSeriesId),
+  ]);
 
   const mediumMap = new Map(
     mediumCounts.map((r) => [r.mediumSeriesId!, Number(r.artworkCount)]),
@@ -509,3 +547,9 @@ export async function listSeriesAdminOverview(): Promise<SeriesAdminOverview[]> 
     return withMediumGalleryTitle(withCount) as SeriesAdminOverview;
   });
 }
+
+export const listSeriesAdminOverview = unstable_cache(
+  listSeriesAdminOverviewUncached,
+  ["series-admin-overview", "v1"],
+  { revalidate: SITE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.series, CACHE_TAGS.artwork] },
+);

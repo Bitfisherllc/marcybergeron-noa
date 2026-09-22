@@ -3,6 +3,7 @@ import { deleteSeries } from "@/app/admin/actions";
 import type { Series } from "@/db";
 import { AdminArtworkSiteEdit } from "@/components/AdminArtworkSiteEdit";
 import { AdminDeleteSeriesForm } from "@/components/AdminDeleteSeriesForm";
+import { GalleryIndexCards } from "@/components/GalleryIndexCards";
 import { GalleryLightboxProvider, GalleryLightboxTrigger } from "@/components/GalleryLightbox";
 import { IntrinsicGalleryImage } from "@/components/IntrinsicGalleryImage";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
@@ -12,7 +13,7 @@ import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
 import { slideFromArtwork, slideFromArtworkCached, slideFromSeriesHero, type GallerySlide } from "@/lib/gallerySlides";
 import { artworkStoredDimensions } from "@/lib/imageDimensions";
 import { isMediumGallerySlug, isStudioGallerySlug } from "@/lib/mediumGalleries";
-import { isOilColdWaxChildSlug, SERIES_INDEX_HREF } from "@/lib/oilColdWaxSeries";
+import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, SERIES_INDEX_HREF } from "@/lib/oilColdWaxSeries";
 import { isPrivateGallery } from "@/lib/privateGalleries";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
 import {
@@ -23,6 +24,7 @@ import {
   listArtworksForPublicGallery,
   listHeroSlideshowSlots,
   listMediumGalleries,
+  listOilColdWaxSeriesIndexCards,
 } from "@/lib/queries";
 import { artSeriesHref } from "@/lib/routeSlug";
 import { publicGalleryExcerpt, publicGalleryStatement } from "@/lib/galleryCopy";
@@ -69,10 +71,12 @@ function GalleryAbout({
 
 export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryViewProps) {
   const isStudioGallery = isStudioGallerySlug(s.slug);
+  const isOcwOverview = variant === "public" && isOilColdWaxParentSlug(s.slug);
   const showSlideshow = isStudioGallery || s.showHeroSlideshow;
-  const [pieces, heroSlots] = await Promise.all([
-    listArtworksForPublicGallery(s),
+  const [pieces, heroSlots, seriesCards] = await Promise.all([
+    isOcwOverview && !showSlideshow ? Promise.resolve([]) : listArtworksForPublicGallery(s),
     showSlideshow ? listHeroSlideshowSlots(s.id) : Promise.resolve([]),
+    isOcwOverview ? listOilColdWaxSeriesIndexCards() : Promise.resolve([]),
   ]);
   const isDeletableGallery = isPrivateGallery(s);
   const session = variant === "private" ? await getAdminSession() : null;
@@ -133,8 +137,10 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       });
     }
   }
-  for (const piece of pieces) {
-    await pushArtworkSlide(piece);
+  if (!isOcwOverview) {
+    for (const piece of pieces) {
+      await pushArtworkSlide(piece);
+    }
   }
   const slideshowSlides = heroResolved.map((hero, i) => {
     const standalone = hero.artwork ? null : lightboxSlides[heroLightboxIndex[i] ?? -1];
@@ -186,7 +192,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
               {isChildSeries ? (
                 <p className="mt-4">
                   <Link href={SERIES_INDEX_HREF} className="link-quiet text-sm tracking-wide">
-                    ← All series
+                    ← Oil and Cold Wax
                   </Link>
                 </p>
               ) : null}
@@ -216,39 +222,57 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
 
         <section className={`${showSlideshow && !isStudioGallery ? "border-t border-line " : ""}bg-white/35`}>
           <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
-            <h2 className="font-serif text-3xl tracking-tight">{s.title}</h2>
-            <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
-              Click an image to view it larger, with title and details.
-            </p>
-            <div className="mt-12 grid grid-cols-1 items-start gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {pieces.map((p) => (
-                  <figure key={p.id}>
-                    <GalleryLightboxTrigger
-                      index={lightboxByArtworkId.get(p.id) ?? 0}
-                      label={`Enlarge: ${p.title}`}
-                    >
-                      <IntrinsicGalleryImage
-                        src={p.image}
-                        alt={p.alt}
-                        width={p.imageWidth}
-                        height={p.imageHeight}
-                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        frame="portrait"
-                      />
-                    </GalleryLightboxTrigger>
-                    {session && adminLists ? (
-                      <AdminArtworkSiteEdit
-                        artworkId={p.id}
-                        title={p.title}
-                        mediumSeriesId={p.mediumSeriesId}
-                        mediumGalleries={adminLists[0]}
-                        status={p.status}
-                        returnPath={returnPath}
-                      />
-                    ) : null}
-                  </figure>
-              ))}
-            </div>
+            {isOcwOverview ? (
+              <>
+                <h2 className="font-serif text-3xl tracking-tight">Series</h2>
+                <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
+                  Distinct bodies of work within oil and cold wax.
+                </p>
+                <div className="mt-12">
+                  {seriesCards.length === 0 ? (
+                    <p className="text-sm text-muted">Series will appear here once they are published.</p>
+                  ) : (
+                    <GalleryIndexCards cards={seriesCards} cta="View series →" />
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="font-serif text-3xl tracking-tight">{s.title}</h2>
+                <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
+                  Click an image to view it larger, with title and details.
+                </p>
+                <div className="mt-12 grid grid-cols-1 items-start gap-8 md:grid-cols-2 lg:grid-cols-3">
+                  {pieces.map((p) => (
+                    <figure key={p.id}>
+                      <GalleryLightboxTrigger
+                        index={lightboxByArtworkId.get(p.id) ?? 0}
+                        label={`Enlarge: ${p.title}`}
+                      >
+                        <IntrinsicGalleryImage
+                          src={p.image}
+                          alt={p.alt}
+                          width={p.imageWidth}
+                          height={p.imageHeight}
+                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          frame="portrait"
+                        />
+                      </GalleryLightboxTrigger>
+                      {session && adminLists ? (
+                        <AdminArtworkSiteEdit
+                          artworkId={p.id}
+                          title={p.title}
+                          mediumSeriesId={p.mediumSeriesId}
+                          mediumGalleries={adminLists[0]}
+                          status={p.status}
+                          returnPath={returnPath}
+                        />
+                      ) : null}
+                    </figure>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </section>
       </GalleryLightboxProvider>
@@ -307,7 +331,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
           <div className="mx-auto max-w-6xl px-5 py-10 md:px-8">
             {isChildSeries ? (
               <Link href={SERIES_INDEX_HREF} className="text-sm tracking-wide text-muted hover:text-ink">
-                ← Back to series
+                ← Back to Oil and Cold Wax
               </Link>
             ) : isStudioGallery ? (
               <Link href="/about" className="text-sm tracking-wide text-muted hover:text-ink">

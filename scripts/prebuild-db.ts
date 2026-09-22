@@ -164,6 +164,36 @@ function main() {
   }
 
   try {
+    execSync("npx tsx scripts/migrate-home-section-visible.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] home section visibility column migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
+    execSync("npx tsx scripts/migrate-site-favicon.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] site favicon table migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
+    execSync("npx tsx scripts/migrate-home-slideshow-href.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] home slideshow link column migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
     execSync("npx tsx scripts/migrate-ocw-gallery-images.ts", {
       stdio: "inherit",
       env: process.env,

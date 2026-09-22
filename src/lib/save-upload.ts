@@ -9,6 +9,7 @@ import { isOilColdWaxChildSlug, oilColdWaxChildUploadFolder } from "@/lib/oilCol
 export function uploadFolderForSlug(slug: string | undefined): string {
   if ((slug ?? "").trim().toLowerCase() === "home-slideshow") return "home-slideshow";
   if ((slug ?? "").trim().toLowerCase() === "about-portrait") return "about-portrait";
+  if ((slug ?? "").trim().toLowerCase() === "favicon") return "favicon";
   const s = (slug ?? "").trim();
   const mediumFolder = mediumGalleryUploadFolder(s);
   if (mediumFolder) return mediumFolder;

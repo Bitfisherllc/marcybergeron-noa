@@ -6,8 +6,7 @@ import { countContactMessages } from "@/lib/contactMessages";
 export const dynamic = "force-dynamic";
 
 export default async function AdminRootLayout({ children }: { children: React.ReactNode }) {
-  const session = await getAdminSession();
-  const contactCount = session ? await countContactMessages() : 0;
+  const [session, contactCount] = await Promise.all([getAdminSession(), countContactMessages()]);
 
-  return <AdminChrome contactCount={contactCount}>{children}</AdminChrome>;
+  return <AdminChrome contactCount={session ? contactCount : 0}>{children}</AdminChrome>;
 }

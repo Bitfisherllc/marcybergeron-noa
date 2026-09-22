@@ -174,6 +174,7 @@ export const homeSection = pgTable("home_section", {
   title: text("title").notNull().default(""),
   quote: text("quote").notNull().default(""),
   body: text("body").notNull().default(""),
+  visible: boolean("visible").notNull().default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });
 
@@ -185,6 +186,8 @@ export const homeSlideshow = pgTable("home_slideshow", {
   alt: text("alt").notNull(),
   title: text("title").notNull().default(""),
   subtitle: text("subtitle").notNull().default(""),
+  /** Public page this slide opens. Empty means the image is not a link. */
+  href: text("href").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });
@@ -218,5 +221,12 @@ export const aboutPortrait = pgTable("about_portrait", {
   id: text("id").primaryKey(),
   image: text("image").notNull(),
   alt: text("alt").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
+});
+
+/** Browser tab icon. One row (`default`) when an admin upload replaces the studio mark. */
+export const siteFavicon = pgTable("site_favicon", {
+  id: text("id").primaryKey(),
+  image: text("image").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });

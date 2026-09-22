@@ -31,10 +31,13 @@ export type ResolvedStatementArtwork = {
 };
 
 export const HERO_SLIDESHOW_MAX = 3;
+/** Home page hero can hold more images than a gallery page. */
+export const HOME_SLIDESHOW_MAX = 5;
 
 export type HeroSlideshowSlot = {
   artworkId: string | null;
   image: string | null;
+  href?: string | null;
 };
 
 function matchPieceByImage<T extends { id: string; image: string }>(

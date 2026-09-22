@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import "./globals.css";
+import { getResolvedFavicon } from "@/lib/siteFavicon";
 import { SITE_DOMAIN, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const dmSans = DM_Sans({
@@ -16,30 +17,39 @@ const cormorant = Cormorant_Garamond({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: `${SITE_NAME} | Abstract Artist Portfolio`,
-    template: `%s | ${SITE_NAME}`,
-  },
-  description:
-    "Explore the abstract paintings, art series, and studio work of Marcy Bergeron-Noa.",
-  openGraph: {
-    siteName: SITE_NAME,
-    type: "website",
-    locale: "en_US",
-    url: SITE_URL,
-    title: `${SITE_NAME} | Abstract Artist Portfolio`,
+export async function generateMetadata(): Promise<Metadata> {
+  const favicon = await getResolvedFavicon();
+  const iconUrl = `/icon?v=${favicon.updatedAt || "default"}`;
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: `${SITE_NAME} | Abstract Artist Portfolio`,
+      template: `%s | ${SITE_NAME}`,
+    },
     description:
       "Explore the abstract paintings, art series, and studio work of Marcy Bergeron-Noa.",
-  },
-  alternates: {
-    canonical: "/",
-  },
-  icons: {
-    icon: "/favicon.ico",
-  },
-};
+    openGraph: {
+      siteName: SITE_NAME,
+      type: "website",
+      locale: "en_US",
+      url: SITE_URL,
+      title: `${SITE_NAME} | Abstract Artist Portfolio`,
+      description:
+        "Explore the abstract paintings, art series, and studio work of Marcy Bergeron-Noa.",
+    },
+    alternates: {
+      canonical: "/",
+    },
+    icons: {
+      icon: [
+        { url: iconUrl, type: favicon.type },
+        { url: `/favicon.ico?v=${favicon.updatedAt || "default"}`, type: "image/x-icon" },
+      ],
+      shortcut: iconUrl,
+      apple: iconUrl,
+    },
+  };
+}
 
 export default function RootLayout({
   children,

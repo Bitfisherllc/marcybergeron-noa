@@ -1,9 +1,34 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { HeroSlide } from "@/lib/heroSlides";
 import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
+
+function SlideImage({ slide, priority }: { slide: HeroSlide; priority?: boolean }) {
+  const image = (
+    <Image
+      src={slide.src}
+      alt={slide.alt}
+      fill
+      priority={priority}
+      quality={SITE_IMAGE_QUALITY}
+      className="pointer-events-none object-cover"
+      sizes="(max-width: 768px) 100vw, 50vw"
+    />
+  );
+  if (!slide.href) return image;
+  return (
+    <Link
+      href={slide.href}
+      className="absolute inset-0 focus-ring"
+      aria-label={slide.title ? `View ${slide.title}` : "Open linked page"}
+    >
+      {image}
+    </Link>
+  );
+}
 
 function SlideCaption({ slide }: { slide: HeroSlide }) {
   if (!slide.title && !slide.subtitle) return null;
@@ -71,7 +96,7 @@ export function HeroSlideshow({ slides }: { slides: HeroSlide[] }) {
     return (
       <div className="space-y-4">
         <div className="relative aspect-[4/5] overflow-hidden bg-black/[0.03]">
-          <Image src={s.src} alt={s.alt} fill priority quality={SITE_IMAGE_QUALITY} className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+          <SlideImage slide={s} priority />
         </div>
         <SlideCaption slide={s} />
       </div>
@@ -91,18 +116,10 @@ export function HeroSlideshow({ slides }: { slides: HeroSlide[] }) {
             key={`${slide.src}-${i}`}
             className={`absolute inset-0 ease-out motion-reduce:transition-none ${
               reduceMotion ? "" : "transition-opacity duration-[1100ms]"
-            } ${i === index ? "z-[1] opacity-100" : "z-0 opacity-0"}`}
+            } ${i === index ? "z-[1] opacity-100" : "pointer-events-none z-0 opacity-0"}`}
             aria-hidden={i !== index}
           >
-            <Image
-              src={slide.src}
-              alt={slide.alt}
-              fill
-              priority={i === 0}
-              quality={SITE_IMAGE_QUALITY}
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 50vw"
-            />
+            <SlideImage slide={slide} priority={i === 0} />
           </div>
         ))}
       </div>

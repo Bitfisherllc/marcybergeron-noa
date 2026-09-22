@@ -21,7 +21,7 @@ export default async function AdminHomePage() {
         <AdminLink variant="menu" href="/admin/home">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">Home</div>
           <div className="mt-2 font-serif text-2xl tracking-tight">Home page</div>
-          <p className="mt-3 text-sm text-muted">Slideshow, section copy, featured picks</p>
+          <p className="mt-3 text-sm text-muted">Slideshow, browser tab icon, section copy, featured picks</p>
         </AdminLink>
         <AdminLink variant="menu" href="/admin/about">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">About</div>

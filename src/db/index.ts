@@ -32,10 +32,11 @@ export function getDb(): AppDb {
   assertReachableDatabaseUrl(url, process.env.VERCEL ? "vercel" : "local");
   const isProd = process.env.NODE_ENV === "production";
   _sql = postgres(url, {
-    max: isProd ? 1 : 4,
+    max: isProd ? 1 : 8,
     prepare: false,
     connect_timeout: 20,
-    idle_timeout: 20,
+    idle_timeout: 120,
+    max_lifetime: 60 * 30,
     ssl: postgresSsl(url),
   });
   _db = drizzlePg(_sql, { schema });

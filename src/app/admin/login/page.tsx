@@ -1,4 +1,5 @@
 import { loginAction } from "@/app/admin/actions";
+import { AdminPasswordField } from "@/components/AdminPasswordField";
 
 export default async function AdminLoginPage({
   searchParams,
@@ -13,16 +14,7 @@ export default async function AdminLoginPage({
       <p className="mt-3 text-sm text-muted">Sign in to manage series, artwork, news, and workshops.</p>
 
       <form action={loginAction} className="mt-8 space-y-4 border border-line bg-white/50 p-6">
-        <label className="block text-sm text-muted">
-          Password
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm text-ink"
-          />
-        </label>
+        <AdminPasswordField />
         {sp.error ? (
           <p className="text-sm text-red-700">Could not sign in. Check the password and try again.</p>
         ) : null}

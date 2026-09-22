@@ -4,7 +4,8 @@ import { artSeriesHref } from "@/lib/routeSlug";
 export const OIL_COLD_WAX_PARENT_SLUG = "Oil and Cold Wax" as const;
 /** Retired series; old URLs redirect to the Oil and Cold Wax portfolio gallery. */
 export const GENERAL_OIL_COLD_WAX_SLUG = "general-oil-and-cold-wax" as const;
-export const SERIES_INDEX_HREF = "/series";
+/** Series live on the Oil and Cold Wax portfolio page. `/series` redirects here. */
+export const SERIES_INDEX_HREF = artSeriesHref(OIL_COLD_WAX_PARENT_SLUG);
 
 export const OIL_COLD_WAX_CHILDREN = [
   {

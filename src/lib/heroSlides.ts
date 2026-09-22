@@ -9,13 +9,16 @@ export type HeroSlide = {
   alt: string;
   title: string;
   subtitle: string;
+  href?: string;
 };
 
-export function toHeroSlide(src: string, title = "", subtitle = "", alt?: string): HeroSlide {
+export function toHeroSlide(src: string, title = "", subtitle = "", alt?: string, href?: string): HeroSlide {
+  const link = href?.trim();
   return {
     src,
     title,
     subtitle,
     alt: alt?.trim() || heroSlideAlt(title, subtitle),
+    href: link || undefined,
   };
 }

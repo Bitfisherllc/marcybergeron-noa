@@ -6,6 +6,7 @@ export const CACHE_TAGS = {
   artwork: "artwork",
   posts: "posts",
   home: "home",
+  site: "site",
 } as const;
 
 /** Next.js 16 requires a cache life profile as the second argument. */

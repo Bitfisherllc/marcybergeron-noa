@@ -5,6 +5,7 @@ import { ArtCaption, captionSubtitle } from "@/components/ArtCaption";
 import { HeroSlideshow } from "@/components/HeroSlideshow";
 import { HomeJournalSlider } from "@/components/HomeJournalSlider";
 import { HomeMarkdown } from "@/components/HomeMarkdown";
+import { SeriesCard } from "@/components/SeriesCard";
 import { getPublicHomePayload } from "@/lib/homePage";
 import { postCategoryLine } from "@/lib/postDisplay";
 import { toHeroSlide } from "@/lib/heroSlides";
@@ -12,11 +13,6 @@ import { postPublicHref } from "@/lib/postKind";
 import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 
 export const revalidate = 300;
-
-/** Set to true to show the Journal carousel on the home page again. */
-const SHOW_HOME_JOURNAL = false;
-/** Set to true to show Selected works on the home page again. */
-const SHOW_HOME_SELECTED_WORKS = false;
 
 export const metadata: Metadata = {
   title: "Marcy Bergeron-Noa | Abstract Artist Portfolio",
@@ -27,7 +23,13 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const { sections, featuredSeries, journalPosts: journalPostsRaw, selectedPicks, slides } = await getPublicHomePayload();
 
-  const { hero, journal: journalSec, artist_words: artistSec, selected_works: selectedSec } = sections;
+  const {
+    hero,
+    featured_series: featuredSec,
+    journal: journalSec,
+    artist_words: artistSec,
+    selected_works: selectedSec,
+  } = sections;
 
   const journalPosts = journalPostsRaw.map((p) => ({
     slug: p.slug,
@@ -80,7 +82,22 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {SHOW_HOME_JOURNAL && journalPosts.length > 0 ? (
+      {featuredSec.visible && featuredSeries.length > 0 ? (
+        <section className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="font-serif text-3xl tracking-tight">{featuredSec.title}</h2>
+            <div className="mx-auto mt-5 h-px w-16 bg-line" />
+            <p className="mt-6 text-sm leading-relaxed text-muted">{featuredSec.body}</p>
+          </div>
+          <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {featuredSeries.map((s) => (
+              <SeriesCard key={s.id} s={s} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {journalSec.visible && journalPosts.length > 0 ? (
         <section className="border-t border-line bg-white/35">
           <div className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">
             <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
@@ -138,7 +155,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {SHOW_HOME_SELECTED_WORKS ? (
+      {selectedSec.visible && selectedPicks.length > 0 ? (
         <section className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">
           <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
             <div>

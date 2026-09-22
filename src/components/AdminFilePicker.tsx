@@ -6,6 +6,8 @@ import { listSiteImagesAction } from "@/lib/adminImageActions";
 import {
   ADMIN_UPLOAD_MAX_BYTES,
   ADMIN_UPLOAD_MAX_LABEL,
+  ADMIN_UPLOAD_WARN_BYTES,
+  uploadLargeFileWarning,
   uploadTooLargeMessage,
 } from "@/lib/adminUploadLimits";
 import type { SiteImageOption } from "@/lib/siteImages";
@@ -48,6 +50,8 @@ type AdminFilePickerProps = {
   allowClear?: boolean;
   /** Called when the chosen file, library image, or clear changes the preview source. */
   onPreviewChange?: (src: string) => void;
+  /** Stack buttons in a narrow column (slideshow slots). */
+  layout?: "row" | "stack";
 };
 
 function imageLabel(src: string, options: SiteImageOption[]): string {
@@ -87,6 +91,7 @@ export function AdminFilePicker({
   preview,
   allowClear,
   onPreviewChange,
+  layout = "row",
 }: AdminFilePickerProps) {
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -95,6 +100,7 @@ export function AdminFilePicker({
   const existingName = existingFieldName ?? `${name}Existing`;
   const [fileName, setFileName] = useState("");
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [sizeError, setSizeError] = useState<string | null>(null);
   const [sizeWarning, setSizeWarning] = useState<string | null>(null);
   const [selectedExisting, setSelectedExisting] = useState(existingValue);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -156,6 +162,7 @@ export function AdminFilePicker({
     setPreviewFile(undefined);
     setSelectedExisting(src);
     setFileName("");
+    setSizeError(null);
     setSizeWarning(null);
     if (inputRef.current) inputRef.current.value = "";
     setLibraryOpen(false);
@@ -166,6 +173,7 @@ export function AdminFilePicker({
     setPreviewFile(undefined);
     setSelectedExisting("");
     setFileName("");
+    setSizeError(null);
     setSizeWarning(null);
     if (inputRef.current) inputRef.current.value = "";
     onPreviewChange?.("");
@@ -174,7 +182,8 @@ export function AdminFilePicker({
   function onFileChange(file: File | undefined) {
     if (file && file.size > 0) {
       if (file.size > ADMIN_UPLOAD_MAX_BYTES) {
-        setSizeWarning(uploadTooLargeMessage(file.name, file.size));
+        setSizeError(uploadTooLargeMessage(file.name, file.size));
+        setSizeWarning(null);
         setFileName("");
         setSelectedExisting("");
         setPreviewFile(undefined);
@@ -184,7 +193,10 @@ export function AdminFilePicker({
       }
     }
 
-    setSizeWarning(null);
+    setSizeError(null);
+    setSizeWarning(
+      file && file.size >= ADMIN_UPLOAD_WARN_BYTES ? uploadLargeFileWarning(file.name, file.size) : null,
+    );
     setFileName(file?.name ?? "");
     if (file?.name) {
       setSelectedExisting("");
@@ -222,23 +234,40 @@ export function AdminFilePicker({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button type="button" className={btnChoose} onClick={() => inputRef.current?.click()}>
+      <div className={layout === "stack" ? "flex flex-col gap-2" : "flex flex-wrap items-center gap-3"}>
+        <button
+          type="button"
+          className={layout === "stack" ? `${btnChoose} w-full justify-center` : btnChoose}
+          onClick={() => inputRef.current?.click()}
+        >
           {buttonLabel}
         </button>
-        <button type="button" className={btnSecondary} onClick={() => void openLibrary()}>
+        <button
+          type="button"
+          className={layout === "stack" ? `${btnSecondary} w-full justify-center` : btnSecondary}
+          onClick={() => void openLibrary()}
+        >
           Choose existing
         </button>
-        {allowClear && displaySrc ? (
-          <button type="button" className={btnSecondary} onClick={clearSelection}>
+        {allowClear && (layout === "stack" || displaySrc) ? (
+          <button
+            type="button"
+            className={`${layout === "stack" ? `${btnSecondary} w-full justify-center` : btnSecondary} ${
+              !displaySrc ? "pointer-events-none opacity-30" : ""
+            }`}
+            disabled={!displaySrc}
+            onClick={clearSelection}
+          >
             Clear
           </button>
         ) : null}
-        <div className="min-w-0 text-sm">
-          <div className="font-medium text-ink">{label}</div>
-          <div className="mt-0.5 text-xs text-muted">{statusText}</div>
-          {!sizeWarning ? (
-            <div className="mt-0.5 text-xs text-muted">Maximum upload size: {ADMIN_UPLOAD_MAX_LABEL}</div>
+        <div className={layout === "stack" ? "min-w-0 text-xs text-muted" : "min-w-0 text-sm"}>
+          {layout === "stack" ? null : <div className="font-medium text-ink">{label}</div>}
+          <div className={layout === "stack" ? "truncate leading-relaxed" : "mt-0.5 text-xs text-muted"}>{statusText}</div>
+          {!sizeError ? (
+            <div className={layout === "stack" ? "truncate leading-relaxed" : "mt-0.5 text-xs text-muted"}>
+              Maximum upload size: {ADMIN_UPLOAD_MAX_LABEL}
+            </div>
           ) : null}
         </div>
       </div>
@@ -252,8 +281,13 @@ export function AdminFilePicker({
         </div>
       ) : null}
 
-      {sizeWarning ? (
+      {sizeError ? (
         <p role="alert" className="mt-3 text-sm leading-relaxed text-amber-800">
+          {sizeError}
+        </p>
+      ) : null}
+      {sizeWarning ? (
+        <p role="status" className="mt-3 text-sm leading-relaxed text-amber-800">
           {sizeWarning}
         </p>
       ) : null}

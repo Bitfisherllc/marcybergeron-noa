@@ -10,8 +10,11 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       /** Art uploads via admin forms (default is 1mb). */
-      bodySizeLimit: "12mb",
+      bodySizeLimit: "2mb",
     },
+  },
+  async rewrites() {
+    return [{ source: "/favicon.ico", destination: "/icon" }];
   },
   /** Allow same-origin Geolocation API (some hosts default to a restrictive policy). */
   async headers() {
@@ -49,7 +52,13 @@ const nextConfig: NextConfig = {
         ...config.watchOptions,
         poll: 2000,
         aggregateTimeout: 500,
-        ignored: ["**/node_modules/**", "**/.git/**", "**/.next/**"],
+        ignored: [
+          "**/node_modules/**",
+          "**/.git/**",
+          "**/.next/**",
+          "**/public/uploads/**",
+          "**/public/images/**",
+        ],
       };
     }
     return config;

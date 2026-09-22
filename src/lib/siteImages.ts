@@ -1,8 +1,8 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import { eq } from "drizzle-orm";
-import { artwork, artworkSeries, aboutPortrait, homeSlideshow, post, postGalleryImage, series, seriesHeroSlide } from "@/db/schema";
+import { unstable_cache } from "next/cache";
+import { artwork, artworkSeries, aboutPortrait, homeSlideshow, post, postGalleryImage, series, seriesHeroSlide, siteFavicon } from "@/db/schema";
 import { getDb } from "@/db";
+import { CACHE_TAGS, SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
 import { GALLERY_PLACEHOLDER_IMAGE } from "@/lib/galleryDefaults";
 import { isMediumGallerySlug, STUDIO_GALLERY_SLUG } from "@/lib/mediumGalleries";
 
@@ -17,7 +17,7 @@ export type SiteImageOption = {
   galleries: string[];
 };
 
-const IMAGE_EXT = /\.(jpe?g|png|gif|webp|svg|avif)$/i;
+const IMAGE_EXT = /\.(jpe?g|png|gif|webp|svg|avif|ico)$/i;
 
 type ImageEntry = { label: string; galleries: Set<string> };
 
@@ -42,38 +42,8 @@ function addImage(urls: Map<string, ImageEntry>, src: string | null | undefined,
   if (label.length > existing.label.length) existing.label = label;
 }
 
-function galleryFromUploadFolder(folderName: string): string | undefined {
-  if (folderName === "the-studio") return STUDIO_GALLERY_SLUG;
-  return undefined;
-}
-
-async function walkPublicDir(
-  absDir: string,
-  publicPrefix: string,
-  urls: Map<string, ImageEntry>,
-  gallery?: string,
-) {
-  let entries;
-  try {
-    entries = await fs.readdir(absDir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    const name = String(entry.name);
-    const abs = path.join(absDir, name);
-    if (entry.isDirectory()) {
-      const nextGallery = gallery ?? galleryFromUploadFolder(name);
-      await walkPublicDir(abs, `${publicPrefix}/${name}`, urls, nextGallery);
-      continue;
-    }
-    if (!IMAGE_EXT.test(name)) continue;
-    addImage(urls, `${publicPrefix}/${name}`, gallery ? `${name} — ${gallery}` : name, gallery);
-  }
-}
-
-/** All distinct images used on the site (database + local public/uploads and public/images). */
-export async function listSiteImages(): Promise<SiteImageOption[]> {
+/** Distinct images already used on the site (from the database). */
+async function listSiteImagesUncached(): Promise<SiteImageOption[]> {
   const db = getDb();
   const urls = new Map<string, ImageEntry>();
 
@@ -86,6 +56,7 @@ export async function listSiteImages(): Promise<SiteImageOption[]> {
     slideRows,
     portraitRows,
     galleryHeroRows,
+    faviconRows,
   ] = await Promise.all([
     db.select({ image: series.featuredImage, title: series.title, slug: series.slug }).from(series),
     db
@@ -112,6 +83,7 @@ export async function listSiteImages(): Promise<SiteImageOption[]> {
     db.select({ image: homeSlideshow.image, title: homeSlideshow.title }).from(homeSlideshow),
     db.select({ image: aboutPortrait.image }).from(aboutPortrait),
     db.select({ image: seriesHeroSlide.image }).from(seriesHeroSlide),
+    db.select({ image: siteFavicon.image }).from(siteFavicon),
   ]);
 
   for (const row of seriesRows) {
@@ -134,10 +106,10 @@ export async function listSiteImages(): Promise<SiteImageOption[]> {
   }
   for (const row of portraitRows) addImage(urls, row.image, "About portrait");
   for (const row of galleryHeroRows) addImage(urls, row.image, "Gallery slideshow");
+  for (const row of faviconRows) addImage(urls, row.image, "Site icon");
 
-  const publicRoot = path.join(process.cwd(), "public");
-  await walkPublicDir(path.join(publicRoot, "uploads"), "/uploads", urls);
-  await walkPublicDir(path.join(publicRoot, "images"), "/images", urls);
+  // Skip walking public/uploads on network volumes — that directory is huge and already
+  // represented by the database rows above. Local leftover files are still uploadable.
 
   return [...urls.entries()]
     .map(([src, entry]) => ({
@@ -147,3 +119,8 @@ export async function listSiteImages(): Promise<SiteImageOption[]> {
     }))
     .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
 }
+
+export const listSiteImages = unstable_cache(listSiteImagesUncached, ["site-images", "v2"], {
+  revalidate: SITE_REVALIDATE_SECONDS,
+  tags: [CACHE_TAGS.artwork, CACHE_TAGS.series, CACHE_TAGS.posts, CACHE_TAGS.home, CACHE_TAGS.site],
+});

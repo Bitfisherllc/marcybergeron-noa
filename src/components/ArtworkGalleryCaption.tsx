@@ -55,7 +55,7 @@ export function ArtworkGalleryCaption({
         </div>
       )}
       {subtitle ? <div className={`text-sm leading-relaxed ${textClass}`}>{subtitle}</div> : null}
-      {portfolioSeries.length > 0 ? (
+      {!isLightbox && portfolioSeries.length > 0 ? (
         <div className={`text-sm ${textClass}`}>
           <span className={labelClass}>Series </span>
           {portfolioSeries.map((s, i) => (
@@ -68,7 +68,7 @@ export function ArtworkGalleryCaption({
           ))}
         </div>
       ) : null}
-      {mediumGallery ? (
+      {!isLightbox && mediumGallery ? (
         <div className={`text-sm ${textClass}`}>
           <Link href={artSeriesHref(mediumGallery.slug)} className={linkClass}>
             {mediumGallery.title}
