@@ -7,6 +7,7 @@ import { HomeJournalSlider } from "@/components/HomeJournalSlider";
 import { HomeMarkdown } from "@/components/HomeMarkdown";
 import { SeriesCard } from "@/components/SeriesCard";
 import { getPublicHomePayload } from "@/lib/homePage";
+import { listMediumGalleries } from "@/lib/queries";
 import { postCategoryLine } from "@/lib/postDisplay";
 import { toHeroSlide } from "@/lib/heroSlides";
 import { postPublicHref } from "@/lib/postKind";
@@ -21,7 +22,11 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const { sections, featuredSeries, journalPosts: journalPostsRaw, selectedPicks, slides } = await getPublicHomePayload();
+  const [{ sections, featuredSeries, journalPosts: journalPostsRaw, selectedPicks, slides }, mediums] = await Promise.all([
+    getPublicHomePayload(),
+    listMediumGalleries(),
+  ]);
+  const mediumTitleById = new Map(mediums.map((m) => [m.id, m.title]));
 
   const {
     hero,
@@ -91,7 +96,11 @@ export default async function HomePage() {
           </div>
           <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {featuredSeries.map((s) => (
-              <SeriesCard key={s.id} s={s} />
+              <SeriesCard
+                key={s.id}
+                s={s}
+                portfolioType={s.parentSeriesId ? mediumTitleById.get(s.parentSeriesId) : null}
+              />
             ))}
           </div>
         </section>

@@ -1,12 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Series } from "@/db";
-import { seriesPortfolioType } from "@/lib/oilColdWaxSeries";
 import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 import { artSeriesHref } from "@/lib/routeSlug";
 
-export function SeriesCard({ s }: { s: Series }) {
-  const portfolioType = seriesPortfolioType(s.slug);
+export function SeriesCard({ s, portfolioType }: { s: Series; portfolioType?: string | null }) {
   return (
     <article className="group flex flex-col border border-line bg-white/40">
       <Link href={artSeriesHref(s.slug)} className="focus-ring block">

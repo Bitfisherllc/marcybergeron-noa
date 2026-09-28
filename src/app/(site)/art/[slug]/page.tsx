@@ -3,10 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { SeriesGalleryView } from "@/components/SeriesGalleryView";
 import { getAdminSession } from "@/lib/auth";
 import { isMediumGallerySlug, legacyMediumGalleryRedirect } from "@/lib/mediumGalleries";
-import { isOilColdWaxChildSlug, OIL_COLD_WAX_CHILD_SLUGS, retiredSeriesRedirect } from "@/lib/oilColdWaxSeries";
+import { retiredSeriesRedirect } from "@/lib/oilColdWaxSeries";
 import { isAllWorkSlug } from "@/lib/portfolioGalleries";
 import { isPrivateGallery } from "@/lib/privateGalleries";
-import { getSeriesBySlug, listMediumGalleries } from "@/lib/queries";
+import { getSeriesBySlug, listChildSeries, listMediumGalleries } from "@/lib/queries";
 import { SITE_URL } from "@/lib/site";
 import { artSeriesHref, normalizeRouteSlug } from "@/lib/routeSlug";
 
@@ -15,11 +15,8 @@ export const revalidate = 300;
 /** Build-time paths for SSG; if Postgres is unreachable (e.g. no local Docker), skip rather than fail `next build`. */
 export async function generateStaticParams() {
   try {
-    const rows = await listMediumGalleries();
-    return [
-      ...rows.map((s) => ({ slug: s.slug })),
-      ...OIL_COLD_WAX_CHILD_SLUGS.map((slug) => ({ slug })),
-    ];
+    const [mediums, childSeries] = await Promise.all([listMediumGalleries(), listChildSeries()]);
+    return [...mediums, ...childSeries].map((s) => ({ slug: s.slug }));
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.warn("[art/[slug]] generateStaticParams: could not list series —", msg);
@@ -58,7 +55,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
   const s = await getSeriesBySlug(slug);
   if (!s) notFound();
 
-  if (isAllWorkSlug(slug) || (!isMediumGallerySlug(slug) && !isOilColdWaxChildSlug(slug) && !isPrivateGallery(s))) {
+  if (isAllWorkSlug(slug) || (!isMediumGallerySlug(slug) && !s.parentSeriesId && !isPrivateGallery(s))) {
     redirect("/medium");
   }
 

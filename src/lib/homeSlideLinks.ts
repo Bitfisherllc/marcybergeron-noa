@@ -1,6 +1,6 @@
 import { artSeriesHref } from "@/lib/routeSlug";
 import { isStudioGallerySlug } from "@/lib/mediumGalleries";
-import { listMediumGalleries, listOilColdWaxChildSeries, listAllPostsAdmin } from "@/lib/queries";
+import { listMediumGalleries, listChildSeries, listAllPostsAdmin } from "@/lib/queries";
 import { postPublicHref } from "@/lib/postKind";
 
 export type HomeSlideLinkOption = {
@@ -25,7 +25,7 @@ const SITE_PAGES: HomeSlideLinkOption[] = [
 export async function listHomeSlideLinkGroups(): Promise<HomeSlideLinkGroup[]> {
   const [galleries, series, news, workshops] = await Promise.all([
     listMediumGalleries(),
-    listOilColdWaxChildSeries(),
+    listChildSeries(),
     listAllPostsAdmin("news"),
     listAllPostsAdmin("workshop"),
   ]);

@@ -13,18 +13,19 @@ import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
 import { slideFromArtwork, slideFromArtworkCached, slideFromSeriesHero, type GallerySlide } from "@/lib/gallerySlides";
 import { artworkStoredDimensions } from "@/lib/imageDimensions";
 import { isMediumGallerySlug, isStudioGallerySlug } from "@/lib/mediumGalleries";
-import { isOilColdWaxChildSlug, isOilColdWaxParentSlug, SERIES_INDEX_HREF } from "@/lib/oilColdWaxSeries";
+import { isOilColdWaxParentSlug } from "@/lib/oilColdWaxSeries";
 import { isPrivateGallery } from "@/lib/privateGalleries";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
 import {
   getArtworkGalleryMeta,
-  getOilColdWaxChildNeighbors,
+  getChildSeriesNeighbors,
+  getSeriesById,
   getSeriesNeighbors,
   listAdminSeriesMembershipOptions,
   listArtworksForPublicGallery,
   listHeroSlideshowSlots,
   listMediumGalleries,
-  listOilColdWaxSeriesIndexCards,
+  listSeriesIndexCards,
 } from "@/lib/queries";
 import { artSeriesHref } from "@/lib/routeSlug";
 import { publicGalleryExcerpt, publicGalleryStatement } from "@/lib/galleryCopy";
@@ -72,24 +73,28 @@ function GalleryAbout({
 export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryViewProps) {
   const isStudioGallery = isStudioGallerySlug(s.slug);
   const isOcwOverview = variant === "public" && isOilColdWaxParentSlug(s.slug);
+  const isChildSeries = Boolean(s.parentSeriesId);
+  const listsSeries = variant === "public" && isMediumGallerySlug(s.slug) && !isStudioGallery;
   const showSlideshow = isStudioGallery || s.showHeroSlideshow;
-  const [pieces, heroSlots, seriesCards] = await Promise.all([
+  const [pieces, heroSlots, seriesCards, parentMedium] = await Promise.all([
     isOcwOverview && !showSlideshow ? Promise.resolve([]) : listArtworksForPublicGallery(s),
     showSlideshow ? listHeroSlideshowSlots(s.id) : Promise.resolve([]),
-    isOcwOverview ? listOilColdWaxSeriesIndexCards() : Promise.resolve([]),
+    listsSeries ? listSeriesIndexCards(s.id) : Promise.resolve([]),
+    s.parentSeriesId ? getSeriesById(s.parentSeriesId) : Promise.resolve(null),
   ]);
+  const parentHref = parentMedium ? artSeriesHref(parentMedium.slug) : "/medium";
+  const parentTitle = parentMedium?.title ?? "portfolio";
   const isDeletableGallery = isPrivateGallery(s);
   const session = variant === "private" ? await getAdminSession() : null;
   const galleryMeta = await getArtworkGalleryMeta(pieces.map((p) => p.id));
   const adminLists = session
     ? await Promise.all([listMediumGalleries(), listAdminSeriesMembershipOptions()])
     : null;
-  const isChildSeries = isOilColdWaxChildSlug(s.slug);
   const deleteImpact = session && isDeletableGallery ? await getSeriesDeleteImpact(s.id) : null;
   const { prev, next } =
     variant === "public"
       ? isChildSeries
-        ? await getOilColdWaxChildNeighbors(s.slug)
+        ? await getChildSeriesNeighbors(s)
         : isMediumGallerySlug(s.slug)
           ? await getSeriesNeighbors(s.slug)
           : { prev: null, next: null }
@@ -155,6 +160,21 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
   });
 
   const studioHero = isStudioGallery && showSlideshow;
+  const seriesList = (
+    <>
+      <h2 className="font-serif text-3xl tracking-tight">Series</h2>
+      <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
+        Distinct bodies of work within {s.title.toLowerCase()}.
+      </p>
+      <div className="mt-12">
+        {seriesCards.length === 0 ? (
+          <p className="text-sm text-muted">Series will appear here once they are published.</p>
+        ) : (
+          <GalleryIndexCards cards={seriesCards} cta="View series →" />
+        )}
+      </div>
+    </>
+  );
 
   return (
     <article>
@@ -191,8 +211,8 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
               ) : null}
               {isChildSeries ? (
                 <p className="mt-4">
-                  <Link href={SERIES_INDEX_HREF} className="link-quiet text-sm tracking-wide">
-                    ← Oil and Cold Wax
+                  <Link href={parentHref} className="link-quiet text-sm tracking-wide">
+                    ← {parentTitle}
                   </Link>
                 </p>
               ) : null}
@@ -223,19 +243,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
         <section className={`${showSlideshow && !isStudioGallery ? "border-t border-line " : ""}bg-white/35`}>
           <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
             {isOcwOverview ? (
-              <>
-                <h2 className="font-serif text-3xl tracking-tight">Series</h2>
-                <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
-                  Distinct bodies of work within oil and cold wax.
-                </p>
-                <div className="mt-12">
-                  {seriesCards.length === 0 ? (
-                    <p className="text-sm text-muted">Series will appear here once they are published.</p>
-                  ) : (
-                    <GalleryIndexCards cards={seriesCards} cta="View series →" />
-                  )}
-                </div>
-              </>
+              seriesList
             ) : (
               <>
                 <h2 className="font-serif text-3xl tracking-tight">{s.title}</h2>
@@ -275,6 +283,12 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
             )}
           </div>
         </section>
+
+        {!isOcwOverview && seriesCards.length > 0 ? (
+          <section className="border-t border-line">
+            <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">{seriesList}</div>
+          </section>
+        ) : null}
       </GalleryLightboxProvider>
 
       {variant === "public" && (prev || next) ? (
@@ -330,8 +344,8 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
         <section className="border-t border-line">
           <div className="mx-auto max-w-6xl px-5 py-10 md:px-8">
             {isChildSeries ? (
-              <Link href={SERIES_INDEX_HREF} className="text-sm tracking-wide text-muted hover:text-ink">
-                ← Back to Oil and Cold Wax
+              <Link href={parentHref} className="text-sm tracking-wide text-muted hover:text-ink">
+                ← Back to {parentTitle}
               </Link>
             ) : isStudioGallery ? (
               <Link href="/about" className="text-sm tracking-wide text-muted hover:text-ink">

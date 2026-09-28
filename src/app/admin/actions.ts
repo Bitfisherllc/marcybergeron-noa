@@ -27,8 +27,7 @@ import {
   parseFeaturedArtworkMode,
   resolveHeroSlideshowWrite,
 } from "@/lib/featuredArtwork";
-import { isMediumGallerySlug } from "@/lib/mediumGalleries";
-import { isOilColdWaxChildSlug } from "@/lib/oilColdWaxSeries";
+import { isMediumGallerySlug, isStudioGallerySlug } from "@/lib/mediumGalleries";
 import { generatePrivateGalleryAccessToken } from "@/lib/privateGalleries";
 import {
   getSeriesById,
@@ -106,10 +105,32 @@ async function revalidateArtworkPaths(
   }
 }
 
+function slugFromTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Series may only hang off a public portfolio medium (not The Studio, not another series). */
+async function parseSeriesParentId(raw: string): Promise<string | null> {
+  const id = raw.trim();
+  if (!id) return null;
+  const row = await getDb()
+    .select({ slug: series.slug })
+    .from(series)
+    .where(eq(series.id, id))
+    .then((r) => r[0]);
+  if (!row || !isMediumGallerySlug(row.slug) || isStudioGallerySlug(row.slug)) return null;
+  return id;
+}
+
 export async function upsertSeries(formData: FormData) {
   const id = String(formData.get("id") ?? "");
-  const slug = String(formData.get("slug") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
+  const slug = String(formData.get("slug") ?? "").trim() || slugFromTitle(title);
   const excerpt = String(formData.get("excerpt") ?? "").trim();
   const content = String(formData.get("content") ?? "").trim();
   const sortOrder = Number(String(formData.get("sortOrder") ?? "0")) || 0;
@@ -120,7 +141,8 @@ export async function upsertSeries(formData: FormData) {
   const featuredArtworkIdRaw = String(formData.get("featuredArtworkId") ?? "").trim();
   const showHeroSlideshow = String(formData.get("showHeroSlideshow") ?? "") === "on";
 
-  if (!slug || !title) redirect("/admin/series?error=1");
+  const formPath = id ? `/admin/series/${id}` : "/admin/series/new";
+  if (!slug || !title) redirect(`${formPath}?error=missing`);
 
   const db = getDb();
   const existingRow = id
@@ -129,14 +151,29 @@ export async function upsertSeries(formData: FormData) {
           isPrivate: series.isPrivate,
           accessToken: series.accessToken,
           featuredImage: series.featuredImage,
+          parentSeriesId: series.parentSeriesId,
         })
         .from(series)
         .where(eq(series.id, id))
         .then((r) => r[0])
     : null;
 
+  const slugOwner = await db
+    .select({ id: series.id })
+    .from(series)
+    .where(eq(series.slug, slug))
+    .then((r) => r[0]);
+  if (slugOwner && slugOwner.id !== id) redirect(`${formPath}?error=slug`);
+
+  let parentSeriesId = existingRow?.parentSeriesId ?? null;
+  if (formData.has("parentSeriesId")) {
+    parentSeriesId = await parseSeriesParentId(String(formData.get("parentSeriesId") ?? ""));
+    if (!parentSeriesId) redirect(`${formPath}?error=medium`);
+  }
+
   const isPrivate =
-    privacyField === null ? (existingRow?.isPrivate ?? false) : String(privacyField) === "on";
+    !parentSeriesId &&
+    (privacyField === null ? (existingRow?.isPrivate ?? false) : String(privacyField) === "on");
 
   const uploaded = await saveUpload(featured, slug);
   const existing = readExistingImageField(formData, "featuredExisting");
@@ -183,6 +220,7 @@ export async function upsertSeries(formData: FormData) {
         featuredArtworkId,
         showHeroSlideshow,
         sortOrder,
+        parentSeriesId,
         isPrivate,
         accessToken,
         updatedAt: now(),
@@ -212,28 +250,33 @@ export async function upsertSeries(formData: FormData) {
       featuredArtworkId,
       showHeroSlideshow,
       sortOrder,
+      parentSeriesId,
       isPrivate,
       accessToken,
       createdAt: now(),
       updatedAt: now(),
     });
-    revalidateTag(CACHE_TAGS.series, CACHE_REVALIDATE_PROFILE);
-    revalidatePath("/");
-    revalidatePath("/medium");
-  revalidatePath("/series");
-    if (isPrivate) {
-      revalidatePath("/admin/series");
-      redirect(`/admin/series/${newId}`);
-    }
+    await revalidateSeriesPaths(slug, [parentSeriesId], accessToken);
+    revalidatePath("/admin/series");
+    redirect(`/admin/series/${newId}`);
   }
 
+  await revalidateSeriesPaths(slug, [parentSeriesId, existingRow?.parentSeriesId ?? null], accessToken);
+  redirect(`/admin/series/${id}`);
+}
+
+async function revalidateSeriesPaths(slug: string, parentIds: (string | null)[], accessToken: string | null) {
   revalidateTag(CACHE_TAGS.series, CACHE_REVALIDATE_PROFILE);
   revalidatePath("/");
   revalidatePath("/medium");
   revalidatePath("/series");
   revalidatePath(`/art/${slug}`);
+  for (const parentId of new Set(parentIds)) {
+    if (!parentId) continue;
+    const parent = await getSeriesById(parentId);
+    if (parent) revalidatePath(`/art/${parent.slug}`);
+  }
   if (accessToken) revalidatePath(`/private/${accessToken}`);
-  redirect(id ? `/admin/series/${id}` : "/admin/series");
 }
 
 export async function setSeriesPrivacy(formData: FormData) {
@@ -244,11 +287,16 @@ export async function setSeriesPrivacy(formData: FormData) {
 
   const db = getDb();
   const row = await db
-    .select({ slug: series.slug, isPrivate: series.isPrivate, accessToken: series.accessToken })
+    .select({
+      slug: series.slug,
+      isPrivate: series.isPrivate,
+      accessToken: series.accessToken,
+      parentSeriesId: series.parentSeriesId,
+    })
     .from(series)
     .where(eq(series.id, id))
     .then((r) => r[0]);
-  if (!row || isMediumGallerySlug(row.slug) || isOilColdWaxChildSlug(row.slug)) redirect("/admin/series");
+  if (!row || isMediumGallerySlug(row.slug) || row.parentSeriesId) redirect("/admin/series");
 
   const isPrivate = privacy === "private";
   const previousToken = row.accessToken;

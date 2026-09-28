@@ -14,11 +14,6 @@ import {
   resolveMediumGalleryRow,
   withMediumGalleryTitle,
 } from "@/lib/mediumGalleries";
-import {
-  isOilColdWaxChildSlug,
-  OIL_COLD_WAX_CHILD_SLUGS,
-  oilColdWaxChildTitle,
-} from "@/lib/oilColdWaxSeries";
 import type { PostKind } from "@/lib/postKind";
 import { artSeriesHref, normalizeRouteSlug } from "@/lib/routeSlug";
 
@@ -45,11 +40,11 @@ export async function listPortfolioSeries(): Promise<Series[]> {
   return [];
 }
 
-/** Admin artwork membership options — private galleries only. */
+/** Admin artwork membership options — series and private galleries. */
 export async function listAdminSeriesMembershipOptions(): Promise<Series[]> {
   const all = await listSeries();
   return all
-    .filter((s) => s.isPrivate && !isMediumGallerySlug(s.slug))
+    .filter((s) => (s.isPrivate || s.parentSeriesId) && !isMediumGallerySlug(s.slug))
     .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
 }
 
@@ -79,21 +74,27 @@ export async function listPrivateGalleries(): Promise<Series[]> {
   return all.filter((s) => s.isPrivate);
 }
 
-/** Oil and Cold Wax child series, in display order. */
-export async function listOilColdWaxChildSeries(): Promise<Series[]> {
-  const all = await listSeries();
-  const bySlug = new Map(all.map((s) => [s.slug, s]));
-  return OIL_COLD_WAX_CHILD_SLUGS.map((slug) => bySlug.get(slug))
-    .filter((s): s is Series => Boolean(s))
-    .map((s) => (s.title !== oilColdWaxChildTitle(s.slug) ? { ...s, title: oilColdWaxChildTitle(s.slug) ?? s.title } : s));
+/**
+ * Public series (galleries with a parent medium), ordered by medium nav order, then sort order.
+ * Pass a medium id to list only that medium's series.
+ */
+export async function listChildSeries(parentSeriesId?: string): Promise<Series[]> {
+  const [all, mediums] = await Promise.all([listSeries(), listMediumGalleries()]);
+  const mediumOrder = new Map(mediums.map((m, i) => [m.id, i]));
+  return all
+    .filter(
+      (s) =>
+        s.parentSeriesId &&
+        !s.isPrivate &&
+        mediumOrder.has(s.parentSeriesId) &&
+        (!parentSeriesId || s.parentSeriesId === parentSeriesId),
+    )
+    .sort((a, b) => mediumOrder.get(a.parentSeriesId!)! - mediumOrder.get(b.parentSeriesId!)!);
 }
 
-/** Series tab galleries, in display order. */
-export const listSeriesGalleries = listOilColdWaxChildSeries;
-
-/** Cards for the three Oil and Cold Wax series on the medium gallery page. */
-export async function listOilColdWaxSeriesIndexCards() {
-  const galleries = await listOilColdWaxChildSeries();
+/** Series cards shown under a medium gallery. */
+export async function listSeriesIndexCards(parentSeriesId: string) {
+  const galleries = await listChildSeries(parentSeriesId);
   return Promise.all(
     galleries.map(async (s) => {
       const pieces = await listArtworksForSeries(s.id);
@@ -164,9 +165,10 @@ export async function listArtworksGroupedForMediumGalleries(galleries: Series[])
   return grouped;
 }
 
-export async function getOilColdWaxChildNeighbors(slug: string) {
-  const all = await listOilColdWaxChildSeries();
-  const idx = all.findIndex((s) => s.slug === slug);
+/** Previous / next series within the same medium. */
+export async function getChildSeriesNeighbors(s: Pick<Series, "slug" | "parentSeriesId">) {
+  const all = s.parentSeriesId ? await listChildSeries(s.parentSeriesId) : [];
+  const idx = all.findIndex((row) => row.slug === s.slug);
   if (idx === -1) return { prev: null as null | Series, next: null as null | Series };
   return {
     prev: idx > 0 ? all[idx - 1]! : null,
@@ -204,14 +206,14 @@ export const listArtworksForMediumGallery = unstable_cache(
   { revalidate: SITE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.artwork] },
 );
 
-export async function listArtworksForPublicGallery(series: Pick<Series, "id" | "slug">) {
-  if (isOilColdWaxChildSlug(series.slug)) return listArtworksForSeries(series.id);
+export async function listArtworksForPublicGallery(series: Pick<Series, "id" | "slug" | "parentSeriesId">) {
+  if (series.parentSeriesId) return listArtworksForSeries(series.id);
   if (isMediumGallerySlug(series.slug)) return listArtworksForMediumGallery(series.id);
   return listArtworksForSeries(series.id);
 }
 
 /** Paintings available for the gallery-page slideshow and listing-card pick. */
-export async function listArtworksForHeroPicks(series: Pick<Series, "id" | "slug">) {
+export async function listArtworksForHeroPicks(series: Pick<Series, "id" | "slug" | "parentSeriesId">) {
   return listArtworksForPublicGallery(series);
 }
 
@@ -516,6 +518,7 @@ async function listSeriesAdminOverviewUncached(): Promise<SeriesAdminOverview[]>
         featuredArtworkMode: series.featuredArtworkMode,
         featuredArtworkId: series.featuredArtworkId,
         sortOrder: series.sortOrder,
+        parentSeriesId: series.parentSeriesId,
         showHeroSlideshow: series.showHeroSlideshow,
         isPrivate: series.isPrivate,
         accessToken: series.accessToken,

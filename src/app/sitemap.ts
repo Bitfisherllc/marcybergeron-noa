@@ -1,16 +1,16 @@
 import type { MetadataRoute } from "next";
-import { listMediumGalleries, listPublishedPosts, listSeriesGalleries } from "@/lib/queries";
+import { listChildSeries, listMediumGalleries, listPublishedPosts } from "@/lib/queries";
 import { postPublicHref } from "@/lib/postKind";
 import { SITE_URL } from "@/lib/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let galleries: Awaited<ReturnType<typeof listMediumGalleries>> = [];
-  let seriesGalleries: Awaited<ReturnType<typeof listSeriesGalleries>> = [];
+  let seriesGalleries: Awaited<ReturnType<typeof listChildSeries>> = [];
   let posts: Awaited<ReturnType<typeof listPublishedPosts>> = [];
   let workshops: Awaited<ReturnType<typeof listPublishedPosts>> = [];
   try {
     galleries = await listMediumGalleries();
-    seriesGalleries = await listSeriesGalleries();
+    seriesGalleries = await listChildSeries();
     posts = await listPublishedPosts("news");
     workshops = await listPublishedPosts("workshop");
   } catch {

@@ -1,8 +1,7 @@
 import Image from "next/image";
 import { setSeriesPrivacy } from "@/app/admin/actions";
 import { AdminLink } from "@/components/AdminLink";
-import { isMediumGallerySlug, isStudioGallerySlug } from "@/lib/mediumGalleries";
-import { isOilColdWaxChildSlug } from "@/lib/oilColdWaxSeries";
+import { isMediumGallerySlug, isStudioGallerySlug, MEDIUM_GALLERY_SLUGS } from "@/lib/mediumGalleries";
 import { privateGalleryHref } from "@/lib/privateGalleries";
 import { listSeriesAdminOverview } from "@/lib/queries";
 
@@ -10,7 +9,13 @@ export default async function AdminSeriesIndexPage() {
   const rows = await listSeriesAdminOverview();
   const studioRows = rows.filter((s) => isStudioGallerySlug(s.slug));
   const portfolioRows = rows.filter((s) => isMediumGallerySlug(s.slug) && !isStudioGallerySlug(s.slug));
-  const seriesRows = rows.filter((s) => isOilColdWaxChildSlug(s.slug));
+  const mediumOrder = new Map(
+    portfolioRows.map((m) => [m.id, MEDIUM_GALLERY_SLUGS.indexOf(m.slug as (typeof MEDIUM_GALLERY_SLUGS)[number])]),
+  );
+  const mediumTitle = new Map(portfolioRows.map((m) => [m.id, m.title]));
+  const seriesRows = rows
+    .filter((s) => s.parentSeriesId && mediumOrder.has(s.parentSeriesId))
+    .sort((a, b) => mediumOrder.get(a.parentSeriesId!)! - mediumOrder.get(b.parentSeriesId!)!);
   const privateRows = rows.filter((s) => s.isPrivate);
   const totalArtworks = rows.reduce((n, s) => n + s.artworkCount, 0);
 
@@ -21,8 +26,8 @@ export default async function AdminSeriesIndexPage() {
           <h1 className="font-serif text-3xl tracking-tight">Galleries &amp; artwork</h1>
           <p className="mt-3 max-w-prose text-sm text-muted">
             Portfolio galleries appear on <span className="text-ink/80">/medium</span> and in the Portfolio menu.
-            The Studio appears under <span className="text-ink/80">About</span>. Series appear under{" "}
-            <span className="text-ink/80">Series</span>. Click{" "}
+            The Studio appears under <span className="text-ink/80">About</span>. Series are listed on their
+            medium’s page. Click{" "}
             <span className="text-ink/80">Manage paintings</span> to reorder artwork, edit captions, or add new pieces.
           </p>
           <p className="mt-2 text-sm text-ink/80">
@@ -34,8 +39,8 @@ export default async function AdminSeriesIndexPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <AdminLink variant="primary" href="/admin/series/new?private=1">
-            New private gallery
+          <AdminLink variant="primary" href="/admin/series/new">
+            Add a series
           </AdminLink>
         </div>
       </div>
@@ -138,7 +143,7 @@ export default async function AdminSeriesIndexPage() {
               <div>
                 <h2 className="font-serif text-2xl tracking-tight">Series</h2>
                 <p className="mt-2 max-w-prose text-sm text-muted">
-                  Appear under <span className="text-ink/80">Series</span> in the site menu.
+                  Each series is listed on its medium’s page, under the medium’s gallery.
                 </p>
               </div>
               <div className="overflow-hidden border border-line bg-white/50">
@@ -147,6 +152,7 @@ export default async function AdminSeriesIndexPage() {
                     <tr>
                       <th className="px-4 py-3">Cover</th>
                       <th className="px-4 py-3">Series</th>
+                      <th className="px-4 py-3">Medium</th>
                       <th className="px-4 py-3">Paintings</th>
                       <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
@@ -163,6 +169,7 @@ export default async function AdminSeriesIndexPage() {
                           <div className="font-medium">{s.title}</div>
                           <div className="text-xs text-muted">/art/{s.slug}</div>
                         </td>
+                        <td className="px-4 py-3 text-muted">{mediumTitle.get(s.parentSeriesId!)}</td>
                         <td className="px-4 py-3 text-muted">{s.artworkCount}</td>
                         <td className="px-4 py-3 text-right">
                           <AdminLink href={`/admin/series/${s.id}`}>Manage series</AdminLink>

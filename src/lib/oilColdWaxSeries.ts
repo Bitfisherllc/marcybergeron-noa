@@ -1,4 +1,7 @@
-/** Thematic series shown under the Series tab (formerly nested under Oil and Cold Wax). */
+/**
+ * The original Oil and Cold Wax series, used by import and migration scripts.
+ * Which medium a series belongs to at runtime comes from `series.parent_series_id`.
+ */
 import { artSeriesHref } from "@/lib/routeSlug";
 
 export const OIL_COLD_WAX_PARENT_SLUG = "Oil and Cold Wax" as const;
@@ -51,8 +54,6 @@ export function isOilColdWaxChildSlug(slug: string): slug is OilColdWaxChildSlug
   return childSlugSet.has(slug);
 }
 
-export const isSeriesGallerySlug = isOilColdWaxChildSlug;
-
 export function isGeneralOilColdWaxSlug(slug: string): boolean {
   return slug === GENERAL_OIL_COLD_WAX_SLUG || slug === "General-Oil & Cold Wax";
 }
@@ -65,19 +66,4 @@ export function retiredSeriesRedirect(slug: string): string | null {
 export function oilColdWaxChildUploadFolder(slug: string): string | null {
   const row = OIL_COLD_WAX_CHILDREN.find((c) => c.slug === slug);
   return row?.uploadFolder ?? null;
-}
-
-export function oilColdWaxChildTitle(slug: string): string | null {
-  const row = OIL_COLD_WAX_CHILDREN.find((c) => c.slug === slug);
-  return row?.title ?? null;
-}
-
-/** Portfolio medium shown on Series cards. Current series are all Oil and Cold Wax. */
-export function seriesPortfolioType(slug: string): string | null {
-  if (isOilColdWaxChildSlug(slug)) return OIL_COLD_WAX_PARENT_SLUG;
-  return null;
-}
-
-export function seriesNavDropdownItems(galleries: { slug: string; title: string }[]): { href: string; label: string }[] {
-  return galleries.map((s) => ({ href: artSeriesHref(s.slug), label: s.title }));
 }

@@ -3,13 +3,18 @@ import { nanoid } from "nanoid";
 import { series } from "@/db/schema";
 import { closeDb, getDb } from "@/db";
 import { GALLERY_PLACEHOLDER_IMAGE } from "@/lib/galleryDefaults";
-import { OIL_COLD_WAX_CHILDREN } from "@/lib/oilColdWaxSeries";
+import { OIL_COLD_WAX_CHILDREN, OIL_COLD_WAX_PARENT_SLUG } from "@/lib/oilColdWaxSeries";
 
 /** Create or sync Oil and Cold Wax child series rows. Safe to run multiple times. */
 async function main() {
   const db = getDb();
   const t = new Date();
   let created = 0;
+  const parentId = await db
+    .select({ id: series.id })
+    .from(series)
+    .where(eq(series.slug, OIL_COLD_WAX_PARENT_SLUG))
+    .then((r) => r[0]?.id ?? null);
 
   for (const child of OIL_COLD_WAX_CHILDREN) {
     const existing = await db
@@ -40,6 +45,7 @@ async function main() {
       content: "",
       featuredImage: GALLERY_PLACEHOLDER_IMAGE,
       sortOrder: child.sortOrder,
+      parentSeriesId: parentId,
       isPrivate: false,
       accessToken: null,
       createdAt: t,

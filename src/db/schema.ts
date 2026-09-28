@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, primaryKey, text, timestamp, type AnyPgColumn } from "drizzle-orm/pg-core";
 
 export const series = pgTable("series", {
   id: text("id").primaryKey(),
@@ -11,6 +11,8 @@ export const series = pgTable("series", {
   featuredArtworkMode: text("featured_artwork_mode").notNull().default("random"),
   featuredArtworkId: text("featured_artwork_id"),
   sortOrder: integer("sort_order").notNull().default(0),
+  /** Set on series: the medium gallery whose page lists this series. Null for medium and private galleries. */
+  parentSeriesId: text("parent_series_id").references((): AnyPgColumn => series.id, { onDelete: "set null" }),
   /** When true, the gallery page shows the slideshow beside About. Default is About under the title. */
   showHeroSlideshow: boolean("show_hero_slideshow").notNull().default(false),
   /** Hidden from portfolio nav; viewable only via `/private/[accessToken]`. */

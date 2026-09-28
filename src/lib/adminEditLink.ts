@@ -3,7 +3,6 @@ import { artwork, post, series } from "@/db/schema";
 import { getDb } from "@/db";
 import { normalizeAdminPath, resolveLiveViewTargetSync, type AdminEditTarget } from "@/lib/adminEditTarget";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
-import { isOilColdWaxChildSlug } from "@/lib/oilColdWaxSeries";
 import { postPublicHref } from "@/lib/postKind";
 import { artSeriesHref } from "@/lib/routeSlug";
 
@@ -88,13 +87,13 @@ export async function resolveLiveViewTarget(pathname: string): Promise<AdminEdit
   if (seriesMatch) {
     const id = decodeURIComponent(seriesMatch[1]!);
     const row = await getDb()
-      .select({ slug: series.slug, title: series.title })
+      .select({ slug: series.slug, title: series.title, parentSeriesId: series.parentSeriesId })
       .from(series)
       .where(eq(series.id, id))
       .then((r) => r[0]);
     if (row) {
       const href =
-        isMediumGallerySlug(row.slug) || isOilColdWaxChildSlug(row.slug)
+        isMediumGallerySlug(row.slug) || row.parentSeriesId
           ? artSeriesHref(row.slug)
           : "/medium";
       return { href, label: `View “${row.title}”` };

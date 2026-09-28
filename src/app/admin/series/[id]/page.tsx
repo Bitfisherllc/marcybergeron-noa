@@ -11,29 +11,54 @@ import { AdminLink, adminBtnDanger } from "@/components/AdminLink";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
 import { AdminReorderButtons } from "@/components/AdminReorderButtons";
 import { AdminDirtySave } from "@/components/AdminSectionSave";
+import { AdminSeriesMediumField } from "@/components/AdminSeriesMediumField";
 import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
 import { isPlaceholderGalleryStatement } from "@/lib/galleryCopy";
 import { mediumGalleryAbout } from "@/lib/mediumGalleryCopy";
-import { isMediumGallerySlug, isStudioGallerySlug } from "@/lib/mediumGalleries";
-import { isOilColdWaxChildSlug } from "@/lib/oilColdWaxSeries";
+import { isMediumGallerySlug, isStudioGallerySlug, publicPortfolioGalleries } from "@/lib/mediumGalleries";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
-import { getSeriesById, listAdminSeriesMembershipOptions, listArtworksForHeroPicks, listArtworksForPublicGallery, listHeroSlideshowSlots, listMediumGalleries } from "@/lib/queries";
+import {
+  getSeriesById,
+  listAdminSeriesMembershipOptions,
+  listArtworksForHeroPicks,
+  listArtworksForPublicGallery,
+  listChildSeries,
+  listHeroSlideshowSlots,
+  listMediumGalleries,
+} from "@/lib/queries";
 
-export default async function EditSeriesPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+const ERROR_MESSAGES: Record<string, string> = {
+  missing: "Title and slug are required.",
+  slug: "That URL slug is already used by another gallery. Choose a different one.",
+  medium: "Choose which medium this series belongs to.",
+};
+
+export default async function EditSeriesPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const s = await getSeriesById(id);
   if (!s) notFound();
   const isMediumGallery = isMediumGallerySlug(s.slug);
   const isStudioGallery = isStudioGallerySlug(s.slug);
-  const isOilColdWaxChild = isOilColdWaxChildSlug(s.slug);
-  const [arts, mediumGalleries, membershipOptions, deleteImpact, statementPieceOptions, heroSlots] = await Promise.all([
-    listArtworksForPublicGallery(s),
-    listMediumGalleries(),
-    listAdminSeriesMembershipOptions(),
-    isMediumGallery || isOilColdWaxChild ? Promise.resolve(null) : getSeriesDeleteImpact(s.id),
-    listArtworksForHeroPicks(s),
-    listHeroSlideshowSlots(s.id),
-  ]);
+  const isChildSeries = Boolean(s.parentSeriesId);
+  const [arts, mediumGalleries, membershipOptions, deleteImpact, statementPieceOptions, heroSlots, childSeries] =
+    await Promise.all([
+      listArtworksForPublicGallery(s),
+      listMediumGalleries(),
+      listAdminSeriesMembershipOptions(),
+      isMediumGallery ? Promise.resolve(null) : getSeriesDeleteImpact(s.id),
+      listArtworksForHeroPicks(s),
+      listHeroSlideshowSlots(s.id),
+      isMediumGallery && !isStudioGallery ? listChildSeries(s.id) : Promise.resolve([]),
+    ]);
+  const seriesMediums = publicPortfolioGalleries(mediumGalleries);
+  const parentMedium = isChildSeries ? mediumGalleries.find((m) => m.id === s.parentSeriesId) : undefined;
+  const error = sp.error ? (ERROR_MESSAGES[sp.error] ?? "Something went wrong. Try again.") : null;
   const artworkSlides = arts.map((a) => ({
     src: a.image,
     alt: a.alt || a.title,
@@ -51,10 +76,10 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
   return (
     <div className="space-y-12">
       <div>
-        <h1 className="font-serif text-3xl tracking-tight">Edit gallery</h1>
-        {!isMediumGallery && !isOilColdWaxChild ? (
+        <h1 className="font-serif text-3xl tracking-tight">{isChildSeries ? "Edit series" : "Edit gallery"}</h1>
+        {!isMediumGallery ? (
           <a href="#delete" className={`${adminBtnDanger} mt-4`}>
-            Delete gallery
+            {isChildSeries ? "Delete series" : "Delete gallery"}
           </a>
         ) : null}
         <p className="mt-3 text-sm text-muted">
@@ -63,9 +88,10 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
               Private gallery · {arts.length} {arts.length === 1 ? "painting" : "paintings"} · not listed on the
               public portfolio
             </>
-          ) : isOilColdWaxChild ? (
+          ) : isChildSeries ? (
             <>
-              Series · <span className="text-ink/80">/art/{s.slug}</span> · {arts.length}{" "}
+              Series{parentMedium ? ` in ${parentMedium.title}` : ""} ·{" "}
+              <span className="text-ink/80">/art/{s.slug}</span> · {arts.length}{" "}
               {arts.length === 1 ? "painting" : "paintings"}
             </>
           ) : isMediumGallery ? (
@@ -82,12 +108,17 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
         </p>
       </div>
 
-      {!isMediumGallery && !isOilColdWaxChild ? (
+      {error ? (
+        <p className="border border-red-200 bg-red-50/60 px-4 py-3 text-sm text-red-900">{error}</p>
+      ) : null}
+
+      {!isMediumGallery && !isChildSeries ? (
         <AdminGalleryPrivacyPanel seriesId={s.id} isPrivate={s.isPrivate} accessToken={s.accessToken} />
       ) : null}
 
       <form id="series-edit" action={upsertSeries} className="space-y-6 border border-line bg-white/50 p-6">
         <input type="hidden" name="id" value={s.id} />
+        {isChildSeries ? <AdminSeriesMediumField mediums={seriesMediums} value={s.parentSeriesId} /> : null}
         <div className="grid gap-6 md:grid-cols-2">
           <label className="block text-sm text-muted">
             Title
@@ -102,8 +133,8 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           Listing excerpt
           <textarea name="excerpt" rows={4} defaultValue={s.excerpt} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
           <span className="mt-2 block text-xs">
-            {isOilColdWaxChild
-              ? "Shown on Series listing cards. Not used as the About paragraph on the gallery page."
+            {isChildSeries
+              ? "Shown on the series card on the medium’s page. Not used as the About paragraph on the series page."
               : isStudioGallery
                 ? "Optional listing blurb. Not used as the About paragraph on the gallery page."
                 : isMediumGallery
@@ -123,7 +154,7 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           </label>
           <AdminFilePicker
             name="featured"
-            label={isOilColdWaxChild ? "Series card image" : "Portfolio card image"}
+            label={isChildSeries ? "Series card image" : "Portfolio card image"}
             buttonLabel="Upload image"
             existingValue={s.featuredImage}
           />
@@ -135,8 +166,8 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
             </div>
           </AdminLightboxThumb>
           <p className="text-xs text-muted">
-            {isOilColdWaxChild
-              ? "Used on the Series overview page. Leave empty to keep the current image."
+            {isChildSeries
+              ? "Used on the medium’s page. Leave empty to keep the current image."
               : "Used on the Portfolio overview page. Leave empty to keep the current image."}
           </p>
         </div>
@@ -144,7 +175,7 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
           mode={s.featuredArtworkMode}
           artworkId={s.featuredArtworkId}
           pieces={statementPieceOptions}
-          listingSurface={isOilColdWaxChild ? "series" : "portfolio"}
+          listingSurface={isChildSeries ? "series" : "portfolio"}
         />
         <AdminHeroSlideshowField
           pieces={statementPieceOptions}
@@ -156,6 +187,34 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
         />
         <AdminDirtySave formId="series-edit" />
       </form>
+
+      {isMediumGallery && !isStudioGallery ? (
+        <div className="border border-line bg-white/50 p-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="font-serif text-2xl tracking-tight">Series in this medium</h2>
+              <p className="mt-2 max-w-prose text-sm text-muted">
+                Listed on the public page under this medium’s gallery.
+              </p>
+            </div>
+            <AdminLink variant="primary" href={`/admin/series/new?medium=${encodeURIComponent(s.id)}`}>
+              Add a series
+            </AdminLink>
+          </div>
+          {childSeries.length > 0 ? (
+            <ul className="mt-6 divide-y divide-line border-t border-line text-sm">
+              {childSeries.map((c) => (
+                <li key={c.id} className="flex items-center justify-between gap-4 py-3">
+                  <span>{c.title}</span>
+                  <AdminLink href={`/admin/series/${c.id}`}>Manage series</AdminLink>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-6 text-sm text-muted">No series yet.</p>
+          )}
+        </div>
+      ) : null}
 
       <div className="space-y-4">
         <div className="flex items-end justify-between gap-4">
@@ -268,12 +327,14 @@ export default async function EditSeriesPage({ params }: { params: Promise<{ id:
         </form>
       </div>
 
-      {!isMediumGallery && !isOilColdWaxChild ? (
+      {!isMediumGallery ? (
         <div id="delete" className="border border-line bg-white/50 p-6">
-          <h3 className="font-serif text-xl tracking-tight text-ink">Delete gallery</h3>
+          <h3 className="font-serif text-xl tracking-tight text-ink">
+            {isChildSeries ? "Delete series" : "Delete gallery"}
+          </h3>
           <p className="mt-2 max-w-prose text-sm text-muted">
-            Remove this gallery from the site. Paintings that only appear here via portfolio checkboxes will stay in their
-            other galleries.
+            Remove this {isChildSeries ? "series" : "gallery"} from the site. Paintings that also appear in other
+            galleries will stay there.
           </p>
           <div className="mt-4">
             {deleteImpact ? (

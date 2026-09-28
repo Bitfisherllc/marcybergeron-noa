@@ -14,8 +14,7 @@ import {
 import { getDb } from "@/db";
 import { CACHE_TAGS, SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
 import { HOME_SECTION_DEFAULTS, HOME_SECTION_KEYS, type HomeSectionKey } from "@/lib/homeDefaults";
-import { isOilColdWaxChildSlug, oilColdWaxChildTitle } from "@/lib/oilColdWaxSeries";
-import { featuredHomePieces, getPrimarySeriesForArtworks, heroHomeSlides, listOilColdWaxChildSeries, listPublishedPosts } from "@/lib/queries";
+import { featuredHomePieces, getPrimarySeriesForArtworks, heroHomeSlides, listChildSeries, listPublishedPosts } from "@/lib/queries";
 import { HOME_SLIDESHOW_MAX } from "@/lib/featuredArtwork";
 import { heroSlideAlt, type HeroSlide, toHeroSlide } from "@/lib/heroSlides";
 
@@ -72,28 +71,13 @@ async function slotSeriesIds(): Promise<(string | null)[]> {
   return bySlot;
 }
 
-function withSeriesTitle(s: Series): Series {
-  const title = oilColdWaxChildTitle(s.slug);
-  return title && title !== s.title ? { ...s, title } : s;
-}
-
 export async function getResolvedFeaturedSeries(): Promise<Series[]> {
-  const slots = await slotSeriesIds();
-  const ids = slots.filter((id): id is string => Boolean(id));
-  if (ids.length === 0) {
-    return (await listOilColdWaxChildSeries()).slice(0, 3);
-  }
-  const db = getDb();
-  const found = await db.select().from(series).where(inArray(series.id, ids));
-  const map = new Map(found.map((s) => [s.id, s]));
-  const ordered: Series[] = [];
-  for (const id of slots) {
-    if (!id) continue;
-    const s = map.get(id);
-    if (s && isOilColdWaxChildSlug(s.slug)) ordered.push(withSeriesTitle(s));
-  }
-  if (ordered.length === 0) return (await listOilColdWaxChildSeries()).slice(0, 3);
-  return ordered.slice(0, 3);
+  const [slots, allSeries] = await Promise.all([slotSeriesIds(), listChildSeries()]);
+  const byId = new Map(allSeries.map((s) => [s.id, s]));
+  const ordered = slots
+    .map((id) => (id ? byId.get(id) : undefined))
+    .filter((s): s is Series => Boolean(s));
+  return (ordered.length > 0 ? ordered : allSeries).slice(0, 3);
 }
 
 async function slotPostIds(): Promise<(string | null)[]> {

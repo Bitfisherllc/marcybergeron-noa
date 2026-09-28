@@ -194,6 +194,16 @@ function main() {
   }
 
   try {
+    execSync("npx tsx scripts/migrate-series-parent.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] series parent column migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
     execSync("npx tsx scripts/migrate-ocw-gallery-images.ts", {
       stdio: "inherit",
       env: process.env,

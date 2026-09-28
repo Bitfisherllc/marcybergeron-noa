@@ -13,7 +13,7 @@ import {
 } from "@/lib/homePage";
 import { listHomeSlideLinkGroups } from "@/lib/homeSlideLinks";
 import { getFaviconForAdmin } from "@/lib/siteFavicon";
-import { heroHomeSlides, listOilColdWaxChildSeries, listAllPostsAdmin, listArtworksWithSeriesForPicker } from "@/lib/queries";
+import { heroHomeSlides, listChildSeries, listAllPostsAdmin, listArtworksWithSeriesForPicker } from "@/lib/queries";
 
 const sectionLabels: Record<HomeSectionKey, { heading: string; hint: string }> = {
   hero: {
@@ -62,7 +62,7 @@ export default async function AdminHomePage({
       listHomeSectionsForAdmin(),
       listHomeSlideshowForAdmin(),
       getHomePickStateForAdmin(),
-      listOilColdWaxChildSeries(),
+      listChildSeries(),
       listAllPostsAdmin("news"),
       listArtworksWithSeriesForPicker(),
       getFaviconForAdmin(),
