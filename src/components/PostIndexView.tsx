@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Post, PostCategory } from "@/db";
 import { PostCategoryNav } from "@/components/PostCategoryNav";
+import { RichText } from "@/components/RichText";
 import { postCategoryLine } from "@/lib/postDisplay";
 import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 import { postKindCopy, postPublicHref, type PostIndexHeader, type PostKind } from "@/lib/postKind";
@@ -35,7 +36,7 @@ export function PostIndexView({
           <p className="text-xs tracking-[0.22em] text-muted uppercase">{eyebrow}</p>
           <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{heading}</h1>
           {intro.trim() ? (
-            <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted">{intro}</p>
+            <RichText content={intro} className="mt-6 max-w-2xl text-base leading-relaxed text-muted" />
           ) : null}
           <PostCategoryNav kind={kind} categories={categories} activeSlug={active?.slug} ariaLabel={copy.categoryNavLabel} />
         </div>
@@ -88,7 +89,7 @@ export function PostIndexView({
                           <WorkshopDetailsNote sessionDates={p.sessionDates} materialsNote={p.materialsNote} />
                         </>
                       ) : null}
-                      <p className="text-sm leading-relaxed text-muted">{p.excerpt}</p>
+                      <RichText content={p.excerpt} className="text-sm leading-relaxed text-muted" />
                       <div className="flex flex-wrap items-center gap-4">
                         {kind === "workshop" ? (
                           <>

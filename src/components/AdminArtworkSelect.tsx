@@ -3,11 +3,20 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 
+export type AdminArtworkSeriesTag = {
+  title: string;
+  sortOrder: number;
+  portfolio: string;
+  portfolioSortOrder: number;
+};
+
 export type AdminArtworkSelectOption = {
   id: string;
   label: string;
   image?: string;
   gallery?: string;
+  gallerySortOrder?: number;
+  series?: AdminArtworkSeriesTag[];
 };
 
 const selectClass = "mt-2 w-full border border-line bg-paper px-3 py-2 text-sm text-ink";
@@ -15,7 +24,10 @@ const selectClass = "mt-2 w-full border border-line bg-paper px-3 py-2 text-sm t
 const btnSecondary =
   "inline-flex shrink-0 border border-line bg-paper px-4 py-3 text-xs tracking-[0.18em] text-ink uppercase transition hover:bg-black/[0.03] focus-ring";
 
-const filterBtn = "focus-ring border px-3 py-1.5 text-[0.65rem] tracking-[0.16em] uppercase transition";
+const btnPrimary =
+  "inline-flex shrink-0 border border-ink bg-ink px-4 py-3 text-xs tracking-[0.18em] text-paper uppercase transition hover:bg-ink/90 focus-ring";
+
+const filterSelectClass = "focus-ring w-full border border-line bg-paper px-3 py-2 text-sm text-ink";
 
 type AdminArtworkSelectProps = {
   name: string;
@@ -31,22 +43,229 @@ type AdminArtworkSelectProps = {
   compact?: boolean;
 };
 
-function galleryNames(options: AdminArtworkSelectOption[]): string[] {
-  const names = new Set<string>();
+type NamedOrder = { name: string; sortOrder: number };
+
+function byStudioThenOrder(a: NamedOrder, b: NamedOrder) {
+  if (a.name === "The Studio") return 1;
+  if (b.name === "The Studio") return -1;
+  return a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+}
+
+function portfolioNames(options: AdminArtworkSelectOption[]): string[] {
+  const portfolios = new Map<string, number>();
   for (const option of options) {
-    if (option.gallery) names.add(option.gallery);
+    if (option.gallery && !portfolios.has(option.gallery)) {
+      portfolios.set(option.gallery, option.gallerySortOrder ?? 0);
+    }
+    for (const tag of option.series ?? []) {
+      if (!portfolios.has(tag.portfolio)) portfolios.set(tag.portfolio, tag.portfolioSortOrder);
+    }
   }
-  return [...names].sort((a, b) => {
-    if (a === "The Studio") return -1;
-    if (b === "The Studio") return 1;
-    return a.localeCompare(b, undefined, { sensitivity: "base" });
-  });
+  return [...portfolios]
+    .map(([name, sortOrder]) => ({ name, sortOrder }))
+    .sort(byStudioThenOrder)
+    .map((entry) => entry.name);
+}
+
+function seriesNames(options: AdminArtworkSelectOption[], portfolio: string): string[] {
+  const names = new Map<string, number>();
+  for (const option of options) {
+    for (const tag of option.series ?? []) {
+      if (portfolio !== "all" && tag.portfolio !== portfolio) continue;
+      if (!names.has(tag.title)) names.set(tag.title, tag.sortOrder);
+    }
+  }
+  return [...names]
+    .map(([name, sortOrder]) => ({ name, sortOrder }))
+    .sort(byStudioThenOrder)
+    .map((entry) => entry.name);
+}
+
+function inPortfolio(option: AdminArtworkSelectOption, portfolio: string) {
+  if (portfolio === "all") return true;
+  return option.gallery === portfolio || (option.series ?? []).some((tag) => tag.portfolio === portfolio);
+}
+
+function inSeries(option: AdminArtworkSelectOption, seriesName: string, portfolio: string) {
+  if (seriesName === "all") return true;
+  return (option.series ?? []).some(
+    (tag) => tag.title === seriesName && (portfolio === "all" || tag.portfolio === portfolio),
+  );
 }
 
 function notifyFormDirty(form: HTMLFormElement | null) {
   if (!form) return;
   form.dispatchEvent(new Event("input", { bubbles: true }));
   form.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+type ArtworkPickerDialogProps = {
+  options: AdminArtworkSelectOption[];
+  current: string;
+  hint?: string;
+  onPick: (id: string, form: HTMLFormElement | null) => void;
+  onClose: () => void;
+  /** Shows an Upload a painting button in the header. */
+  onUpload?: () => void;
+};
+
+export function ArtworkPickerDialog({
+  options,
+  current,
+  hint = "Click a painting to use it for this slide.",
+  onPick,
+  onClose,
+  onUpload,
+}: ArtworkPickerDialogProps) {
+  const [portfolio, setPortfolio] = useState("all");
+  const [seriesFilter, setSeriesFilter] = useState("all");
+  const [query, setQuery] = useState("");
+  const portfolios = useMemo(() => portfolioNames(options), [options]);
+  const seriesInPortfolio = useMemo(() => seriesNames(options, portfolio), [options, portfolio]);
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return options.filter((option) => {
+      if (!inPortfolio(option, portfolio)) return false;
+      if (!inSeries(option, seriesFilter, portfolio)) return false;
+      if (!needle) return true;
+      return (
+        option.label.toLowerCase().includes(needle) ||
+        option.gallery?.toLowerCase().includes(needle) ||
+        false
+      );
+    });
+  }, [options, portfolio, seriesFilter, query]);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Choose a painting"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[min(85vh,720px)] w-full max-w-3xl flex-col overflow-hidden border border-line bg-paper shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-5 py-4">
+          <div>
+            <h3 className="font-serif text-xl tracking-tight">Choose a painting</h3>
+            <p className="mt-1 text-xs text-muted">{hint}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {onUpload ? (
+              <button type="button" className={btnPrimary} onClick={onUpload}>
+                Upload a painting
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="focus-ring border border-line px-3 py-1.5 text-xs tracking-wide uppercase"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+        <div className="grid gap-3 border-b border-line px-5 py-3 sm:grid-cols-3">
+          <label className="block text-xs tracking-wide text-muted uppercase">
+            Portfolio
+            <select
+              value={portfolio}
+              className={`${filterSelectClass} mt-1 normal-case tracking-normal`}
+              onChange={(event) => {
+                setPortfolio(event.target.value);
+                setSeriesFilter("all");
+              }}
+            >
+              <option value="all">All portfolios</option>
+              {portfolios.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-xs tracking-wide text-muted uppercase">
+            Series
+            <select
+              value={seriesFilter}
+              disabled={seriesInPortfolio.length === 0}
+              className={`${filterSelectClass} mt-1 normal-case tracking-normal disabled:opacity-50`}
+              onChange={(event) => setSeriesFilter(event.target.value)}
+            >
+              <option value="all">
+                {seriesInPortfolio.length === 0 ? "No series in this portfolio" : "All series"}
+              </option>
+              {seriesInPortfolio.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-xs tracking-wide text-muted uppercase">
+            Search
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by title"
+              className={`${filterSelectClass} mt-1 normal-case tracking-normal`}
+            />
+          </label>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          {filtered.length === 0 ? (
+            <p className="text-sm text-muted">No paintings match this filter.</p>
+          ) : (
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              {filtered.map((option) => {
+                const isSelected = current === option.id;
+                return (
+                  <li key={option.id}>
+                    <button
+                      type="button"
+                      className={`focus-ring w-full border p-1.5 text-left transition ${
+                        isSelected ? "border-ink bg-black/[0.04]" : "border-line hover:border-ink/40"
+                      }`}
+                      onClick={(event) => onPick(option.id, event.currentTarget.form)}
+                    >
+                      <div className="relative aspect-square overflow-hidden bg-black/[0.04]">
+                        {option.image?.startsWith("/") ? (
+                          <Image src={option.image} alt="" fill className="object-cover" sizes="120px" />
+                        ) : option.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- remote URLs
+                          <img src={option.image} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-[0.65rem] text-muted">
+                            No image
+                          </div>
+                        )}
+                      </div>
+                      <span className="mt-1.5 block truncate text-[0.65rem] leading-snug text-ink">
+                        {option.label}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** Server HTML stays small; the full painting list fills in after hydrate. */
@@ -63,30 +282,14 @@ export function AdminArtworkSelect({
 }: AdminArtworkSelectProps) {
   const [expanded, setExpanded] = useState(false);
   const [open, setOpen] = useState(false);
-  const [galleryFilter, setGalleryFilter] = useState("all");
-  const [query, setQuery] = useState("");
   const [uncontrolled, setUncontrolled] = useState(defaultValue ?? "");
   const current = value !== undefined ? value : uncontrolled;
   const selected = current ? options.find((option) => option.id === current) : undefined;
   const visible = expanded ? options : selected ? [selected] : [];
-  const galleries = useMemo(() => galleryNames(options), [options]);
 
   useEffect(() => {
     setExpanded(true);
   }, []);
-
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return options.filter((option) => {
-      if (galleryFilter !== "all" && option.gallery !== galleryFilter) return false;
-      if (!needle) return true;
-      return (
-        option.label.toLowerCase().includes(needle) ||
-        option.gallery?.toLowerCase().includes(needle) ||
-        false
-      );
-    });
-  }, [options, galleryFilter, query]);
 
   function pick(id: string, form: HTMLFormElement | null) {
     if (value === undefined) setUncontrolled(id);
@@ -156,102 +359,13 @@ export function AdminArtworkSelect({
       ) : null}
 
       {open ? (
-        <div
-          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/50 p-4 sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Choose a painting"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            className="flex max-h-[min(85vh,720px)] w-full max-w-3xl flex-col overflow-hidden border border-line bg-paper shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
-              <div>
-                <h3 className="font-serif text-xl tracking-tight">Paintings</h3>
-                <p className="mt-1 text-xs text-muted">Click a painting to use it for this slide.</p>
-              </div>
-              <button
-                type="button"
-                className="focus-ring border border-line px-3 py-1.5 text-xs tracking-wide uppercase"
-                onClick={() => setOpen(false)}
-              >
-                Close
-              </button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3">
-              <button
-                type="button"
-                className={`${filterBtn} ${
-                  galleryFilter === "all" ? "border-ink bg-ink text-paper" : "border-line bg-paper text-ink hover:border-ink/40"
-                }`}
-                onClick={() => setGalleryFilter("all")}
-              >
-                All
-              </button>
-              {galleries.map((gallery) => (
-                <button
-                  key={gallery}
-                  type="button"
-                  className={`${filterBtn} ${
-                    galleryFilter === gallery
-                      ? "border-ink bg-ink text-paper"
-                      : "border-line bg-paper text-ink hover:border-ink/40"
-                  }`}
-                  onClick={() => setGalleryFilter(gallery)}
-                >
-                  {gallery}
-                </button>
-              ))}
-              <input
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by title"
-                className="ml-auto w-full min-w-[12rem] flex-1 border border-line bg-paper px-3 py-1.5 text-sm text-ink sm:max-w-xs"
-              />
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              {filtered.length === 0 ? (
-                <p className="text-sm text-muted">No paintings match this filter.</p>
-              ) : (
-                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                  {filtered.map((option) => {
-                    const isSelected = current === option.id;
-                    return (
-                      <li key={option.id}>
-                        <button
-                          type="button"
-                          className={`focus-ring w-full border p-1.5 text-left transition ${
-                            isSelected ? "border-ink bg-black/[0.04]" : "border-line hover:border-ink/40"
-                          }`}
-                          onClick={(event) => pick(option.id, event.currentTarget.form)}
-                        >
-                          <div className="relative aspect-square overflow-hidden bg-black/[0.04]">
-                            {option.image?.startsWith("/") ? (
-                              <Image src={option.image} alt="" fill className="object-cover" sizes="120px" />
-                            ) : option.image ? (
-                              // eslint-disable-next-line @next/next/no-img-element -- remote URLs
-                              <img src={option.image} alt="" className="h-full w-full object-cover" />
-                            ) : (
-                              <div className="flex h-full items-center justify-center text-[0.65rem] text-muted">
-                                No image
-                              </div>
-                            )}
-                          </div>
-                          <span className="mt-1.5 block truncate text-[0.65rem] leading-snug text-ink">
-                            {option.label}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
+        <ArtworkPickerDialog
+          options={options}
+          current={current}
+          hint="Click a painting to choose it."
+          onPick={pick}
+          onClose={() => setOpen(false)}
+        />
       ) : null}
     </div>
   );

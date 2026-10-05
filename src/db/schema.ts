@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, primaryKey, text, timestamp, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgTable, primaryKey, text, timestamp, type AnyPgColumn } from "drizzle-orm/pg-core";
 
 export const series = pgTable("series", {
   id: text("id").primaryKey(),
@@ -223,6 +223,22 @@ export const aboutPortrait = pgTable("about_portrait", {
   id: text("id").primaryKey(),
   image: text("image").notNull(),
   alt: text("alt").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
+});
+
+/** Contact page copy and studio details shared by the footer, header, and directions page (id is always `default`). */
+export const contactPage = pgTable("contact_page", {
+  id: text("id").primaryKey(),
+  eyebrow: text("eyebrow").notNull().default(""),
+  title: text("title").notNull().default(""),
+  intro: text("intro").notNull().default(""),
+  phone: text("phone").notNull().default(""),
+  /** One address line per row, newline-separated. */
+  studioLines: text("studio_lines").notNull().default(""),
+  socialLinks: jsonb("social_links").notNull().default([]),
+  directionsEyebrow: text("directions_eyebrow").notNull().default(""),
+  directionsTitle: text("directions_title").notNull().default(""),
+  directionsIntro: text("directions_intro").notNull().default(""),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });
 

@@ -5,19 +5,28 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { mailingListSignup } from "@/db/schema";
 import { isContactEmailConfigured, sendMailingListSignupEmail } from "@/lib/contactEmail";
+import { checkFormSubmission, createFormChallenge, formValues, logBlockedSubmission } from "@/lib/formGuard";
+import type { GuardedFormError, GuardedFormState } from "@/lib/formGuardTypes";
 
-export async function submitMailingListSignup(formData: FormData) {
-  // Honeypot: leave empty; bots often fill hidden fields.
-  const trap = String(formData.get("company") ?? "").trim();
-  if (trap) {
-    redirect("/mailing-list?ok=1");
-  }
-
+export async function submitMailingListSignup(prev: GuardedFormState, formData: FormData): Promise<GuardedFormState> {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    redirect("/mailing-list?error=1");
+
+  const retry = (error: GuardedFormError): GuardedFormState => ({
+    attempt: prev.attempt + 1,
+    challenge: createFormChallenge(),
+    error,
+    values: formValues(formData, ["name", "email"]),
+  });
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return retry("fields");
+
+  const guard = await checkFormSubmission(formData, { form: "mailing-list", name, text: [email] });
+  if (guard === "spam") {
+    logBlockedSubmission("mailing-list", "spam");
+    redirect("/mailing-list?ok=1");
   }
+  if (guard !== "ok") return retry(guard);
 
   await getDb()
     .insert(mailingListSignup)

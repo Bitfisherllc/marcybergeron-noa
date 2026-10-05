@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GalleryListingImage } from "@/components/GalleryListingImage";
+import { RichText } from "@/components/RichText";
 import { publicGalleryExcerpt } from "@/lib/galleryCopy";
 
 export type GalleryIndexCard = {
@@ -40,7 +41,7 @@ export function GalleryIndexCards({ cards, cta }: { cards: GalleryIndexCard[]; c
                 {card.title}
               </h2>
               {excerpt ? (
-                <p className="mt-3 text-sm leading-relaxed text-muted">{excerpt}</p>
+                <RichText content={excerpt} insideLink className="mt-3 text-sm leading-relaxed text-muted" />
               ) : null}
               <span className="mt-3 inline-flex text-xs tracking-[0.18em] text-ink/70 uppercase">{cta}</span>
             </div>

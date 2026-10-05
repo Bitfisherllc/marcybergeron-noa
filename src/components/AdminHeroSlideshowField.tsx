@@ -1,10 +1,22 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Artwork } from "@/db";
-import { AdminArtworkSelect } from "@/components/AdminArtworkSelect";
+import {
+  AdminArtworkSelect,
+  ArtworkPickerDialog,
+  type AdminArtworkSelectOption,
+  type AdminArtworkSeriesTag,
+} from "@/components/AdminArtworkSelect";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
+import {
+  ADMIN_UPLOAD_MAX_BYTES,
+  ADMIN_UPLOAD_MAX_LABEL,
+  ADMIN_UPLOAD_WARN_BYTES,
+  uploadLargeFileWarning,
+  uploadTooLargeMessage,
+} from "@/lib/adminUploadLimits";
 import { HERO_SLIDESHOW_MAX, type HeroSlideshowSlot } from "@/lib/featuredArtwork";
 import type { HomeSlideLinkGroup } from "@/lib/homeSlideLinks";
 
@@ -17,6 +29,8 @@ export type AdminSlideshowPiece = Pick<Artwork, "id" | "title" | "image"> & {
   label?: string;
   href?: string;
   gallery?: string;
+  gallerySortOrder?: number;
+  series?: AdminArtworkSeriesTag[];
 };
 
 type SlideshowAdminVariant = "gallery" | "home";
@@ -65,7 +79,7 @@ const COPY: Record<
   },
   home: {
     legend: "Home page slideshow",
-    hint: "Large image beside the opening text on the home page. One image stays as a single photo; two to five become a slideshow. You do not have to fill every slot. Upload a photo, pick one already on the site, or choose a painting from a visual grid. Each slide can link to a gallery, series, or other page — it does not open a lightbox. If none are chosen, the home page uses the automatic mix of series and artwork images.",
+    hint: "Large image beside the opening text on the home page. One image stays as a single photo; two to five become a slideshow. You do not have to fill every slot. Click Choose a painting to pick one by portfolio and series, or to upload a new image. Each slide can link to a gallery, series, or other page — it does not open a lightbox. If none are chosen, the home page uses the automatic mix of series and artwork images.",
     paintingLabel: "Or choose a painting visually",
     emptyPaintings: "Add paintings if you want to pick from your galleries.",
     afterSaveEmpty: "After you save, the home page will use the automatic mix of series and artwork images.",
@@ -148,6 +162,128 @@ function formatNameList(names: string[]): string {
   return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
 }
 
+const btnPrimary =
+  "inline-flex w-full shrink-0 justify-center border border-ink bg-ink px-4 py-3 text-xs tracking-[0.18em] text-paper uppercase transition hover:bg-ink/90 focus-ring";
+
+const btnSecondary =
+  "inline-flex w-full shrink-0 justify-center border border-line bg-paper px-4 py-3 text-xs tracking-[0.18em] text-ink uppercase transition hover:bg-black/[0.03] focus-ring";
+
+/** Home slideshow slot: one Choose a painting button; the popup also offers an upload. */
+function HomeSlidePicker({
+  fieldName,
+  artworkFieldName,
+  draft,
+  options,
+  statusLabel,
+  onDraft,
+}: {
+  fieldName: string;
+  artworkFieldName: string;
+  draft: SlotDraft;
+  options: AdminArtworkSelectOption[];
+  statusLabel: string;
+  onDraft: (patch: Partial<SlotDraft>) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const objectUrlRef = useRef<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [sizeError, setSizeError] = useState<string | null>(null);
+  const [sizeWarning, setSizeWarning] = useState<string | null>(null);
+  const keptImage = isBlobPreviewSrc(draft.pickerSrc) ? "" : draft.pickerSrc;
+  const hasValue = Boolean(draft.pickerSrc || draft.artworkId);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    };
+  }, []);
+
+  function releaseUpload() {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+    if (inputRef.current) inputRef.current.value = "";
+    setSizeError(null);
+    setSizeWarning(null);
+  }
+
+  function choose(artworkId: string, form: HTMLFormElement | null) {
+    releaseUpload();
+    onDraft({ artworkId, pickerSrc: "" });
+    notifyFormDirty(form ?? inputRef.current?.form ?? null);
+    setOpen(false);
+  }
+
+  function onFile(file: File | undefined) {
+    if (!file || file.size === 0) return;
+    if (file.size > ADMIN_UPLOAD_MAX_BYTES) {
+      releaseUpload();
+      setSizeError(uploadTooLargeMessage(file.name, file.size));
+      return;
+    }
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    const url = URL.createObjectURL(file);
+    objectUrlRef.current = url;
+    setSizeError(null);
+    setSizeWarning(file.size >= ADMIN_UPLOAD_WARN_BYTES ? uploadLargeFileWarning(file.name, file.size) : null);
+    onDraft({ artworkId: "", pickerSrc: url });
+    notifyFormDirty(inputRef.current?.form ?? null);
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button type="button" className={btnPrimary} onClick={() => setOpen(true)}>
+        Choose a painting
+      </button>
+      <button
+        type="button"
+        className={`${btnSecondary} ${!hasValue ? "pointer-events-none opacity-30" : ""}`}
+        disabled={!hasValue}
+        onClick={(event) => choose("", event.currentTarget.form)}
+      >
+        Clear
+      </button>
+      <p className="truncate text-xs leading-relaxed text-muted">{statusLabel || "No painting chosen yet"}</p>
+      {sizeError ? (
+        <p role="alert" className="text-xs leading-relaxed text-amber-800">
+          {sizeError}
+        </p>
+      ) : null}
+      {sizeWarning ? (
+        <p role="status" className="text-xs leading-relaxed text-amber-800">
+          {sizeWarning}
+        </p>
+      ) : null}
+      <input
+        ref={inputRef}
+        name={fieldName}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(event) => onFile(event.target.files?.[0])}
+      />
+      <input type="hidden" name={`${fieldName}Existing`} value={keptImage} />
+      <input type="hidden" name={artworkFieldName} value={draft.artworkId} />
+      {open ? (
+        <ArtworkPickerDialog
+          options={options}
+          current={draft.artworkId}
+          hint={`Click a painting to use it for this slide, or upload a new image (up to ${ADMIN_UPLOAD_MAX_LABEL}).`}
+          onPick={choose}
+          onClose={() => setOpen(false)}
+          onUpload={() => {
+            setOpen(false);
+            inputRef.current?.click();
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function SlidePreview({
   src,
   pending,
@@ -198,6 +334,18 @@ export function AdminHeroSlideshowField({
     [slots, maxSlots],
   );
   const byId = useMemo(() => new Map(pieces.map((piece) => [piece.id, piece])), [pieces]);
+  const pickerOptions = useMemo<AdminArtworkSelectOption[]>(
+    () =>
+      pieces.map((piece) => ({
+        id: piece.id,
+        label: piece.label ?? piece.title,
+        image: piece.image,
+        gallery: piece.gallery,
+        gallerySortOrder: piece.gallerySortOrder,
+        series: piece.series,
+      })),
+    [pieces],
+  );
   const [drafts, setDrafts] = useState<SlotDraft[]>(() =>
     padded.map((slot) => {
       const initialSrc = slotSavedImage(slot, byId);
@@ -242,7 +390,10 @@ export function AdminHeroSlideshowField({
   }
 
   return (
-    <fieldset className="space-y-4 border border-line bg-paper/40 p-4">
+    <fieldset
+      data-admin-section={variant === "gallery" ? "Gallery page slideshow" : undefined}
+      className="space-y-4 border border-line bg-paper/40 p-4"
+    >
       <legend className="px-1 text-sm font-medium text-ink">{copy.legend}</legend>
       <p className="text-xs leading-relaxed text-muted">
         {lockDisplayOn
@@ -302,7 +453,7 @@ export function AdminHeroSlideshowField({
       </p>
       {hasEdits ? (
         <p className="text-sm leading-relaxed text-red-700">
-          This preview is not live yet. Use the red SAVE button below this section to update the{" "}
+          This preview is not live yet. Use the red SAVE button in the top bar to update the{" "}
           {variant === "home" ? "home" : "gallery"} page.
         </p>
       ) : null}
@@ -328,6 +479,23 @@ export function AdminHeroSlideshowField({
               />
               <p className="text-sm text-muted">Image {i + 1} (optional)</p>
               <input type="hidden" name={`${fieldPrefix}${i}Initial`} value={existingImage} />
+              {variant === "home" ? (
+                <HomeSlidePicker
+                  fieldName={`${fieldPrefix}${i}`}
+                  artworkFieldName={`${fieldPrefix}Artwork${i}`}
+                  draft={draft}
+                  options={pickerOptions}
+                  statusLabel={slotLabel(resolvedSlotSrc(draft, byId), draft.artworkId, byId)}
+                  onDraft={(patch) => {
+                    if (patch.artworkId === undefined) return updateDraft(i, patch);
+                    const previousHref = byId.get(draft.artworkId)?.href ?? "";
+                    const nextHref = byId.get(patch.artworkId)?.href ?? "";
+                    const keepCustom = draft.href && draft.href !== previousHref;
+                    updateDraft(i, { ...patch, href: keepCustom ? draft.href : nextHref });
+                  }}
+                />
+              ) : (
+              <>
               <AdminFilePicker
                 name={`${fieldPrefix}${i}`}
                 existingValue={existingImage}
@@ -344,14 +512,7 @@ export function AdminHeroSlideshowField({
                   <AdminArtworkSelect
                     name={`${fieldPrefix}Artwork${i}`}
                     value={draft.artworkId}
-                    visual={variant === "home"}
-                    compact={variant === "home"}
-                    options={pieces.map((piece) => ({
-                      id: piece.id,
-                      label: piece.label ?? piece.title,
-                      image: piece.image,
-                      gallery: piece.gallery,
-                    }))}
+                    options={pickerOptions}
                     onChange={(next) => {
                       const previousHref = byId.get(draft.artworkId)?.href ?? "";
                       const nextHref = byId.get(next)?.href ?? "";
@@ -365,6 +526,8 @@ export function AdminHeroSlideshowField({
                 </div>
               ) : (
                 <p className="text-xs text-muted">{copy.emptyPaintings}</p>
+              )}
+              </>
               )}
               {variant === "home" && linkGroups.length > 0 ? (
                 <label className="block text-sm text-muted">

@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { workshopInquiry } from "@/db/schema";
 import { getDb } from "@/db";
 import { isContactEmailConfigured, sendWorkshopInquiryEmail } from "@/lib/contactEmail";
+import { checkFormSubmission, createFormChallenge, formValues, logBlockedSubmission } from "@/lib/formGuard";
+import type { GuardedFormError, GuardedFormState } from "@/lib/formGuardTypes";
 import { parsePostKind } from "@/lib/postKind";
 import { getPostBySlug } from "@/lib/queries";
 import { workshopInterestHref } from "@/lib/workshopCopy";
@@ -14,7 +16,7 @@ function interestReturnHref(slug: string, error?: string): string {
   return error ? `${base}?error=${error}` : base;
 }
 
-export async function submitWorkshopInterest(formData: FormData) {
+export async function submitWorkshopInterest(prev: GuardedFormState, formData: FormData): Promise<GuardedFormState> {
   const workshopSlug = String(formData.get("workshopSlug") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
@@ -29,14 +31,28 @@ export async function submitWorkshopInterest(formData: FormData) {
   const groupDates: string[] = [];
   const soloDate = "";
 
+  const retry = (error: GuardedFormError): GuardedFormState => ({
+    attempt: prev.attempt + 1,
+    challenge: createFormChallenge(),
+    error,
+    values: formValues(formData, ["name", "email", "phone", "notes", "confirmThis", "otherWorkshops"]),
+  });
+
   if (!workshopSlug || !name || !email || !confirmThis || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    redirect(interestReturnHref(workshopSlug || "workshop", "fields"));
+    return retry("fields");
   }
 
   const workshop = await getPostBySlug(workshopSlug);
   if (!workshop || !workshop.published || parsePostKind(workshop.kind) !== "workshop") {
     redirect("/workshops");
   }
+
+  const guard = await checkFormSubmission(formData, { form: "workshop-interest", name, text: [notes, email, phone] });
+  if (guard === "spam") {
+    logBlockedSubmission("workshop-interest", "spam");
+    redirect(`${workshopInterestHref(workshop.slug)}?sent=1`);
+  }
+  if (guard !== "ok") return retry(guard);
 
   await getDb().insert(workshopInquiry).values({
     id: nanoid(),

@@ -3,11 +3,13 @@ import { AdminArtworkSelect } from "@/components/AdminArtworkSelect";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminHeroSlideshowField } from "@/components/AdminHeroSlideshowField";
 import { AdminExternalLink, AdminLink } from "@/components/AdminLink";
-import { AdminDirtySave } from "@/components/AdminSectionSave";
+import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
+import { AdminSaveTracker } from "@/components/AdminSaveTracker";
 import { HOME_SLIDESHOW_MAX } from "@/lib/featuredArtwork";
-import { HOME_SECTION_KEYS, isHomeToggleableSection, type HomeSectionKey } from "@/lib/homeDefaults";
+import { HOME_SECTION_KEYS, type HomeSectionKey } from "@/lib/homeDefaults";
 import {
   getHomePickStateForAdmin,
+  getHomeSlideshowVisible,
   listHomeSectionsForAdmin,
   listHomeSlideshowForAdmin,
 } from "@/lib/homePage";
@@ -25,12 +27,12 @@ const sectionLabels: Record<HomeSectionKey, { heading: string; hint: string }> =
     hint: "Turn the section on or off, edit the title and intro, and choose the three series cards in this same box.",
   },
   journal: {
-    heading: "Journal",
+    heading: "News",
     hint: "Turn the section on or off, edit the title and intro, and pin up to three posts in this same box.",
   },
   artist_words: {
     heading: "In the artist’s words",
-    hint: "Section title, pull quote (single line), then body as Markdown (paragraphs, [links](/path)).",
+    hint: "Section title, pull quote (single line), then the body text.",
   },
   selected_works: {
     heading: "Selected works",
@@ -38,14 +40,22 @@ const sectionLabels: Record<HomeSectionKey, { heading: string; hint: string }> =
   },
 };
 
+const visibilityHints: Record<HomeSectionKey, string> = {
+  hero: "When on, the eyebrow, headline, opening paragraph, and buttons appear at the top of the home page.",
+  featured_series: "When on, the three featured series cards appear on the home page.",
+  journal: "When on, the news carousel appears on the home page.",
+  artist_words: "When on, the pull quote and artist’s words appear on the home page.",
+  selected_works: "When on, the three selected paintings appear on the home page.",
+};
+
 const savedLabels: Record<string, string> = {
   hero: "Opening (hero)",
   featured_series: "Featured series",
-  journal: "Journal",
+  journal: "News",
   artist_words: "In the artist’s words",
   selected_works: "Selected works",
   featured_series_picks: "Featured series",
-  journal_picks: "Journal",
+  journal_picks: "News",
   selected_works_picks: "Selected works",
   slideshow: "Home page slideshow",
   favicon: "Browser tab icon",
@@ -57,7 +67,7 @@ export default async function AdminHomePage({
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const sp = await searchParams;
-  const [sections, slides, picks, featuredSeriesOptions, allPosts, artworkOptions, favicon, slideLinkGroups] =
+  const [sections, slides, picks, featuredSeriesOptions, allPosts, artworkOptions, favicon, slideLinkGroups, slideshowVisible] =
     await Promise.all([
       listHomeSectionsForAdmin(),
       listHomeSlideshowForAdmin(),
@@ -67,6 +77,7 @@ export default async function AdminHomePage({
       listArtworksWithSeriesForPicker(),
       getFaviconForAdmin(),
       listHomeSlideLinkGroups(),
+      getHomeSlideshowVisible(),
     ]);
   const savedLabel = sp.saved ? savedLabels[sp.saved] ?? sp.saved : null;
   const usingRandomSlideshow = slides.length === 0;
@@ -90,6 +101,8 @@ export default async function AdminHomePage({
     label: piece.label,
     href: piece.href,
     gallery: piece.gallery,
+    gallerySortOrder: piece.gallerySortOrder,
+    series: piece.series,
   }));
 
   return (
@@ -97,8 +110,8 @@ export default async function AdminHomePage({
       <div>
         <h1 className="font-serif text-3xl tracking-tight">Home page</h1>
         <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
-          Each section shows a red <strong className="font-medium text-ink">SAVE</strong> button only after you
-          change something in that section. To reorder paintings inside a gallery, open{" "}
+          When you change something, a red <strong className="font-medium text-ink">SAVE</strong> button flashes in
+          the top bar. To reorder paintings inside a gallery, open{" "}
           <AdminLink href="/admin/series">Galleries &amp; artwork</AdminLink>.
         </p>
         {savedLabel ? <p className="mt-3 text-sm text-ink">Saved: {savedLabel}.</p> : null}
@@ -107,7 +120,7 @@ export default async function AdminHomePage({
         ) : null}
       </div>
 
-      <form id="home-favicon" action={saveFaviconAction} className="border border-line bg-white/50 p-6">
+      <form id="home-favicon" data-admin-section="Browser tab icon" action={saveFaviconAction} className="border border-line bg-white/50 p-6">
         <h2 className="font-serif text-xl tracking-tight">Browser tab icon</h2>
         <p className="mt-2 max-w-prose text-sm text-muted">
           The small image in the browser tab. A square PNG works best (32–512 pixels). You can also use ICO, SVG, or
@@ -135,10 +148,14 @@ export default async function AdminHomePage({
             />
           </div>
         </div>
-        <AdminDirtySave formId="home-favicon" />
+        <AdminSaveTracker formId="home-favicon" />
       </form>
 
-      <form id="home-slideshow" action={saveHomeSlideshowAction} className="border border-line bg-white/50 p-6">
+      <form id="home-slideshow" data-admin-section="Home page slideshow" action={saveHomeSlideshowAction} className="space-y-5 border border-line bg-white/50 p-6">
+        <HomeSectionVisibilityField
+          defaultOn={slideshowVisible}
+          hint="Home page slideshow — when on, the large image or slideshow appears at the top of the home page, beside the opening text."
+        />
         <AdminHeroSlideshowField
           variant="home"
           fieldPrefix="homeSlide"
@@ -149,7 +166,7 @@ export default async function AdminHomePage({
           usingRandom={usingRandomSlideshow}
           linkGroups={slideLinkGroups}
         />
-        <AdminDirtySave formId="home-slideshow" />
+        <AdminSaveTracker formId="home-slideshow" />
       </form>
 
       <div className="space-y-10">
@@ -157,22 +174,11 @@ export default async function AdminHomePage({
           const meta = sectionLabels[key];
           const row = sections[key];
           return (
-            <form key={key} id={`home-section-${key}`} action={saveHomeTextSectionAction} className="border border-line bg-white/50 p-6">
+            <form key={key} id={`home-section-${key}`} data-admin-section={meta.heading} action={saveHomeTextSectionAction} className="border border-line bg-white/50 p-6">
               <input type="hidden" name="section" value={key} />
               <h2 className="font-serif text-xl tracking-tight">{meta.heading}</h2>
               <p className="mt-2 max-w-prose text-sm text-muted">{meta.hint}</p>
-              {isHomeToggleableSection(key) ? (
-                <HomeSectionVisibilityField
-                  defaultOn={row.visible}
-                  hint={
-                    key === "journal"
-                      ? "When on, the journal carousel appears on the home page."
-                      : key === "selected_works"
-                        ? "When on, the three selected paintings appear on the home page."
-                        : "When on, the three featured series cards appear on the home page."
-                  }
-                />
-              ) : null}
+              <HomeSectionVisibilityField defaultOn={row.visible} hint={visibilityHints[key]} />
               {key === "hero" ? (
                 <label className="mt-5 block text-sm text-muted">
                   Eyebrow
@@ -205,15 +211,15 @@ export default async function AdminHomePage({
               ) : (
                 <input type="hidden" name="quote" value={row.quote} />
               )}
-              <label className="mt-4 block text-sm text-muted">
-                {key === "artist_words" ? "Body (Markdown)" : "Body / intro text"}
-                <textarea
+              <div className="mt-4 block text-sm text-muted">
+                {key === "artist_words" ? "Body" : "Body / intro text"}
+                <AdminRichTextEditor
                   name="body"
-                  rows={key === "artist_words" ? 8 : 5}
                   defaultValue={row.body}
-                  className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm leading-relaxed"
+                  size={key === "artist_words" ? "lg" : "sm"}
+                  ariaLabel={key === "artist_words" ? "Body" : "Body / intro text"}
                 />
-              </label>
+              </div>
               {key === "featured_series" ? (
                 <div className="mt-8 border-t border-line pt-6">
                   <p className="text-sm text-ink">Series cards</p>
@@ -296,6 +302,8 @@ export default async function AdminHomePage({
                             label: o.label,
                             image: o.image,
                             gallery: o.gallery,
+                            gallerySortOrder: o.gallerySortOrder,
+                            series: o.series,
                           }))}
                         />
                       </div>
@@ -303,7 +311,7 @@ export default async function AdminHomePage({
                   </div>
                 </div>
               ) : null}
-              <AdminDirtySave formId={`home-section-${key}`} />
+              <AdminSaveTracker formId={`home-section-${key}`} />
             </form>
           );
         })}
@@ -318,10 +326,18 @@ export default async function AdminHomePage({
 
 function HomeSectionVisibilityField({ defaultOn, hint }: { defaultOn: boolean; hint: string }) {
   return (
-    <label className="mt-5 flex items-start gap-3 text-sm text-ink">
-      <input type="checkbox" name="visible" value="on" defaultChecked={defaultOn} className="mt-1 border border-line" />
+    <label className="group mt-5 flex cursor-pointer items-start gap-3 border border-line bg-paper px-4 py-3 text-sm text-ink">
+      <input type="checkbox" name="visible" value="on" defaultChecked={defaultOn} className="peer sr-only" />
+      <span
+        aria-hidden
+        className="relative mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full bg-ink/25 transition peer-focus-visible:ring-2 peer-focus-visible:ring-ink/40 peer-focus-visible:ring-offset-2 group-has-[:checked]:bg-green-600 after:absolute after:top-0.5 after:left-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition group-has-[:checked]:after:translate-x-5"
+      />
       <span>
-        <span className="font-medium">Show on the home page</span>
+        <span className="font-medium">
+          Show on the home page:{" "}
+          <span className="text-muted group-has-[:checked]:hidden">Off</span>
+          <span className="hidden text-green-700 group-has-[:checked]:inline">On</span>
+        </span>
         <span className="block text-xs leading-relaxed text-muted">{hint}</span>
         {!defaultOn ? (
           <span className="mt-1 block text-xs text-ink/80">Currently hidden on the public home page.</span>

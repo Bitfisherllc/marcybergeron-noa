@@ -25,6 +25,7 @@ export async function resolveAdminEditTarget(pathname: string): Promise<AdminEdi
   if (path === "/news") return { href: "/admin/posts", label: "Edit posts" };
   if (path === "/workshops") return { href: "/admin/workshops", label: "Edit workshops" };
   if (path === "/mailing-list") return { href: "/admin/mailing-list", label: "View mailing list" };
+  if (path === "/contact" || path === "/directions") return { href: "/admin/contact-page", label: "Edit contact page" };
 
   const workshopInterestMatch = path.match(/^\/workshops\/([^/]+)\/interest$/);
   if (workshopInterestMatch) {
@@ -142,32 +143,6 @@ export async function resolveLiveViewTarget(pathname: string): Promise<AdminEdit
   }
 
   return { href: "/", label: "View live site" };
-}
-
-/** Map the current path to the best “add artwork” admin screen. */
-export async function resolveAdminAddArtTarget(pathname: string): Promise<AdminEditTarget> {
-  const path = normalizePath(pathname);
-
-  const seriesMatch = path.match(/^\/admin\/series\/([^/]+)$/);
-  if (seriesMatch && seriesMatch[1] !== "new") {
-    const id = decodeURIComponent(seriesMatch[1]!);
-    return { href: `/admin/artworks/new?gallery=${encodeURIComponent(id)}`, label: "Add art" };
-  }
-
-  const artMatch = path.match(/^\/art\/([^/]+)$/);
-  if (artMatch) {
-    const slug = decodeURIComponent(artMatch[1]!);
-    const row = await getDb()
-      .select({ id: series.id, title: series.title })
-      .from(series)
-      .where(eq(series.slug, slug))
-      .then((r) => r[0]);
-    if (row) {
-      return { href: `/admin/artworks/new?gallery=${encodeURIComponent(row.id)}`, label: "Add art" };
-    }
-  }
-
-  return { href: "/admin/artworks/new", label: "Add art" };
 }
 
 /** Context-aware bar action: edit on the public site, preview on admin screens. */

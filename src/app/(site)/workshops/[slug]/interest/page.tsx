@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { submitWorkshopInterest } from "@/app/(site)/workshops/[slug]/interest/actions";
 import { WorkshopInterestForm } from "@/components/WorkshopInterestForm";
+import { createFormChallenge } from "@/lib/formGuard";
 import { getPostBySlug, listPublishedPosts } from "@/lib/queries";
 import { parsePostKind, postPublicHref } from "@/lib/postKind";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
@@ -87,6 +88,7 @@ export default async function WorkshopInterestPage({
                 workshopTitle={p.title}
                 workshopSlug={p.slug}
                 otherWorkshops={others}
+                challenge={createFormChallenge()}
                 action={submitWorkshopInterest}
               />
             </>

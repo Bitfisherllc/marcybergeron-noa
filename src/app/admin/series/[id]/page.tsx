@@ -1,18 +1,21 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { reorderArtwork, upsertArtwork, upsertSeries, deleteSeries } from "@/app/admin/actions";
+import { upsertArtwork, upsertSeries, deleteSeries } from "@/app/admin/actions";
+import { AdminChildSeriesList } from "@/components/AdminChildSeriesList";
+import { AdminCoverThumb, hasCoverImage } from "@/components/AdminCoverThumb";
 import { AdminDeleteSeriesForm } from "@/components/AdminDeleteSeriesForm";
 import { AdminFeaturedArtworkField } from "@/components/AdminFeaturedArtworkField";
 import { AdminHeroSlideshowField } from "@/components/AdminHeroSlideshowField";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminGalleryPrivacyPanel } from "@/components/AdminGalleryPrivacyPanel";
-import { AdminLightboxProvider, AdminLightboxThumb, AdminLightboxTrigger } from "@/components/AdminImageLightbox";
+import { AdminGalleryArtworkTable } from "@/components/AdminGalleryArtworkTable";
+import { AdminLightboxThumb } from "@/components/AdminImageLightbox";
 import { AdminLink, adminBtnDanger } from "@/components/AdminLink";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
-import { AdminReorderButtons } from "@/components/AdminReorderButtons";
-import { AdminDirtySave } from "@/components/AdminSectionSave";
+import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
+import { AdminSaveTracker } from "@/components/AdminSaveTracker";
 import { AdminSeriesMediumField } from "@/components/AdminSeriesMediumField";
-import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
+import { parseFeaturedArtworkMode, resolveInteriorHeroSlides, usesUploadedCover } from "@/lib/featuredArtwork";
 import { isPlaceholderGalleryStatement } from "@/lib/galleryCopy";
 import { mediumGalleryAbout } from "@/lib/mediumGalleryCopy";
 import { isMediumGallerySlug, isStudioGallerySlug, publicPortfolioGalleries } from "@/lib/mediumGalleries";
@@ -59,11 +62,6 @@ export default async function EditSeriesPage({
   const seriesMediums = publicPortfolioGalleries(mediumGalleries);
   const parentMedium = isChildSeries ? mediumGalleries.find((m) => m.id === s.parentSeriesId) : undefined;
   const error = sp.error ? (ERROR_MESSAGES[sp.error] ?? "Something went wrong. Try again.") : null;
-  const artworkSlides = arts.map((a) => ({
-    src: a.image,
-    alt: a.alt || a.title,
-    caption: a.title,
-  }));
   const usingRandomSlideshow = heroSlots.every((slot) => !slot.image && !slot.artworkId);
   const liveSlideshow = resolveInteriorHeroSlides(s, statementPieceOptions, heroSlots).map((hero) => ({
     src: hero.image,
@@ -116,7 +114,11 @@ export default async function EditSeriesPage({
         <AdminGalleryPrivacyPanel seriesId={s.id} isPrivate={s.isPrivate} accessToken={s.accessToken} />
       ) : null}
 
-      <form id="series-edit" action={upsertSeries} className="space-y-6 border border-line bg-white/50 p-6">
+      <form
+        id="series-edit"
+        data-admin-section={isChildSeries ? "Series details" : "Gallery details"}
+        action={upsertSeries}
+        className="space-y-6 border border-line bg-white/50 p-6">
         <input type="hidden" name="id" value={s.id} />
         {isChildSeries ? <AdminSeriesMediumField mediums={seriesMediums} value={s.parentSeriesId} /> : null}
         <div className="grid gap-6 md:grid-cols-2">
@@ -129,9 +131,9 @@ export default async function EditSeriesPage({
             <input name="slug" required defaultValue={s.slug} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
           </label>
         </div>
-        <label className="block text-sm text-muted">
+        <div className="block text-sm text-muted">
           Listing excerpt
-          <textarea name="excerpt" rows={4} defaultValue={s.excerpt} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+          <AdminRichTextEditor name="excerpt" defaultValue={s.excerpt} size="sm" ariaLabel="Listing excerpt" />
           <span className="mt-2 block text-xs">
             {isChildSeries
               ? "Shown on the series card on the medium’s page. Not used as the About paragraph on the series page."
@@ -141,12 +143,12 @@ export default async function EditSeriesPage({
                   ? "Shown on Portfolio listing cards. Not used as the About paragraph on the gallery page."
                   : "Shown on listing cards. Not used as the About paragraph on the gallery page."}
           </span>
-        </label>
-        <label className="block text-sm text-muted">
-          About (Markdown)
-          <textarea name="content" rows={10} defaultValue={aboutValue} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+        </div>
+        <div className="block text-sm text-muted">
+          About
+          <AdminRichTextEditor name="content" defaultValue={aboutValue} size="lg" headings ariaLabel="About" />
           <span className="mt-2 block text-xs">Shown under the title on the public gallery page.</span>
-        </label>
+        </div>
         <div className="grid gap-6 md:grid-cols-2">
           <label className="block text-sm text-muted">
             Sort order
@@ -160,15 +162,33 @@ export default async function EditSeriesPage({
           />
         </div>
         <div className="flex items-center gap-4">
-          <AdminLightboxThumb src={s.featuredImage} alt={s.title} caption={`${s.title} — portfolio card image`}>
-            <div className="relative h-24 w-36 cursor-zoom-in overflow-hidden border border-line bg-black/[0.03]">
-              <Image src={s.featuredImage} alt="" fill className="object-cover" />
-            </div>
-          </AdminLightboxThumb>
-          <p className="text-xs text-muted">
-            {isChildSeries
-              ? "Used on the medium’s page. Leave empty to keep the current image."
-              : "Used on the Portfolio overview page. Leave empty to keep the current image."}
+          {hasCoverImage(s.featuredImage) ? (
+            <AdminLightboxThumb src={s.featuredImage} alt={s.title} caption={`${s.title} — portfolio card image`}>
+              <div className="relative h-24 w-36 cursor-zoom-in overflow-hidden border border-line bg-black/[0.03]">
+                <Image src={s.featuredImage} alt="" fill className="object-cover" />
+              </div>
+            </AdminLightboxThumb>
+          ) : (
+            <AdminCoverThumb
+              image={null}
+              random={parseFeaturedArtworkMode(s.featuredArtworkMode) !== "static" || !s.featuredArtworkId}
+              className="h-24 w-36 shrink-0"
+            />
+          )}
+          <p className="max-w-prose text-xs leading-relaxed text-muted">
+            <strong className="font-medium text-ink">
+              To show this image on the {isChildSeries ? "medium’s page" : "Portfolio page"}, choose{" "}
+              <span className="whitespace-nowrap">Use the uploaded card image</span> in the{" "}
+              {isChildSeries ? "Series" : "Portfolio"} listing card below, then click Save.
+            </strong>{" "}
+            {usesUploadedCover(s)
+              ? "It is showing there now."
+              : `Right now the listing card is set to ${
+                  parseFeaturedArtworkMode(s.featuredArtworkMode) === "static" && s.featuredArtworkId
+                    ? "a fixed painting"
+                    : "a random painting"
+                }, so this image is not shown.`}{" "}
+            Leave empty to keep the current image.
           </p>
         </div>
         <AdminFeaturedArtworkField
@@ -176,6 +196,7 @@ export default async function EditSeriesPage({
           artworkId={s.featuredArtworkId}
           pieces={statementPieceOptions}
           listingSurface={isChildSeries ? "series" : "portfolio"}
+          hasUploadedImage={hasCoverImage(s.featuredImage)}
         />
         <AdminHeroSlideshowField
           pieces={statementPieceOptions}
@@ -185,16 +206,17 @@ export default async function EditSeriesPage({
           showOnPage={isStudioGallery || s.showHeroSlideshow}
           lockDisplayOn={isStudioGallery}
         />
-        <AdminDirtySave formId="series-edit" />
+        <AdminSaveTracker formId="series-edit" />
       </form>
 
       {isMediumGallery && !isStudioGallery ? (
-        <div className="border border-line bg-white/50 p-6">
+        <div data-admin-section="Series in this medium" className="border border-line bg-white/50 p-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2 className="font-serif text-2xl tracking-tight">Series in this medium</h2>
               <p className="mt-2 max-w-prose text-sm text-muted">
-                Listed on the public page under this medium’s gallery.
+                Listed on the public page under this medium’s gallery, in this order. Use the arrow buttons to change
+                the order.
               </p>
             </div>
             <AdminLink variant="primary" href={`/admin/series/new?medium=${encodeURIComponent(s.id)}`}>
@@ -202,21 +224,14 @@ export default async function EditSeriesPage({
             </AdminLink>
           </div>
           {childSeries.length > 0 ? (
-            <ul className="mt-6 divide-y divide-line border-t border-line text-sm">
-              {childSeries.map((c) => (
-                <li key={c.id} className="flex items-center justify-between gap-4 py-3">
-                  <span>{c.title}</span>
-                  <AdminLink href={`/admin/series/${c.id}`}>Manage series</AdminLink>
-                </li>
-              ))}
-            </ul>
+            <AdminChildSeriesList mediumId={s.id} rows={childSeries.map((c) => ({ id: c.id, title: c.title }))} />
           ) : (
             <p className="mt-6 text-sm text-muted">No series yet.</p>
           )}
         </div>
       ) : null}
 
-      <div className="space-y-4">
+      <div data-admin-section="Paintings in this gallery" className="space-y-4">
         <div className="flex items-end justify-between gap-4">
           <div>
             <h2 className="font-serif text-2xl tracking-tight">Paintings in this gallery</h2>
@@ -226,55 +241,20 @@ export default async function EditSeriesPage({
           </div>
         </div>
 
-        <AdminLightboxProvider slides={artworkSlides}>
-        <div className="overflow-hidden border border-line bg-white/50">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-line bg-white/70 text-xs tracking-[0.18em] text-muted uppercase">
-              <tr>
-                <th className="px-4 py-3">Preview</th>
-                <th className="px-4 py-3">Title</th>
-                <th className="px-4 py-3">Order</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {arts.map((a, idx) => (
-                <tr key={a.id} className="border-b border-line last:border-b-0">
-                  <td className="px-4 py-3">
-                    <AdminLightboxTrigger index={idx} label={`View ${a.title}`}>
-                      <div className="relative h-16 w-16 overflow-hidden border border-line bg-black/[0.03]">
-                        <Image src={a.image} alt="" fill className="object-cover" />
-                      </div>
-                    </AdminLightboxTrigger>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{a.title}</div>
-                    <div className="text-xs text-muted">
-                      {a.medium}
-                      {a.size ? ` · ${a.size}` : ""}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-muted">{a.sortOrder}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <AdminReorderButtons
-                        action={reorderArtwork}
-                        fields={{ id: a.id, seriesId: s.id }}
-                        disableUp={idx === 0}
-                        disableDown={idx === arts.length - 1}
-                      />
-                      <AdminLink href={`/admin/artworks/${a.id}`}>Edit</AdminLink>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </AdminLightboxProvider>
+        <AdminGalleryArtworkTable
+          seriesId={s.id}
+          rows={arts.map((a) => ({
+            id: a.id,
+            title: a.title,
+            medium: a.medium,
+            size: a.size,
+            image: a.image,
+            alt: a.alt,
+          }))}
+        />
       </div>
 
-      <div id="add-artwork" className="border border-line bg-white/50 p-6">
+      <div id="add-artwork" data-admin-section="Add artwork" className="border border-line bg-white/50 p-6">
         <h3 className="font-serif text-xl tracking-tight">Add artwork</h3>
         <form id="series-add-artwork" action={upsertArtwork} className="mt-6 space-y-4">
           <input type="hidden" name="id" value="" />
@@ -308,10 +288,10 @@ export default async function EditSeriesPage({
             value={isMediumGallery ? s.id : null}
             required={isMediumGallery}
           />
-          <label className="block text-sm text-muted">
+          <div className="block text-sm text-muted">
             Description (optional)
-            <textarea name="description" rows={3} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
-          </label>
+            <AdminRichTextEditor name="description" size="sm" ariaLabel="Description" />
+          </div>
           <label className="block text-sm text-muted">
             Alt text (optional)
             <input name="alt" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
@@ -323,12 +303,12 @@ export default async function EditSeriesPage({
               <input name="sortOrder" defaultValue={String((arts[arts.length - 1]?.sortOrder ?? -1) + 1)} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
             </label>
           </div>
-          <AdminDirtySave formId="series-add-artwork" />
+          <AdminSaveTracker formId="series-add-artwork" />
         </form>
       </div>
 
       {!isMediumGallery ? (
-        <div id="delete" className="border border-line bg-white/50 p-6">
+        <div id="delete" data-admin-section={isChildSeries ? "Delete series" : "Delete gallery"} className="border border-line bg-white/50 p-6">
           <h3 className="font-serif text-xl tracking-tight text-ink">
             {isChildSeries ? "Delete series" : "Delete gallery"}
           </h3>

@@ -2,6 +2,7 @@ import { upsertArtwork } from "@/app/admin/actions";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminLink, adminBtnPrimary } from "@/components/AdminLink";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
+import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
 import { getSeriesById, listMediumGalleries } from "@/lib/queries";
 
@@ -71,11 +72,11 @@ export default async function NewArtworkPage({
           <input name="alt" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
         </label>
 
-        <label className="block text-sm text-muted">
+        <div className="block text-sm text-muted">
           Description
           <span className="font-normal text-muted/80"> (optional)</span>
-          <textarea name="description" rows={4} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
-        </label>
+          <AdminRichTextEditor name="description" size="sm" ariaLabel="Description" />
+        </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <label className="block text-sm text-muted">

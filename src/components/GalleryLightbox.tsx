@@ -15,6 +15,7 @@ import { createPortal } from "react-dom";
 import type { GallerySlide } from "@/lib/gallerySlides";
 import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 import { ArtworkGalleryCaption } from "@/components/ArtworkGalleryCaption";
+import { RichText } from "@/components/RichText";
 
 export type { GallerySlide } from "@/lib/gallerySlides";
 
@@ -291,7 +292,10 @@ function LightboxDialog({ index, onClose }: { index: number; onClose: () => void
                 <p className="mt-1 text-xs tracking-wide text-white/50">{statusLabel(slide.status)}</p>
               ) : null}
               {slide.description ? (
-                <p className="mt-4 text-sm leading-relaxed text-white/55 md:text-center">{slide.description}</p>
+                <RichText
+                  content={slide.description}
+                  className="mt-4 text-sm leading-relaxed text-white/55 md:text-center"
+                />
               ) : null}
             </div>
           )}

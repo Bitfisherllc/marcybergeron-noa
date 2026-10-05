@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { getSiteContact } from "@/lib/contactPage";
 import { CONTACT, LIVE_SITE_URL, SITE_NAME } from "@/lib/site";
 import { postPublicHref } from "@/lib/postKind";
 import { workshopFormatLabel } from "@/lib/workshopCopy";
@@ -132,13 +133,14 @@ export async function sendContactEmail(payload: ContactPayload): Promise<void> {
     ].join("\n"),
   });
 
+  const contact = await getSiteContact();
   await transport.sendMail({
     from,
     to: payload.email,
     replyTo: CONTACT.email,
     subject: contactReceiptSubject(),
-    text: contactReceiptText(payload),
-    html: contactReceiptHtml(payload),
+    text: contactReceiptText(payload, contact),
+    html: contactReceiptHtml(payload, contact),
   });
 }
 

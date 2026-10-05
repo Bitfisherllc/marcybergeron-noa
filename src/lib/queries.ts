@@ -1,4 +1,5 @@
 import { asc, and, count, desc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { unstable_cache } from "next/cache";
 import type { Artwork, Series } from "@/db";
 import { artwork, artworkSeries, mailingListSignup, post, postCategory, postGalleryImage, series, seriesHeroSlide } from "@/db/schema";
@@ -440,19 +441,54 @@ export async function listMailingListSignups() {
 
 export { listContactMessages } from "@/lib/contactMessages";
 
+export type PickerSeriesTag = { title: string; sortOrder: number; portfolio: string; portfolioSortOrder: number };
+
+function pickerPortfolioName(slug: string, title: string): string {
+  return isStudioGallerySlug(slug) ? "The Studio" : title;
+}
+
 async function listArtworksWithSeriesForPickerUncached() {
-  const rows = await getDb()
-    .select({
-      id: artwork.id,
-      title: artwork.title,
-      image: artwork.image,
-      alt: artwork.alt,
-      seriesTitle: series.title,
-      seriesSlug: series.slug,
-    })
-    .from(artwork)
-    .leftJoin(series, eq(artwork.mediumSeriesId, series.id))
-    .orderBy(asc(artwork.title));
+  const db = getDb();
+  const parent = alias(series, "parent_series");
+  const [rows, memberships] = await Promise.all([
+    db
+      .select({
+        id: artwork.id,
+        title: artwork.title,
+        image: artwork.image,
+        alt: artwork.alt,
+        seriesTitle: series.title,
+        seriesSlug: series.slug,
+        seriesSortOrder: series.sortOrder,
+      })
+      .from(artwork)
+      .leftJoin(series, eq(artwork.mediumSeriesId, series.id))
+      .orderBy(asc(artwork.title)),
+    db
+      .select({
+        artworkId: artworkSeries.artworkId,
+        title: series.title,
+        sortOrder: series.sortOrder,
+        portfolioTitle: parent.title,
+        portfolioSlug: parent.slug,
+        portfolioSortOrder: parent.sortOrder,
+      })
+      .from(artworkSeries)
+      .innerJoin(series, eq(artworkSeries.seriesId, series.id))
+      .innerJoin(parent, eq(series.parentSeriesId, parent.id)),
+  ]);
+
+  const seriesByArtwork = new Map<string, PickerSeriesTag[]>();
+  for (const row of memberships) {
+    const list = seriesByArtwork.get(row.artworkId) ?? [];
+    list.push({
+      title: row.title,
+      sortOrder: row.sortOrder,
+      portfolio: pickerPortfolioName(row.portfolioSlug, row.portfolioTitle),
+      portfolioSortOrder: row.portfolioSortOrder,
+    });
+    seriesByArtwork.set(row.artworkId, list);
+  }
 
   return rows.map((row) => ({
     id: row.id,
@@ -461,16 +497,17 @@ async function listArtworksWithSeriesForPickerUncached() {
     image: row.image,
     alt: row.alt,
     href: row.seriesSlug ? artSeriesHref(row.seriesSlug) : "",
-    gallery:
-      row.seriesSlug && isStudioGallerySlug(row.seriesSlug) ? "The Studio" : (row.seriesTitle ?? ""),
+    gallery: row.seriesSlug ? pickerPortfolioName(row.seriesSlug, row.seriesTitle ?? "") : "",
+    gallerySortOrder: row.seriesSortOrder ?? 0,
+    series: seriesByArtwork.get(row.id) ?? [],
   }));
 }
 
 /** Admin painting pickers — one lightweight query, cached until artwork changes. */
 export const listArtworksWithSeriesForPicker = unstable_cache(
   listArtworksWithSeriesForPickerUncached,
-  ["artwork-picker", "v4"],
-  { revalidate: SITE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.artwork] },
+  ["artwork-picker", "v5"],
+  { revalidate: SITE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.artwork, CACHE_TAGS.series] },
 );
 
 /** All artworks grouped for All Work — portfolio memberships plus medium-only pieces. */

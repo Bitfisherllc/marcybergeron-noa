@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
+import { SocialIcon } from "@/components/SocialIcon";
+import { socialLinkLabel, type SocialLink } from "@/lib/socialLinks";
 
 type NavItem = { href: string; label: string };
 
@@ -13,16 +15,6 @@ function HamburgerIcon() {
       <span className="absolute top-1.5 left-0 block h-px w-full bg-current" />
       <span className="absolute top-[14px] left-0 block h-px w-full bg-current" />
     </span>
-  );
-}
-
-function InstagramIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
-    </svg>
   );
 }
 
@@ -126,17 +118,23 @@ function MobileNavSection({
 }
 
 export function SiteMobileMenu({
+  homeLink,
+  portfolioHref = "/medium",
+  portfolioOverviewLabel = "View portfolio",
   portfolioItems,
   aboutItems,
   workshopsLink,
   navLinks,
-  instagramHref,
+  socialLinks,
 }: {
+  homeLink?: NavItem;
+  portfolioHref?: string;
+  portfolioOverviewLabel?: string;
   portfolioItems: NavItem[];
   aboutItems: NavItem[];
   workshopsLink: NavItem;
   navLinks: readonly NavItem[];
-  instagramHref: string;
+  socialLinks: SocialLink[];
 }) {
   const pathname = usePathname();
   const panelId = useId();
@@ -215,10 +213,17 @@ export function SiteMobileMenu({
           </button>
         </div>
         <ul className="flex-1 overflow-y-auto px-5 py-4 text-sm">
+          {homeLink ? (
+            <li>
+              <Link className="block rounded-sm px-1 py-2.5 hover:bg-black/[0.03]" href={homeLink.href} onClick={close}>
+                {homeLink.label}
+              </Link>
+            </li>
+          ) : null}
           <MobileNavSection
             title="Portfolio"
-            overviewHref="/medium"
-            overviewLabel="View portfolio"
+            overviewHref={portfolioHref}
+            overviewLabel={portfolioOverviewLabel}
             items={portfolioItems}
             expanded={Boolean(expanded.portfolio)}
             onToggle={() => toggleSection("portfolio")}
@@ -252,18 +257,23 @@ export function SiteMobileMenu({
             </li>
           ))}
         </ul>
-        <div className="border-t border-line px-5 py-4">
-          <a
-            className="inline-flex h-10 w-10 items-center justify-center rounded-sm text-muted hover:bg-black/[0.03] hover:text-ink focus-ring"
-            href={instagramHref}
-            rel="me noreferrer"
-            target="_blank"
-            aria-label="Instagram"
-            onClick={close}
-          >
-            <InstagramIcon className="block opacity-80" />
-          </a>
-        </div>
+        {socialLinks.length > 0 ? (
+          <div className="flex flex-wrap gap-1 border-t border-line px-5 py-4">
+            {socialLinks.map((link) => (
+              <a
+                key={link.url}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-sm text-muted hover:bg-black/[0.03] hover:text-ink focus-ring"
+                href={link.url}
+                rel="me noreferrer"
+                target="_blank"
+                aria-label={socialLinkLabel(link)}
+                onClick={close}
+              >
+                <SocialIcon url={link.url} className="block opacity-80" />
+              </a>
+            ))}
+          </div>
+        ) : null}
       </nav>
     </div>
   );

@@ -18,13 +18,8 @@ export type HomeSectionCopy = {
   visible: boolean;
 };
 
-/** Sections Marcy can show or hide on the public home page. */
-export const HOME_TOGGLEABLE_SECTIONS = ["featured_series", "journal", "selected_works"] as const;
-export type HomeToggleableSection = (typeof HOME_TOGGLEABLE_SECTIONS)[number];
-
-export function isHomeToggleableSection(key: string): key is HomeToggleableSection {
-  return (HOME_TOGGLEABLE_SECTIONS as readonly string[]).includes(key);
-}
+/** `home_section` row that only stores whether the hero slideshow is shown. Missing row = shown. */
+export const HOME_SLIDESHOW_SECTION = "slideshow";
 
 export const HOME_SECTION_DEFAULTS: Record<HomeSectionKey, HomeSectionCopy> = {
   hero: {
@@ -43,7 +38,7 @@ export const HOME_SECTION_DEFAULTS: Record<HomeSectionKey, HomeSectionCopy> = {
   },
   journal: {
     eyebrow: "",
-    title: "Journal",
+    title: "News",
     quote: "",
     body: "Exhibitions, studio notes, and memberships—short reads from the news section.",
     visible: false,

@@ -1,21 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { submitContact } from "@/app/(site)/contact/actions";
+import { ContactForm } from "@/components/ContactForm";
+import { RichText } from "@/components/RichText";
+import { SocialIcon } from "@/components/SocialIcon";
+import { createFormChallenge } from "@/lib/formGuard";
 import { buildArtworkInquiryMessage } from "@/lib/artworkInquiry";
+import { phoneHref } from "@/lib/contactDefaults";
+import { getSiteContact } from "@/lib/contactPage";
 import { buildSeriesInquiryMessage } from "@/lib/seriesInquiry";
 import { getArtwork, getArtworkGalleryMeta, getSeriesBySlug } from "@/lib/queries";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
-import { CONTACT, SITE_URL } from "@/lib/site";
-
-function InstagramIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
-    </svg>
-  );
-}
+import { SITE_URL } from "@/lib/site";
+import { socialLinkLabel } from "@/lib/socialLinks";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +31,7 @@ export default async function ContactPage({
   const formError = sp.error === "send" ? "send" : sp.error ? "fields" : null;
   const artworkId = String(sp.artwork ?? "").trim();
   const seriesSlug = normalizeRouteSlug(String(sp.series ?? ""));
+  const contact = await getSiteContact();
 
   let defaultMessage = "";
   const inquiryPiece = artworkId ? await getArtwork(artworkId) : null;
@@ -51,22 +48,17 @@ export default async function ContactPage({
     <div>
       <section className="border-b border-line">
         <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-20">
-          <p className="text-xs tracking-[0.22em] text-muted uppercase">Contact</p>
+          {contact.eyebrow ? (
+            <p className="text-xs tracking-[0.22em] text-muted uppercase">{contact.eyebrow}</p>
+          ) : null}
           <div className="mt-4 flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between sm:gap-10 lg:gap-14">
             <div className="min-w-0 flex-1">
-              <h1 className="max-w-3xl font-serif text-3xl tracking-tight sm:text-4xl md:text-5xl">Reach the studio</h1>
-              <p className="mt-6 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
-                For availability, commissions, and exhibition inquiries, email is the most reliable path. Phone messages
-                are welcome for time-sensitive notes.
-              </p>
-              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
-                <Link href="/directions" className="link-quiet font-medium text-ink/90">
-                  Directions &amp; map
-                </Link>
-                {" "}
-                — driving, transit, and an interactive map, plus (if you choose) approximate distance from your
-                current location in the browser.
-              </p>
+              <h1 className="max-w-3xl font-serif text-3xl tracking-tight sm:text-4xl md:text-5xl">{contact.title}</h1>
+              <RichText
+                content={contact.intro}
+                spacing="[&>*+*]:mt-4"
+                className="mt-6 max-w-2xl text-sm leading-relaxed text-muted sm:text-base [&_a]:font-medium [&_a]:text-ink/90"
+              />
             </div>
             <div className="flex shrink-0 justify-start sm:justify-end">
               <img
@@ -93,47 +85,58 @@ export default async function ContactPage({
                 <div>
                   <dt className="text-xs tracking-[0.18em] text-muted uppercase">Email</dt>
                   <dd className="mt-2">
-                    <a className="link-quiet" href={`mailto:${CONTACT.email}`}>
-                      {CONTACT.email}
+                    <a className="link-quiet" href={`mailto:${contact.email}`}>
+                      {contact.email}
                     </a>
                   </dd>
                 </div>
-                <div>
-                  <dt className="text-xs tracking-[0.18em] text-muted uppercase">Phone</dt>
-                  <dd className="mt-2">
-                    <a className="link-quiet" href={`tel:${CONTACT.phone.replace(/\s/g, "")}`}>
-                      {CONTACT.phone}
-                    </a>
-                  </dd>
-                </div>
+                {contact.phone ? (
+                  <div>
+                    <dt className="text-xs tracking-[0.18em] text-muted uppercase">Phone</dt>
+                    <dd className="mt-2">
+                      <a className="link-quiet" href={phoneHref(contact.phone)}>
+                        {contact.phone}
+                      </a>
+                    </dd>
+                  </div>
+                ) : null}
               </dl>
             </div>
 
-            <div>
-              <h2 className="font-serif text-2xl tracking-tight">Studio</h2>
-              <div className="mt-5 h-px w-16 bg-line" />
-              <address className="mt-8 space-y-1 text-sm not-italic leading-relaxed text-muted">
-                {CONTACT.studioLines.map((l) => (
-                  <div key={l}>{l}</div>
-                ))}
-              </address>
-            </div>
-
-            <div>
-              <h2 className="font-serif text-2xl tracking-tight">Social</h2>
-              <div className="mt-5 h-px w-16 bg-line" />
-              <div className="mt-8">
-                <a
-                  className="inline-flex text-ink/80 transition-colors hover:text-ink focus-ring rounded-sm"
-                  href={CONTACT.instagram}
-                  rel="me noreferrer"
-                  target="_blank"
-                  aria-label="Instagram"
-                >
-                  <InstagramIcon />
-                </a>
+            {contact.studioLines.length > 0 ? (
+              <div>
+                <h2 className="font-serif text-2xl tracking-tight">Studio</h2>
+                <div className="mt-5 h-px w-16 bg-line" />
+                <address className="mt-8 space-y-1 text-sm not-italic leading-relaxed text-muted">
+                  {contact.studioLines.map((l, i) => (
+                    <div key={`${i}-${l}`}>{l}</div>
+                  ))}
+                </address>
               </div>
-            </div>
+            ) : null}
+
+            {contact.socialLinks.length > 0 ? (
+              <div>
+                <h2 className="font-serif text-2xl tracking-tight">Social</h2>
+                <div className="mt-5 h-px w-16 bg-line" />
+                <ul className="mt-8 flex flex-wrap gap-5">
+                  {contact.socialLinks.map((link) => (
+                    <li key={link.url}>
+                      <a
+                        className="inline-flex text-ink/80 transition-colors hover:text-ink focus-ring rounded-sm"
+                        href={link.url}
+                        rel="me noreferrer"
+                        target="_blank"
+                        aria-label={socialLinkLabel(link)}
+                        title={socialLinkLabel(link)}
+                      >
+                        <SocialIcon url={link.url} size={28} />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-8 lg:col-span-7">
@@ -148,8 +151,8 @@ export default async function ContactPage({
                   </p>
                   <p className="mt-4 max-w-prose text-sm leading-relaxed text-muted">
                     If you think of anything else, you are welcome to send another message, or write directly to{" "}
-                    <a className="link-quiet text-ink/90" href={`mailto:${CONTACT.email}`}>
-                      {CONTACT.email}
+                    <a className="link-quiet text-ink/90" href={`mailto:${contact.email}`}>
+                      {contact.email}
                     </a>
                     .
                   </p>
@@ -164,7 +167,7 @@ export default async function ContactPage({
                 <>
                   <h2 className="font-serif text-2xl tracking-tight">Send a message</h2>
                   <p className="mt-3 text-sm text-muted">
-                    Your message is emailed to the studio at {CONTACT.email}. For urgent requests, email directly.
+                    Your message is emailed to the studio at {contact.email}. For urgent requests, email directly.
                   </p>
 
                   {inquiryPiece ? (
@@ -189,31 +192,12 @@ export default async function ContactPage({
                     </p>
                   ) : null}
 
-                  <form action={submitContact} className="mt-6 space-y-4">
-                    {artworkId && inquiryPiece ? <input type="hidden" name="artwork" value={artworkId} /> : null}
-                    {seriesSlug && inquirySeries ? <input type="hidden" name="series" value={seriesSlug} /> : null}
-                    <label className="block text-sm text-muted">
-                      Name
-                      <input name="name" required className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
-                    </label>
-                    <label className="block text-sm text-muted">
-                      Email
-                      <input name="email" type="email" required className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
-                    </label>
-                    <label className="block text-sm text-muted">
-                      Message
-                      <textarea
-                        name="message"
-                        required
-                        rows={6}
-                        defaultValue={defaultMessage}
-                        className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
-                      />
-                    </label>
-                    <button className="border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase" type="submit">
-                      Send
-                    </button>
-                  </form>
+                  <ContactForm
+                    challenge={createFormChallenge()}
+                    artworkId={artworkId && inquiryPiece ? artworkId : undefined}
+                    seriesSlug={seriesSlug && inquirySeries ? seriesSlug : undefined}
+                    defaultMessage={defaultMessage}
+                  />
                 </>
               )}
             </div>

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "predev": "dotenv -e .env.local -- tsx scripts/migrate-private-galleries.ts && dotenv -e .env.local -- tsx scripts/migrate-featured-artwork.ts && dotenv -e .env.local -- tsx scripts/migrate-image-dimensions.ts && dotenv -e .env.local -- tsx scripts/migrate-post-show-date.ts && dotenv -e .env.local -- tsx scripts/migrate-post-gallery.ts && dotenv -e .env.local -- tsx scripts/migrate-post-kind.ts && dotenv -e .env.local -- tsx scripts/migrate-post-categories.ts && dotenv -e .env.local -- tsx scripts/migrate-post-index-copy.ts && dotenv -e .env.local -- tsx scripts/migrate-post-price.ts && dotenv -e .env.local -- tsx scripts/migrate-workshop-inquiry.ts && dotenv -e .env.local -- tsx scripts/migrate-series-hero-slides.ts && dotenv -e .env.local -- tsx scripts/migrate-show-hero-slideshow.ts && dotenv -e .env.local -- tsx scripts/migrate-home-section-visible.ts && dotenv -e .env.local -- tsx scripts/migrate-site-favicon.ts && dotenv -e .env.local -- tsx scripts/migrate-home-slideshow-href.ts && dotenv -e .env.local -- tsx scripts/migrate-series-parent.ts && dotenv -e .env.local -- tsx scripts/migrate-ocw-gallery-images.ts && dotenv -e .env.local -- tsx scripts/migrate-remove-general-oil-cold-wax.ts",
+    "predev": "dotenv -e .env.local -- tsx scripts/migrate-private-galleries.ts && dotenv -e .env.local -- tsx scripts/migrate-featured-artwork.ts && dotenv -e .env.local -- tsx scripts/migrate-image-dimensions.ts && dotenv -e .env.local -- tsx scripts/migrate-post-show-date.ts && dotenv -e .env.local -- tsx scripts/migrate-post-gallery.ts && dotenv -e .env.local -- tsx scripts/migrate-post-kind.ts && dotenv -e .env.local -- tsx scripts/migrate-post-categories.ts && dotenv -e .env.local -- tsx scripts/migrate-post-index-copy.ts && dotenv -e .env.local -- tsx scripts/migrate-post-price.ts && dotenv -e .env.local -- tsx scripts/migrate-workshop-inquiry.ts && dotenv -e .env.local -- tsx scripts/migrate-series-hero-slides.ts && dotenv -e .env.local -- tsx scripts/migrate-show-hero-slideshow.ts && dotenv -e .env.local -- tsx scripts/migrate-home-section-visible.ts && dotenv -e .env.local -- tsx scripts/migrate-site-favicon.ts && dotenv -e .env.local -- tsx scripts/migrate-contact-page.ts && dotenv -e .env.local -- tsx scripts/migrate-home-slideshow-href.ts && dotenv -e .env.local -- tsx scripts/migrate-series-parent.ts && dotenv -e .env.local -- tsx scripts/migrate-ocw-gallery-images.ts && dotenv -e .env.local -- tsx scripts/migrate-remove-general-oil-cold-wax.ts",
     "dev:turbo": "next dev",
     "prebuild": "dotenv -e .env.local -- tsx scripts/prebuild-db.ts",
     "build": "next build",
@@ -31,6 +31,7 @@
     "db:ensure-show-hero-slideshow": "dotenv -e .env.local -- tsx scripts/migrate-show-hero-slideshow.ts",
     "db:ensure-home-section-visible": "dotenv -e .env.local -- tsx scripts/migrate-home-section-visible.ts",
     "db:ensure-site-favicon": "dotenv -e .env.local -- tsx scripts/migrate-site-favicon.ts",
+    "db:ensure-contact-page": "dotenv -e .env.local -- tsx scripts/migrate-contact-page.ts",
     "db:ensure-home-slideshow-href": "dotenv -e .env.local -- tsx scripts/migrate-home-slideshow-href.ts",
     "db:ensure-ocw-gallery-images": "dotenv -e .env.local -- tsx scripts/migrate-ocw-gallery-images.ts",
     "db:ensure-series-parent": "dotenv -e .env.local -- tsx scripts/migrate-series-parent.ts",
@@ -43,11 +44,16 @@
     "seed": "dotenv -e .env.local -- tsx scripts/seed.ts"
   },
   "dependencies": {
+    "@tiptap/extension-text-align": "^3.31.4",
+    "@tiptap/pm": "^3.31.4",
+    "@tiptap/react": "^3.31.4",
+    "@tiptap/starter-kit": "^3.31.4",
     "@vercel/blob": "^2.4.0",
     "better-sqlite3": "^12.10.0",
     "drizzle-orm": "^0.45.2",
     "image-size": "^2.0.2",
     "jose": "^6.2.3",
+    "marked": "^18.0.14",
     "nanoid": "^5.1.11",
     "next": "16.2.6",
     "nodemailer": "^9.0.0",
@@ -55,7 +61,8 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
-    "rehype-raw": "^7.0.0"
+    "rehype-raw": "^7.0.0",
+    "remark-breaks": "^4.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

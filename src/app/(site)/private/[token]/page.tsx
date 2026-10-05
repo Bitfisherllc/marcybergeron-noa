@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { SeriesGalleryView } from "@/components/SeriesGalleryView";
 import { isPrivateGallery } from "@/lib/privateGalleries";
 import { getSeriesByAccessToken } from "@/lib/queries";
+import { richTextToPlain } from "@/lib/richText";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export async function generateMetadata({
   if (!s || !isPrivateGallery(s)) return {};
   return {
     title: `${s.title} — Private gallery`,
-    description: s.excerpt,
+    description: richTextToPlain(s.excerpt),
     robots: { index: false, follow: false },
   };
 }

@@ -13,7 +13,12 @@ import {
 } from "@/db/schema";
 import { getDb } from "@/db";
 import { CACHE_TAGS, SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
-import { HOME_SECTION_DEFAULTS, HOME_SECTION_KEYS, type HomeSectionKey } from "@/lib/homeDefaults";
+import {
+  HOME_SECTION_DEFAULTS,
+  HOME_SECTION_KEYS,
+  HOME_SLIDESHOW_SECTION,
+  type HomeSectionKey,
+} from "@/lib/homeDefaults";
 import { featuredHomePieces, getPrimarySeriesForArtworks, heroHomeSlides, listChildSeries, listPublishedPosts } from "@/lib/queries";
 import { HOME_SLIDESHOW_MAX } from "@/lib/featuredArtwork";
 import { heroSlideAlt, type HeroSlide, toHeroSlide } from "@/lib/heroSlides";
@@ -44,6 +49,14 @@ export async function getResolvedHomeSections(): Promise<Record<HomeSectionKey, 
       : { ...def };
   }
   return out;
+}
+
+export async function getHomeSlideshowVisible(): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ visible: homeSection.visible })
+    .from(homeSection)
+    .where(eq(homeSection.section, HOME_SLIDESHOW_SECTION));
+  return row?.visible ?? true;
 }
 
 export async function getResolvedHeroSlides(): Promise<HeroSlide[]> {
@@ -157,18 +170,19 @@ export async function getResolvedSelectedWorks(): Promise<{ series: Series; piec
 }
 
 async function getPublicHomePayloadUncached() {
-  const [sections, featuredSeries, journalPosts, selectedPicks, slides] = await Promise.all([
+  const [sections, featuredSeries, journalPosts, selectedPicks, slides, slideshowVisible] = await Promise.all([
     getResolvedHomeSections(),
     getResolvedFeaturedSeries(),
     getResolvedJournalPostsForHome(),
     getResolvedSelectedWorks(),
     getResolvedHeroSlides(),
+    getHomeSlideshowVisible(),
   ]);
-  return { sections, featuredSeries, journalPosts, selectedPicks, slides };
+  return { sections, featuredSeries, journalPosts, selectedPicks, slides, slideshowVisible };
 }
 
 /** Cached home payload so public visitors don't hit Railway on every request. */
-export const getPublicHomePayload = unstable_cache(getPublicHomePayloadUncached, ["public-home-payload", "v6"], {
+export const getPublicHomePayload = unstable_cache(getPublicHomePayloadUncached, ["public-home-payload", "v7"], {
   revalidate: SITE_REVALIDATE_SECONDS,
   tags: [CACHE_TAGS.home, CACHE_TAGS.posts, CACHE_TAGS.artwork, CACHE_TAGS.series],
 });

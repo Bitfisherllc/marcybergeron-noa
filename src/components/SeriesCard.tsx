@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Series } from "@/db";
+import { RichText } from "@/components/RichText";
 import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 import { artSeriesHref } from "@/lib/routeSlug";
 
@@ -24,7 +25,7 @@ export function SeriesCard({ s, portfolioType }: { s: Series; portfolioType?: st
             <p className="text-xs tracking-[0.18em] text-muted uppercase">{portfolioType}</p>
           ) : null}
           <h3 className="font-serif text-2xl tracking-tight">{s.title}</h3>
-          <p className="text-sm leading-relaxed text-muted">{s.excerpt}</p>
+          <RichText content={s.excerpt} insideLink className="text-sm leading-relaxed text-muted" />
           <span className="inline-flex items-center gap-2 text-xs tracking-[0.18em] text-ink/70 uppercase">
             View series
             <span aria-hidden className="translate-x-0 transition group-hover:translate-x-0.5">

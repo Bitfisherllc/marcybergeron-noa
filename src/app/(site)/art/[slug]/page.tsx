@@ -8,6 +8,7 @@ import { isAllWorkSlug } from "@/lib/portfolioGalleries";
 import { isPrivateGallery } from "@/lib/privateGalleries";
 import { getSeriesBySlug, listChildSeries, listMediumGalleries } from "@/lib/queries";
 import { SITE_URL } from "@/lib/site";
+import { richTextToPlain } from "@/lib/richText";
 import { artSeriesHref, normalizeRouteSlug } from "@/lib/routeSlug";
 
 export const revalidate = 300;
@@ -39,7 +40,7 @@ export async function generateMetadata({
   if (!s || isPrivateGallery(s)) return {};
   return {
     title: `${s.title} Series`,
-    description: s.excerpt,
+    description: richTextToPlain(s.excerpt),
     alternates: { canonical: `${SITE_URL}${artSeriesHref(s.slug)}` },
   };
 }

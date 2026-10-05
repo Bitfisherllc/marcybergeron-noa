@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { submitMailingListSignup } from "@/app/(site)/mailing-list/actions";
+import { MailingListForm } from "@/components/MailingListForm";
+import { createFormChallenge } from "@/lib/formGuard";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: `Mailing list — ${SITE_NAME}`,
@@ -58,40 +59,7 @@ export default async function MailingListPage({
             ) : null}
 
             {!sp.ok ? (
-              <form action={submitMailingListSignup} className="mt-2 space-y-4">
-                <label className="block text-sm text-muted">
-                  Name <span className="text-muted/70">(optional)</span>
-                  <input name="name" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
-                </label>
-                <label className="block text-sm text-muted">
-                  Email
-                  <input
-                    name="email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
-                  />
-                </label>
-                <div className="hidden" aria-hidden="true">
-                  <label>
-                    Company
-                    <input name="company" tabIndex={-1} autoComplete="off" />
-                  </label>
-                </div>
-                <button
-                  className="border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase"
-                  type="submit"
-                >
-                  Join the list
-                </button>
-                <p className="text-xs leading-relaxed text-muted">
-                  We do not share your information. Unsubscribe at any time.{" "}
-                  <Link className="link-quiet" href="/privacy">
-                    Privacy Policy
-                  </Link>
-                </p>
-              </form>
+              <MailingListForm challenge={createFormChallenge()} />
             ) : (
               <p className="mt-6 text-sm text-muted">
                 <Link className="link-quiet" href="/">

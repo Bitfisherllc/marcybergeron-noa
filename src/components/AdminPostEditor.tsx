@@ -11,7 +11,8 @@ import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminLightboxProvider, AdminLightboxThumb, AdminLightboxTrigger } from "@/components/AdminImageLightbox";
 import { AdminLink, adminBtnDanger, adminBtnPrimary } from "@/components/AdminLink";
 import { AdminReorderButtons } from "@/components/AdminReorderButtons";
-import { AdminDirtySave } from "@/components/AdminSectionSave";
+import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
+import { AdminSaveTracker } from "@/components/AdminSaveTracker";
 import { AdminPostCategorySelect } from "@/components/AdminPostCategorySelect";
 import { getDb } from "@/db";
 import { post } from "@/db/schema";
@@ -75,7 +76,7 @@ export async function AdminPostEdit({
 }: {
   kind: PostKind;
   id: string;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string }>;
 }) {
   const sp = await searchParams;
   const p = await getPostById(id);
@@ -101,6 +102,7 @@ export async function AdminPostEdit({
         <p className="mt-3 text-sm text-muted">
           Public URL: <span className="text-ink/80">{postPublicHref(kind, p.slug)}</span>
         </p>
+        {sp.saved ? <p className="mt-3 text-sm text-ink">Saved.</p> : null}
         {sp.error === "gallery" ? (
           <p className="mt-3 text-sm text-red-700">Choose an image to add to the gallery.</p>
         ) : null}
@@ -109,7 +111,11 @@ export async function AdminPostEdit({
         ) : null}
       </div>
 
-      <form action={upsertPost} className="space-y-6 border border-line bg-white/50 p-6">
+      <form
+        id="post-edit"
+        data-admin-section={kind === "workshop" ? "Workshop details" : "Post details"}
+        action={upsertPost}
+        className="space-y-6 border border-line bg-white/50 p-6">
         <input type="hidden" name="id" value={p.id} />
         <input type="hidden" name="kind" value={kind} />
         <AdminPostFields
@@ -137,17 +143,13 @@ export async function AdminPostEdit({
             </div>
           </AdminLightboxThumb>
         ) : null}
-        <div className="flex flex-wrap gap-3">
-          <button className={adminBtnPrimary} type="submit">
-            {copy.adminSave}
-          </button>
-          <AdminLink variant="back" href={adminBase}>
-            Back
-          </AdminLink>
-        </div>
+        <AdminLink variant="back" href={adminBase}>
+          Back
+        </AdminLink>
+        <AdminSaveTracker formId="post-edit" />
       </form>
 
-      <div className="border border-line bg-white/50 p-6">
+      <div data-admin-section="Lightbox gallery" className="border border-line bg-white/50 p-6">
         <h2 className="font-serif text-xl tracking-tight">Lightbox gallery</h2>
         <p className="mt-2 max-w-prose text-sm text-muted">
           Images here appear under the article, above the next-article slider. Visitors can click any image to view it
@@ -203,7 +205,7 @@ export async function AdminPostEdit({
                         className="mt-1.5 w-full border border-line bg-paper px-3 py-2 text-sm text-ink"
                       />
                     </label>
-                    <AdminDirtySave formId={`post-gallery-${img.id}`} />
+                    <AdminSaveTracker formId={`post-gallery-${img.id}`} />
                   </form>
                   <div className="flex shrink-0 flex-wrap items-center gap-2 self-start pt-6">
                     <AdminReorderButtons
@@ -276,26 +278,21 @@ function AdminPostFields({
           />
         </label>
       </div>
-      <label className="block text-sm text-muted">
+      <div className="block text-sm text-muted">
         Excerpt
-        <textarea
-          name="excerpt"
-          required
-          rows={3}
-          defaultValue={defaults?.excerpt}
-          className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
-        />
-      </label>
-      <label className="block text-sm text-muted">
-        Content (Markdown)
-        <textarea
+        <AdminRichTextEditor name="excerpt" required defaultValue={defaults?.excerpt} size="sm" ariaLabel="Excerpt" />
+      </div>
+      <div className="block text-sm text-muted">
+        Content
+        <AdminRichTextEditor
           name="content"
           required
-          rows={14}
           defaultValue={defaults?.content}
-          className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
+          size="lg"
+          headings
+          ariaLabel="Content"
         />
-      </label>
+      </div>
       <div className="grid gap-6 md:grid-cols-2">
         <AdminPostCategorySelect categories={categories} defaultValue={defaults?.category} />
         <label className="block text-sm text-muted">

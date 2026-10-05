@@ -3,8 +3,9 @@ import { deleteArtwork, upsertArtwork } from "@/app/admin/actions";
 import { ArtCaption, captionSubtitle } from "@/components/ArtCaption";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminLink, adminBtnDanger } from "@/components/AdminLink";
-import { AdminDirtySave } from "@/components/AdminSectionSave";
+import { AdminSaveTracker } from "@/components/AdminSaveTracker";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
+import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
 import { resolveMediumSeriesId, isMediumGallerySlug } from "@/lib/mediumGalleries";
 import { getArtwork, getSeriesById, listMediumGalleries } from "@/lib/queries";
 
@@ -92,14 +93,14 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
                 Leave blank to auto-generate from title and material/size.
               </span>
             </label>
-            <label className="block text-sm text-muted">
+            <div className="block text-sm text-muted">
               Description
               <span className="font-normal text-muted/80"> (optional)</span>
-              <textarea name="description" rows={4} defaultValue={a.description} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+              <AdminRichTextEditor name="description" defaultValue={a.description} size="sm" ariaLabel="Description" />
               <span className="mt-1.5 block text-xs leading-relaxed text-muted">
                 Extra text below the caption on the live gallery page.
               </span>
-            </label>
+            </div>
             <label className="block text-sm text-muted">
               Status
               <select name="status" defaultValue={a.status} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm">
@@ -113,7 +114,7 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
               <input name="sortOrder" defaultValue={String(a.sortOrder)} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
             </label>
 
-            <AdminDirtySave formId="artwork-edit" />
+            <AdminSaveTracker formId="artwork-edit" />
             <div className="flex flex-wrap gap-3">
               <AdminLink variant="back" href={backHref}>
                 Back

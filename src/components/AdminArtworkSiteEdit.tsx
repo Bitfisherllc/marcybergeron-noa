@@ -2,7 +2,7 @@ import type { Series } from "@/db";
 import { updateArtworkMembershipFromSite } from "@/app/admin/actions";
 import { AdminLink } from "@/components/AdminLink";
 import { AdminDeleteArtworkForm } from "@/components/AdminDeleteArtworkForm";
-import { AdminDirtySave } from "@/components/AdminSectionSave";
+import { AdminSaveTracker } from "@/components/AdminSaveTracker";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
 
 type AdminArtworkSiteEditProps = {
@@ -46,7 +46,7 @@ export function AdminArtworkSiteEdit({
             <option value="sold">Sold</option>
           </select>
         </label>
-        <AdminDirtySave formId={formId} />
+        <AdminSaveTracker formId={formId} />
       </form>
 
       <AdminDeleteArtworkForm artworkId={artworkId} title={title} returnPath={returnPath} />

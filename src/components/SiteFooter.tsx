@@ -1,17 +1,12 @@
 import Link from "next/link";
-import { CONTACT, SITE_DOMAIN, SITE_NAME } from "@/lib/site";
+import { SocialIcon } from "@/components/SocialIcon";
+import { phoneHref } from "@/lib/contactDefaults";
+import { getSiteContact } from "@/lib/contactPage";
+import { SITE_DOMAIN, SITE_NAME } from "@/lib/site";
+import { socialLinkLabel } from "@/lib/socialLinks";
 
-function InstagramIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
-    </svg>
-  );
-}
-
-export function SiteFooter() {
+export async function SiteFooter() {
+  const contact = await getSiteContact();
   return (
     <footer className="mt-20 border-t border-line">
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 md:grid-cols-3 md:px-8">
@@ -34,35 +29,39 @@ export function SiteFooter() {
         <div className="text-sm leading-relaxed text-muted">
           <div className="font-medium text-ink">Studio</div>
           <div className="mt-2 space-y-1">
-            {CONTACT.studioLines.map((l) => (
-              <div key={l}>{l}</div>
+            {contact.studioLines.map((l, i) => (
+              <div key={`${i}-${l}`}>{l}</div>
             ))}
           </div>
           <div className="mt-4 space-y-1">
-            <a className="link-quiet" href={`mailto:${CONTACT.email}`}>
-              {CONTACT.email}
+            <a className="link-quiet" href={`mailto:${contact.email}`}>
+              {contact.email}
             </a>
-            <div>
-              <a className="link-quiet" href={`tel:${CONTACT.phone.replace(/\s/g, "")}`}>
-                {CONTACT.phone}
-              </a>
-            </div>
+            {contact.phone ? (
+              <div>
+                <a className="link-quiet" href={phoneHref(contact.phone)}>
+                  {contact.phone}
+                </a>
+              </div>
+            ) : null}
           </div>
         </div>
         <div className="text-sm text-muted">
           <div className="font-medium text-ink">Connect</div>
           <ul className="mt-3 space-y-2">
-            <li>
-              <a
-                className="link-quiet inline-flex items-center gap-2"
-                href={CONTACT.instagram}
-                rel="me noreferrer"
-                target="_blank"
-              >
-                <InstagramIcon className="shrink-0 opacity-70" />
-                Instagram
-              </a>
-            </li>
+            {contact.socialLinks.map((link) => (
+              <li key={link.url}>
+                <a
+                  className="link-quiet inline-flex items-center gap-2"
+                  href={link.url}
+                  rel="me noreferrer"
+                  target="_blank"
+                >
+                  <SocialIcon url={link.url} size={16} className="shrink-0 opacity-70" />
+                  {socialLinkLabel(link)}
+                </a>
+              </li>
+            ))}
             <li>
               <Link className="link-quiet" href="/contact">
                 Contact Marcy

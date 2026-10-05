@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
+import { RichText } from "@/components/RichText";
 import { artSeriesHref } from "@/lib/routeSlug";
 import { SITE_URL } from "@/lib/site";
 import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
@@ -49,7 +50,7 @@ export default async function AboutPage() {
           ) : null}
           <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{hero.title}</h1>
           {hero.body ? (
-            <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted">{hero.body}</p>
+            <RichText content={hero.body} className="mt-6 max-w-2xl text-base leading-relaxed text-muted" />
           ) : null}
         </div>
       </section>

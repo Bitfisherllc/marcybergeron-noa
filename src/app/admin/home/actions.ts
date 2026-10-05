@@ -19,7 +19,7 @@ import {
 import { getDb } from "@/db";
 import { HOME_SLIDESHOW_MAX, resolveHeroSlideshowWrite } from "@/lib/featuredArtwork";
 import { allowedHomeSlideHrefs, listHomeSlideLinkGroups, sanitizeHomeSlideHref } from "@/lib/homeSlideLinks";
-import { HOME_SECTION_DEFAULTS, HOME_SECTION_KEYS, isHomeToggleableSection, type HomeSectionKey } from "@/lib/homeDefaults";
+import { HOME_SECTION_KEYS, HOME_SLIDESHOW_SECTION, type HomeSectionKey } from "@/lib/homeDefaults";
 import { SITE_FAVICON_ID } from "@/lib/siteFavicon";
 import { heroSlideAlt } from "@/lib/heroSlides";
 import { captionSubtitle } from "@/components/ArtCaption";
@@ -42,7 +42,7 @@ async function upsertHomeTextSection(db: ReturnType<typeof getDb>, key: HomeSect
   const title = String(formData.get("title") ?? "");
   const quote = String(formData.get("quote") ?? "");
   const body = String(formData.get("body") ?? "");
-  const visible = isHomeToggleableSection(key) ? readVisibleFlag(formData) : HOME_SECTION_DEFAULTS[key].visible;
+  const visible = readVisibleFlag(formData);
   await db
     .insert(homeSection)
     .values({
@@ -56,9 +56,7 @@ async function upsertHomeTextSection(db: ReturnType<typeof getDb>, key: HomeSect
     })
     .onConflictDoUpdate({
       target: homeSection.section,
-      set: isHomeToggleableSection(key)
-        ? { eyebrow, title, quote, body, visible, updatedAt: t }
-        : { eyebrow, title, quote, body, updatedAt: t },
+      set: { eyebrow, title, quote, body, visible, updatedAt: t },
     });
 }
 
@@ -248,6 +246,11 @@ export async function saveHomeSlideshowAction(formData: FormData) {
 
     await db.delete(homeSlideshow).where(sql`true`);
     const t = now();
+    const visible = readVisibleFlag(formData);
+    await db
+      .insert(homeSection)
+      .values({ section: HOME_SLIDESHOW_SECTION, visible, updatedAt: t })
+      .onConflictDoUpdate({ target: homeSection.section, set: { visible, updatedAt: t } });
     if (slides.length > 0) {
       await db.insert(homeSlideshow).values(
         slides.map((slide, sortOrder) => ({

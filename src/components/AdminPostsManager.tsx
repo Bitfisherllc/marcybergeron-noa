@@ -5,10 +5,12 @@ import {
   reorderPostCategory,
   savePostCategory,
   savePostIndexCopy,
+  setPostVisibility,
 } from "@/app/admin/actions";
-import { AdminLink, adminBtnDanger, adminBtnPrimary } from "@/components/AdminLink";
+import { AdminLink, adminBtnDanger, adminBtnPrimary, adminLinkVariants } from "@/components/AdminLink";
 import { AdminReorderButtons } from "@/components/AdminReorderButtons";
-import { AdminDirtySave } from "@/components/AdminSectionSave";
+import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
+import { AdminSaveTracker } from "@/components/AdminSaveTracker";
 import { listAllPostsAdmin, listPostCategories } from "@/lib/queries";
 import { getResolvedPostIndexCopy } from "@/lib/postIndexCopy";
 import { postAdminBasePath, postKindCopy, type PostKind } from "@/lib/postKind";
@@ -50,19 +52,17 @@ export async function AdminPostsManager({
           ) : null}
           {sp.saved === "category" ? <p className="mt-3 text-sm text-ink">Saved categories.</p> : null}
           {sp.saved === "page" ? <p className="mt-3 text-sm text-ink">Saved page intro.</p> : null}
+          {sp.saved === "hidden" ? <p className="mt-3 text-sm text-ink">Hidden from the public site.</p> : null}
+          {sp.saved === "shown" ? <p className="mt-3 text-sm text-ink">Showing on the public site.</p> : null}
           {sp.error && errorCopy[sp.error] ? <p className="mt-3 text-sm text-red-700">{errorCopy[sp.error]}</p> : null}
         </div>
-        <AdminLink variant="primary" href={`${adminBase}/new`}>
-          {copy.adminNew}
-        </AdminLink>
       </div>
 
-      <form id="post-index-copy" action={savePostIndexCopy} className="border border-line bg-white/50 p-6">
+      <form id="post-index-copy" data-admin-section="Page intro" action={savePostIndexCopy} className="border border-line bg-white/50 p-6">
         <input type="hidden" name="kind" value={kind} />
         <h2 className="font-serif text-xl tracking-tight">Page intro</h2>
         <p className="mt-2 max-w-prose text-sm text-muted">
-          Shown at the top of the public {kind === "workshop" ? "Workshops" : "News"} page. A red{" "}
-          <strong className="font-medium text-ink">SAVE</strong> button appears after you change something.
+          Shown at the top of the public {kind === "workshop" ? "Workshops" : "News"} page.
         </p>
         <label className="mt-6 block text-sm text-muted">
           Eyebrow
@@ -80,19 +80,17 @@ export async function AdminPostsManager({
             className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
           />
         </label>
-        <label className="mt-4 block text-sm text-muted">
+        <div className="mt-4 block text-sm text-muted">
           Intro
-          <textarea
-            name="intro"
-            rows={4}
-            defaultValue={header.intro}
-            className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm leading-relaxed"
-          />
-        </label>
-        <AdminDirtySave formId="post-index-copy" />
+          <AdminRichTextEditor name="intro" defaultValue={header.intro} size="sm" ariaLabel="Intro" />
+        </div>
+        <AdminSaveTracker formId="post-index-copy" />
       </form>
 
-      <div className="overflow-hidden border border-line bg-white/50">
+      <div
+        data-admin-section={kind === "workshop" ? "Workshops" : "Posts"}
+        className="overflow-hidden border border-line bg-white/50"
+      >
         <table className="w-full text-left text-sm">
           <thead className="border-b border-line bg-white/70 text-xs tracking-[0.18em] text-muted uppercase">
             <tr>
@@ -106,7 +104,7 @@ export async function AdminPostsManager({
           </thead>
           <tbody>
             {rows.map((p) => (
-              <tr key={p.id} className="border-b border-line last:border-b-0">
+              <tr key={p.id} className={`border-b border-line last:border-b-0 ${p.published ? "" : "bg-black/[0.03] text-muted"}`}>
                 <td className="px-4 py-3 font-medium">{p.title}</td>
                 <td className="px-4 py-3 text-muted">{p.category}</td>
                 {kind === "workshop" ? (
@@ -115,10 +113,20 @@ export async function AdminPostsManager({
                 {kind === "workshop" ? (
                   <td className="px-4 py-3 text-muted">{workshopDatesLabel(p.sessionDates)}</td>
                 ) : null}
-                <td className="px-4 py-3 text-muted">{p.published ? "Published" : "Draft"}</td>
+                <td className="px-4 py-3 text-muted">
+                  {p.published ? "Published" : <span className="font-medium text-ink/70">Hidden</span>}
+                </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
                     <AdminLink href={`${adminBase}/${p.id}`}>Edit</AdminLink>
+                    <form action={setPostVisibility}>
+                      <input type="hidden" name="id" value={p.id} />
+                      <input type="hidden" name="kind" value={kind} />
+                      <input type="hidden" name="visible" value={p.published ? "0" : "1"} />
+                      <button className={adminLinkVariants.secondary} type="submit">
+                        {p.published ? "Hide" : "Show"}
+                      </button>
+                    </form>
                     <form action={deletePost}>
                       <input type="hidden" name="id" value={p.id} />
                       <input type="hidden" name="kind" value={kind} />
@@ -134,7 +142,7 @@ export async function AdminPostsManager({
         </table>
       </div>
 
-      <div className="border border-line bg-white/50 p-6">
+      <div data-admin-section="Categories" className="border border-line bg-white/50 p-6">
         <h2 className="font-serif text-xl tracking-tight">Categories</h2>
         <p className="mt-2 max-w-prose text-sm text-muted">{copy.categorySectionHint}</p>
         <form action={addPostCategory} className="mt-6 flex flex-wrap items-end gap-4 border-t border-line pt-6">
@@ -171,7 +179,7 @@ export async function AdminPostsManager({
                       className="mt-1.5 w-full border border-line bg-paper px-3 py-2 text-sm text-ink"
                     />
                   </label>
-                  <AdminDirtySave formId={`post-category-${cat.id}`} />
+                  <AdminSaveTracker formId={`post-category-${cat.id}`} />
                 </form>
                 <div className="flex shrink-0 flex-wrap items-center gap-2 self-start pt-6">
                   <AdminReorderButtons

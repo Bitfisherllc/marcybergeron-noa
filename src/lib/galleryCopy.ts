@@ -1,7 +1,9 @@
+import { richTextToPlain } from "@/lib/richText";
+
 /** Hide seed/admin placeholder copy until real gallery text is entered. */
 
 export function isPlaceholderGalleryExcerpt(excerpt: string): boolean {
-  const text = excerpt.trim();
+  const text = richTextToPlain(excerpt);
   if (!text) return true;
   if (/^placeholder series/i.test(text)) return true;
   if (/will be filled in as this body of work takes shape/i.test(text)) return true;
@@ -11,7 +13,7 @@ export function isPlaceholderGalleryExcerpt(excerpt: string): boolean {
 }
 
 export function isPlaceholderGalleryStatement(content: string): boolean {
-  const text = content.trim();
+  const text = richTextToPlain(content);
   if (!text) return true;
   if (/reserved as a placeholder gallery on the site/i.test(text)) return true;
   if (/replace this statement, featured image, and works in the admin/i.test(text)) return true;

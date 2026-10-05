@@ -1,6 +1,7 @@
 import { upsertSeries } from "@/app/admin/actions";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminLink, adminBtnPrimary } from "@/components/AdminLink";
+import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
 import { AdminSeriesMediumField } from "@/components/AdminSeriesMediumField";
 import { publicPortfolioGalleries } from "@/lib/mediumGalleries";
 import { listMediumGalleries } from "@/lib/queries";
@@ -49,16 +50,16 @@ export default async function NewSeriesPage({
             />
           </label>
         </div>
-        <label className="block text-sm text-muted">
+        <div className="block text-sm text-muted">
           Listing excerpt
-          <textarea name="excerpt" rows={3} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+          <AdminRichTextEditor name="excerpt" size="sm" ariaLabel="Listing excerpt" />
           <span className="mt-2 block text-xs">Shown on the series card on the medium’s page.</span>
-        </label>
-        <label className="block text-sm text-muted">
-          About (Markdown)
-          <textarea name="content" rows={8} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+        </div>
+        <div className="block text-sm text-muted">
+          About
+          <AdminRichTextEditor name="content" size="lg" headings ariaLabel="About" />
           <span className="mt-2 block text-xs">Shown under the title on the series page.</span>
-        </label>
+        </div>
         <div className="grid gap-6 md:grid-cols-2">
           <label className="block text-sm text-muted">
             Sort order

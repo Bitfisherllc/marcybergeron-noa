@@ -10,7 +10,7 @@ type AdminGalleryPrivacyPanelProps = {
 
 export function AdminGalleryPrivacyPanel({ seriesId, isPrivate, accessToken }: AdminGalleryPrivacyPanelProps) {
   return (
-    <div className="border border-line bg-white/50 p-6">
+    <div data-admin-section="Privacy" className="border border-line bg-white/50 p-6">
       <h2 className="font-serif text-xl tracking-tight">Privacy</h2>
       <p className="mt-2 max-w-prose text-sm text-muted">
         {isPrivate

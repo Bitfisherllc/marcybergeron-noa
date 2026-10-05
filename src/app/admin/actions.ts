@@ -1,10 +1,10 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { artwork, contactMessage, post, postCategory, postGalleryImage, postIndexCopy, series, seriesHeroSlide, workshopInquiry } from "@/db/schema";
+import { artwork, artworkSeries, contactMessage, post, postCategory, postGalleryImage, postIndexCopy, series, seriesHeroSlide, workshopInquiry } from "@/db/schema";
 import { getDb } from "@/db";
 import {
   getArtworkPortfolioOnlySeriesIds,
@@ -32,8 +32,6 @@ import { generatePrivateGalleryAccessToken } from "@/lib/privateGalleries";
 import {
   getSeriesById,
   listArtworksForHeroPicks,
-  listArtworksForMediumGallery,
-  listArtworksForSeries,
   listPostCategories,
   listPostGalleryImages,
 } from "@/lib/queries";
@@ -631,39 +629,90 @@ export async function deleteArtwork(formData: FormData) {
   redirect(`/admin/series/${contextSeriesId}`);
 }
 
-export async function reorderArtwork(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  const seriesId = String(formData.get("seriesId") ?? "");
-  const dir = String(formData.get("dir") ?? "");
-  if (!id || !seriesId || (dir !== "up" && dir !== "down")) redirect(`/admin/series/${seriesId}`);
-
+/** Save a gallery's full painting order in one write. Called in the background by the admin arrow buttons. */
+export async function saveGalleryArtworkOrder(seriesId: string, orderedIds: string[]): Promise<{ ok: boolean }> {
+  await requireAdminSession();
   const db = getDb();
-  const gallery = await db.select().from(series).where(eq(series.id, seriesId)).then((r) => r[0]);
-  if (!gallery) redirect("/admin/series");
+  const gallery = await db
+    .select({ slug: series.slug })
+    .from(series)
+    .where(eq(series.id, seriesId))
+    .then((r) => r[0]);
+  if (!gallery) return { ok: false };
 
-  const items = isMediumGallerySlug(gallery.slug)
-    ? await listArtworksForMediumGallery(seriesId)
-    : await listArtworksForSeries(seriesId);
+  const current = isMediumGallerySlug(gallery.slug)
+    ? await db.select({ id: artwork.id }).from(artwork).where(eq(artwork.mediumSeriesId, seriesId))
+    : await db
+        .select({ id: artwork.id })
+        .from(artwork)
+        .innerJoin(artworkSeries, eq(artworkSeries.artworkId, artwork.id))
+        .where(eq(artworkSeries.seriesId, seriesId));
+  const currentIds = new Set(current.map((r) => r.id));
+  const ids = [...new Set(orderedIds)];
+  if (ids.length !== currentIds.size || ids.some((id) => !currentIds.has(id))) return { ok: false };
 
-  const idx = items.findIndex((a) => a.id === id);
-  if (idx === -1) redirect(`/admin/series/${seriesId}`);
-  const swapWith = dir === "up" ? idx - 1 : idx + 1;
-  if (swapWith < 0 || swapWith >= items.length) redirect(`/admin/series/${seriesId}`);
-
-  const ordered = swapOrderedIds(
-    items.map((a) => a.id),
-    idx,
-    swapWith,
-  );
-  const t = now();
-  for (let i = 0; i < ordered.length; i++) {
-    await db.update(artwork).set({ sortOrder: i, updatedAt: t }).where(eq(artwork.id, ordered[i]!));
+  if (ids.length > 0) {
+    const cases = sql.join(
+      ids.map((id, i) => sql`when ${id} then ${i}::integer`),
+      sql` `,
+    );
+    await db
+      .update(artwork)
+      .set({ sortOrder: sql`case ${artwork.id} ${cases} end`, updatedAt: now() })
+      .where(inArray(artwork.id, ids));
   }
 
-  const s = gallery;
-  const portfolioSeriesIds = isMediumGallerySlug(gallery.slug) ? [] : [seriesId];
-  await revalidateArtworkPaths(portfolioSeriesIds, isMediumGallerySlug(gallery.slug) ? seriesId : null);
-  redirect(`/admin/series/${seriesId}`);
+  updateTag(CACHE_TAGS.artwork);
+  revalidatePath(`/art/${gallery.slug}`);
+  revalidatePath("/medium");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+/** Save the order of the series listed under a medium gallery. Called in the background by the admin arrow buttons. */
+export async function saveChildSeriesOrder(mediumId: string, orderedIds: string[]): Promise<{ ok: boolean }> {
+  await requireAdminSession();
+  const db = getDb();
+  const medium = await db
+    .select({ slug: series.slug })
+    .from(series)
+    .where(eq(series.id, mediumId))
+    .then((r) => r[0]);
+  if (!medium) return { ok: false };
+
+  const children = await db
+    .select({ id: series.id, sortOrder: series.sortOrder })
+    .from(series)
+    .where(and(eq(series.parentSeriesId, mediumId), eq(series.isPrivate, false)))
+    .orderBy(asc(series.sortOrder), asc(series.title));
+  const childIds = new Set(children.map((c) => c.id));
+  const ids = [...new Set(orderedIds)];
+  if (ids.length !== childIds.size || ids.some((id) => !childIds.has(id))) return { ok: false };
+
+  // Sort order is shared by every gallery, so reuse this medium's existing slots instead of renumbering from 0.
+  const slots: number[] = [];
+  for (const child of children) {
+    const prev = slots[slots.length - 1];
+    slots.push(prev === undefined ? child.sortOrder : Math.max(child.sortOrder, prev + 1));
+  }
+
+  if (ids.length > 0) {
+    const cases = sql.join(
+      ids.map((id, i) => sql`when ${id} then ${slots[i]!}::integer`),
+      sql` `,
+    );
+    await db
+      .update(series)
+      .set({ sortOrder: sql`case ${series.id} ${cases} end`, updatedAt: now() })
+      .where(inArray(series.id, ids));
+  }
+
+  updateTag(CACHE_TAGS.series);
+  revalidatePath(`/art/${medium.slug}`);
+  revalidatePath("/medium");
+  revalidatePath("/");
+  revalidatePath("/admin/series");
+  return { ok: true };
 }
 
 function adminPostsPath(kind: PostKind, suffix = "") {
@@ -742,7 +791,6 @@ export async function upsertPost(formData: FormData) {
   }
 
   const featuredImage = (await saveUpload(featured)) || (featuredExisting.trim() ? featuredExisting : null);
-  const publishedAt = published ? now() : null;
   const price = kind === "workshop" ? parseWorkshopPrice(formData.get("price")) : null;
   const sessionDates = kind === "workshop" ? String(formData.get("sessionDates") ?? "").trim() : "";
   const materialsNote = kind === "workshop" ? String(formData.get("materialsNote") ?? "").trim() : "";
@@ -759,7 +807,7 @@ export async function upsertPost(formData: FormData) {
         tags,
         published,
         showDate,
-        publishedAt,
+        ...(published ? { publishedAt: sql`coalesce(${post.publishedAt}, now())` } : {}),
         featuredImage,
         price,
         sessionDates,
@@ -779,7 +827,7 @@ export async function upsertPost(formData: FormData) {
       kind,
       published,
       showDate,
-      publishedAt,
+      publishedAt: published ? now() : null,
       featuredImage,
       price,
       sessionDates,
@@ -790,7 +838,7 @@ export async function upsertPost(formData: FormData) {
   }
 
   revalidatePostPublic(kind, slug, previousSlug);
-  redirect(adminPostsPath(kind));
+  redirect(id ? `${adminPostsPath(kind)}/${id}?saved=1` : adminPostsPath(kind));
 }
 
 async function revalidatePostById(postId: string, fallbackSlug?: string) {
@@ -929,6 +977,32 @@ export async function deletePost(formData: FormData) {
   await getDb().delete(post).where(eq(post.id, id));
   revalidatePostPublic(kind, existing?.slug);
   redirect(adminPostsPath(kind));
+}
+
+/** Hide a post or workshop from the public site (or show it again) without opening the editor. */
+export async function setPostVisibility(formData: FormData) {
+  await requireAdminSession();
+  const id = String(formData.get("id") ?? "");
+  const visible = formData.get("visible") === "1";
+  const kindFromForm = parsePostKind(formData.get("kind"));
+  if (!id) redirect(adminPostsPath(kindFromForm));
+  const db = getDb();
+  const existing = await db
+    .select({ slug: post.slug, kind: post.kind })
+    .from(post)
+    .where(eq(post.id, id))
+    .then((r) => r[0]);
+  if (!existing) redirect(adminPostsPath(kindFromForm));
+  const kind = parsePostKind(existing.kind);
+  await db
+    .update(post)
+    .set({
+      published: visible,
+      ...(visible ? { publishedAt: sql`coalesce(${post.publishedAt}, now())` } : {}),
+    })
+    .where(eq(post.id, id));
+  revalidatePostPublic(kind, existing.slug);
+  redirect(`${adminPostsPath(kind)}?saved=${visible ? "shown" : "hidden"}`);
 }
 
 export async function markContactMessageRead(formData: FormData) {

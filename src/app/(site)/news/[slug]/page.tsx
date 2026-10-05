@@ -5,6 +5,7 @@ import { getPostBySlug, listPostGalleryImages, listPublishedPosts } from "@/lib/
 import { parsePostKind, postPublicHref } from "@/lib/postKind";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 import { SITE_URL } from "@/lib/site";
+import { richTextToPlain } from "@/lib/richText";
 
 export const revalidate = 300;
 
@@ -19,7 +20,7 @@ export async function generateMetadata({
   if (!p || !p.published || parsePostKind(p.kind) !== "news") return {};
   return {
     title: p.title,
-    description: p.excerpt,
+    description: richTextToPlain(p.excerpt),
     alternates: { canonical: `${SITE_URL}${postPublicHref("news", p.slug)}` },
   };
 }

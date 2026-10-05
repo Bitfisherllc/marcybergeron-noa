@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { captionSubtitle } from "@/components/ArtCaption";
 import { ArtworkInquiryLink } from "@/components/ArtworkInquiryLink";
+import { RichText } from "@/components/RichText";
 import { artSeriesHref } from "@/lib/routeSlug";
 
 export type GallerySeriesLink = { slug: string; title: string };
@@ -75,7 +76,7 @@ export function ArtworkGalleryCaption({
           </Link>
         </div>
       ) : null}
-      {description ? <p className={descClass}>{description}</p> : null}
+      {description ? <RichText content={description} className={descClass} /> : null}
       {status === "available" && artworkId ? (
         <div className={isLightbox ? "pt-1" : undefined}>
           <ArtworkInquiryLink artworkId={artworkId} variant={variant} />

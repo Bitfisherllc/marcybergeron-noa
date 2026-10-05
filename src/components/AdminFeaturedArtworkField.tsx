@@ -6,6 +6,7 @@ type AdminFeaturedArtworkFieldProps = {
   artworkId: string | null | undefined;
   pieces: Pick<Artwork, "id" | "title" | "image">[];
   listingSurface?: "portfolio" | "series";
+  hasUploadedImage?: boolean;
 };
 
 export function AdminFeaturedArtworkField({
@@ -13,27 +14,37 @@ export function AdminFeaturedArtworkField({
   artworkId,
   pieces,
   listingSurface = "portfolio",
+  hasUploadedImage = false,
 }: AdminFeaturedArtworkFieldProps) {
   const parsedMode = parseFeaturedArtworkMode(mode);
   const selectedId = artworkId ?? "";
   const listingName = listingSurface === "series" ? "Series" : "Portfolio";
+  const pageName = listingSurface === "series" ? "medium’s page" : "Portfolio page";
 
   return (
-    <fieldset className="space-y-4 border border-line bg-paper/40 p-4">
+    <fieldset data-admin-section={`${listingName} listing card`} className="space-y-4 border border-line bg-paper/40 p-4">
       <legend className="px-1 text-sm font-medium text-ink">{listingName} listing card</legend>
       <p className="text-xs leading-relaxed text-muted">
-        Image on the main {listingName} page. Choose a fixed painting, or rotate randomly when the visitor refreshes
-        the page. This does not change the large image inside the gallery.
+        Choose the picture on the {pageName}: the card image uploaded above, one fixed painting, or a random painting
+        each time a visitor opens the page. This does not change the large image inside the gallery.
       </p>
       <div className="space-y-2 text-sm text-ink/90">
-        <label className="flex items-center gap-2">
+        <label className="flex items-start gap-2">
           <input
             type="radio"
             name="featuredArtworkMode"
-            value="random"
-            defaultChecked={parsedMode === "random"}
+            value="upload"
+            defaultChecked={parsedMode === "upload"}
+            className="mt-1"
           />
-          Random from portfolio
+          <span>
+            Use the uploaded card image
+            <span className="block text-xs text-muted">
+              {hasUploadedImage
+                ? "Shows the image in the card image box above."
+                : "Upload a card image above first. Until then a random painting shows."}
+            </span>
+          </span>
         </label>
         <label className="flex items-center gap-2">
           <input
@@ -43,6 +54,15 @@ export function AdminFeaturedArtworkField({
             defaultChecked={parsedMode === "static"}
           />
           Fixed piece
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="featuredArtworkMode"
+            value="random"
+            defaultChecked={parsedMode === "random"}
+          />
+          Random from portfolio
         </label>
       </div>
       {pieces.length > 0 ? (

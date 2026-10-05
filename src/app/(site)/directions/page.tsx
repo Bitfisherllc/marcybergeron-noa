@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { RichText } from "@/components/RichText";
 import { StudioDirectionsLinks, StudioLocationPanel } from "@/components/StudioDirectionsClient";
-import { CONTACT, SITE_URL, STUDIO } from "@/lib/site";
+import { getSiteContact } from "@/lib/contactPage";
+import { SITE_URL, STUDIO } from "@/lib/site";
 
 export const revalidate = 300;
 
@@ -11,24 +13,27 @@ export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/directions` },
 };
 
-export default function DirectionsPage() {
+export default async function DirectionsPage() {
   const mapSrc = `https://maps.google.com/maps?q=${encodeURIComponent(STUDIO.mapsSearchQuery)}&output=embed&z=16`;
+  const contact = await getSiteContact();
 
   return (
     <div>
       <section className="border-b border-line">
         <div className="mx-auto max-w-3xl px-5 py-14 md:px-8 md:py-16">
-          <p className="text-xs tracking-[0.22em] text-muted uppercase">Visit</p>
-          <h1 className="mt-4 font-serif text-4xl tracking-tight md:text-5xl">Directions to the studio</h1>
+          {contact.directionsEyebrow ? (
+            <p className="text-xs tracking-[0.22em] text-muted uppercase">{contact.directionsEyebrow}</p>
+          ) : null}
+          <h1 className="mt-4 font-serif text-4xl tracking-tight md:text-5xl">{contact.directionsTitle}</h1>
           <address className="mt-6 space-y-1 text-sm not-italic leading-relaxed text-muted">
-            {CONTACT.studioLines.map((l) => (
-              <div key={l}>{l}</div>
+            {contact.studioLines.map((l, i) => (
+              <div key={`${i}-${l}`}>{l}</div>
             ))}
           </address>
-          <p className="mt-6 max-w-prose text-sm leading-relaxed text-muted">
-            The map below is interactive in your browser. Use your device location (optional) to see approximate
-            straight-line distance, then open Google or Apple Maps for turn-by-turn directions.
-          </p>
+          <RichText
+            content={contact.directionsIntro}
+            className="mt-6 max-w-prose text-sm leading-relaxed text-muted"
+          />
         </div>
       </section>
 

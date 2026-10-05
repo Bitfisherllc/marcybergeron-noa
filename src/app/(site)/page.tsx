@@ -5,6 +5,7 @@ import { ArtCaption, captionSubtitle } from "@/components/ArtCaption";
 import { HeroSlideshow } from "@/components/HeroSlideshow";
 import { HomeJournalSlider } from "@/components/HomeJournalSlider";
 import { HomeMarkdown } from "@/components/HomeMarkdown";
+import { RichText } from "@/components/RichText";
 import { SeriesCard } from "@/components/SeriesCard";
 import { getPublicHomePayload } from "@/lib/homePage";
 import { listMediumGalleries } from "@/lib/queries";
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [{ sections, featuredSeries, journalPosts: journalPostsRaw, selectedPicks, slides }, mediums] = await Promise.all([
+  const [{ sections, featuredSeries, journalPosts: journalPostsRaw, selectedPicks, slides, slideshowVisible }, mediums] = await Promise.all([
     getPublicHomePayload(),
     listMediumGalleries(),
   ]);
@@ -56,43 +57,56 @@ export default async function HomePage() {
     ];
   }
 
+  const showHeroText = hero.visible;
+  const showSlideshow = slideshowVisible;
+
   return (
     <div>
-      <section className="border-b border-line">
-        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 md:grid-cols-2 md:items-center md:gap-16 md:px-8 md:py-20">
-          <div className="order-2 md:order-1">
-            {hero.eyebrow ? (
-              <p className="text-xs tracking-[0.22em] text-muted uppercase">{hero.eyebrow}</p>
+      {showHeroText || showSlideshow ? (
+        <section className="border-b border-line">
+          <div
+            className={`mx-auto grid max-w-6xl gap-10 px-5 py-14 md:items-center md:gap-16 md:px-8 md:py-20 ${
+              showHeroText && showSlideshow ? "md:grid-cols-2" : ""
+            }`}
+          >
+            {showHeroText ? (
+              <div className="order-2 md:order-1">
+                {hero.eyebrow ? (
+                  <p className="text-xs tracking-[0.22em] text-muted uppercase">{hero.eyebrow}</p>
+                ) : null}
+                <h1 className="mt-4 font-serif text-4xl leading-[1.05] tracking-tight md:text-5xl">{hero.title}</h1>
+                <RichText content={hero.body} className="mt-6 max-w-prose text-base leading-relaxed text-muted" />
+                <div className="mt-8 flex flex-wrap gap-4">
+                  <Link
+                    href="/medium"
+                    className="inline-flex items-center border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90 focus-ring"
+                  >
+                    View portfolio
+                  </Link>
+                  <Link
+                    href="/contact"
+                    className="inline-flex items-center border border-line bg-transparent px-5 py-3 text-xs tracking-[0.18em] text-ink uppercase hover:bg-black/[0.03] focus-ring"
+                  >
+                    Studio &amp; contact
+                  </Link>
+                </div>
+              </div>
             ) : null}
-            <h1 className="mt-4 font-serif text-4xl leading-[1.05] tracking-tight md:text-5xl">{hero.title}</h1>
-            <p className="mt-6 max-w-prose text-base leading-relaxed text-muted">{hero.body}</p>
-            <div className="mt-8 flex flex-wrap gap-4">
-              <Link
-                href="/medium"
-                className="inline-flex items-center border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90 focus-ring"
-              >
-                View portfolio
-              </Link>
-              <Link
-                href="/contact"
-                className="inline-flex items-center border border-line bg-transparent px-5 py-3 text-xs tracking-[0.18em] text-ink uppercase hover:bg-black/[0.03] focus-ring"
-              >
-                Studio &amp; contact
-              </Link>
-            </div>
+            {showSlideshow ? (
+              <div className={`order-1 md:order-2 ${showHeroText ? "" : "mx-auto w-full max-w-2xl"}`}>
+                <HeroSlideshow slides={heroSlides} />
+              </div>
+            ) : null}
           </div>
-          <div className="order-1 md:order-2">
-            <HeroSlideshow slides={heroSlides} />
-          </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       {featuredSec.visible && featuredSeries.length > 0 ? (
         <section className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="font-serif text-3xl tracking-tight">{featuredSec.title}</h2>
             <div className="mx-auto mt-5 h-px w-16 bg-line" />
-            <p className="mt-6 text-sm leading-relaxed text-muted">{featuredSec.body}</p>
+            <RichText content={featuredSec.body} className="mt-6 text-sm leading-relaxed text-muted" />
           </div>
           <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {featuredSeries.map((s) => (
@@ -112,7 +126,7 @@ export default async function HomePage() {
             <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
               <div>
                 <h2 className="font-serif text-3xl tracking-tight">{journalSec.title}</h2>
-                <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">{journalSec.body}</p>
+                <RichText content={journalSec.body} className="mt-3 max-w-prose text-sm leading-relaxed text-muted" />
               </div>
               <Link href="/news" className="link-quiet shrink-0 text-sm tracking-wide">
                 View all posts →
@@ -125,51 +139,53 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      <section className="border-y border-line bg-white/35">
-        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 md:grid-cols-2 md:items-start md:gap-16 md:px-8 md:py-20">
-          <div>
-            <Image
-              src="/images/logo.svg"
-              alt="Marcy Bergeron-Noa — hand-drawn studio mark"
-              width={512}
-              height={1254}
-              className="mb-6 h-[6.75rem] w-auto max-w-[16.5rem] object-contain brightness-0 sm:mb-8 sm:h-[7.5rem] sm:max-w-[19.5rem]"
-            />
-            <h2 className="font-serif text-3xl tracking-tight">{artistSec.title}</h2>
-            <div className="mt-5 h-px w-16 bg-line" />
-            <div className="mt-8">
-              <Link
-                href="/about"
-                className="inline-flex items-center border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90 focus-ring"
-              >
-                About Marcy
-              </Link>
-            </div>
-          </div>
-          <blockquote className="space-y-6">
-            {artistSec.quote ? (
-              <p className="font-serif text-2xl leading-snug tracking-tight text-ink/90">“{artistSec.quote}”</p>
-            ) : null}
-            <HomeMarkdown markdown={artistSec.body} />
-            <div className="pt-2">
+      {artistSec.visible ? (
+        <section className="border-y border-line bg-white/35">
+          <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 md:grid-cols-2 md:items-start md:gap-16 md:px-8 md:py-20">
+            <div>
               <Image
-                src="/images/sig.svg"
-                alt="Signature — Marcy Bergeron-Noa"
-                width={1448}
-                height={385}
-                className="h-8 w-auto max-w-[12rem] object-contain object-left opacity-[0.78] sm:h-9 sm:max-w-[14rem]"
+                src="/images/logo.svg"
+                alt="Marcy Bergeron-Noa — hand-drawn studio mark"
+                width={512}
+                height={1254}
+                className="mb-6 h-[6.75rem] w-auto max-w-[16.5rem] object-contain brightness-0 sm:mb-8 sm:h-[7.5rem] sm:max-w-[19.5rem]"
               />
+              <h2 className="font-serif text-3xl tracking-tight">{artistSec.title}</h2>
+              <div className="mt-5 h-px w-16 bg-line" />
+              <div className="mt-8">
+                <Link
+                  href="/about"
+                  className="inline-flex items-center border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90 focus-ring"
+                >
+                  About Marcy
+                </Link>
+              </div>
             </div>
-          </blockquote>
-        </div>
-      </section>
+            <blockquote className="space-y-6">
+              {artistSec.quote ? (
+                <p className="font-serif text-2xl leading-snug tracking-tight text-ink/90">“{artistSec.quote}”</p>
+              ) : null}
+              <HomeMarkdown markdown={artistSec.body} />
+              <div className="pt-2">
+                <Image
+                  src="/images/sig.svg"
+                  alt="Signature — Marcy Bergeron-Noa"
+                  width={1448}
+                  height={385}
+                  className="h-8 w-auto max-w-[12rem] object-contain object-left opacity-[0.78] sm:h-9 sm:max-w-[14rem]"
+                />
+              </div>
+            </blockquote>
+          </div>
+        </section>
+      ) : null}
 
       {selectedSec.visible && selectedPicks.length > 0 ? (
         <section className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">
           <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
             <div>
               <h2 className="font-serif text-3xl tracking-tight">{selectedSec.title}</h2>
-              <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">{selectedSec.body}</p>
+              <RichText content={selectedSec.body} className="mt-3 max-w-prose text-sm leading-relaxed text-muted" />
             </div>
             <Link href="/medium" className="link-quiet text-sm tracking-wide">
               Browse the full archive →

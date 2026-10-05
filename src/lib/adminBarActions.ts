@@ -2,15 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { destroyAdminSession, getAdminSession } from "@/lib/auth";
-import { resolveAdminBarTarget, resolveAdminAddArtTarget, type AdminEditTarget } from "@/lib/adminEditLink";
-import { needsGallerySwitcher } from "@/lib/adminEditTarget";
-import { isMediumGallerySlug } from "@/lib/mediumGalleries";
-import { listSeries } from "@/lib/queries";
-
-export type AdminGallerySwitcherOption = {
-  id: string;
-  title: string;
-};
+import { resolveAdminBarTarget, type AdminEditTarget } from "@/lib/adminEditLink";
+import { countUnreadInbox } from "@/lib/inbox";
 
 function safeReturnPath(path: string): string {
   if (!path.startsWith("/") || path.startsWith("//") || path.startsWith("/admin")) return "/";
@@ -36,27 +29,16 @@ export async function getAdminBarTargetAction(pathname: string): Promise<AdminEd
 }
 
 export type AdminSiteBarState = {
-  action: AdminEditTarget;
-  addArt: AdminEditTarget;
-  galleries: AdminGallerySwitcherOption[];
+  /** Where the Public / Admin switch goes from this page. */
+  toggle: AdminEditTarget;
+  inboxCount: number;
 };
 
-/** One round trip for the signed-in admin bar (edit/view link + optional gallery list). */
+/** One round trip for the signed-in admin bar. */
 export async function getAdminSiteBarStateAction(pathname: string): Promise<AdminSiteBarState | null> {
   const session = await getAdminSession();
   if (!session) return null;
 
-  const [action, addArt, galleries] = await Promise.all([
-    resolveAdminBarTarget(pathname),
-    resolveAdminAddArtTarget(pathname),
-    needsGallerySwitcher(pathname)
-      ? listSeries().then((rows) =>
-          rows
-            .filter((s) => isMediumGallerySlug(s.slug) || s.isPrivate)
-            .map((s) => ({ id: s.id, title: s.title })),
-        )
-      : Promise.resolve([] as AdminGallerySwitcherOption[]),
-  ]);
-
-  return { action, addArt, galleries };
+  const [toggle, inboxCount] = await Promise.all([resolveAdminBarTarget(pathname), countUnreadInbox()]);
+  return { toggle, inboxCount };
 }

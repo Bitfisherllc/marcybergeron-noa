@@ -44,7 +44,7 @@ export function postKindCopy(kind: PostKind) {
       adminNew: "New workshop",
       adminEdit: "Edit workshop",
       adminSave: "Save workshop",
-      adminIntro: "Drafts stay private until published.",
+      adminIntro: "Click Hide to take a workshop off the public site without deleting it. Click Show to bring it back.",
       adminUrlHint: "Public URL becomes /workshops/[slug].",
       adminMenuEyebrow: "Workshops",
       adminMenuTitle: "Workshops",
@@ -58,7 +58,7 @@ export function postKindCopy(kind: PostKind) {
 
   return {
     eyebrow: "News",
-    heading: "Journal",
+    heading: "News",
     intro:
       "Exhibitions, studio notes, new work, press, and teaching updates—published here as posts are added in the admin area.",
     emptyAll: "No published posts yet. When you are ready, add your first entry in the site admin under Posts.",
@@ -73,7 +73,7 @@ export function postKindCopy(kind: PostKind) {
     adminNew: "New post",
     adminEdit: "Edit post",
     adminSave: "Save post",
-    adminIntro: "Drafts stay private until published.",
+    adminIntro: "Click Hide to take a post off the public site without deleting it. Click Show to bring it back.",
     adminUrlHint: "Public URL becomes /news/[slug].",
     adminMenuEyebrow: "News",
     adminMenuTitle: "Posts",

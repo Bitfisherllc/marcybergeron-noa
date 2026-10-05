@@ -1,4 +1,7 @@
-import { CONTACT, LIVE_SITE_URL, SITE_NAME } from "@/lib/site";
+import { phoneHref as toPhoneHref, type SiteContact } from "@/lib/contactDefaults";
+import { LIVE_SITE_URL, SITE_NAME } from "@/lib/site";
+
+type ReceiptContact = Pick<SiteContact, "email" | "phone" | "studioLines">;
 
 export type ContactReceiptPayload = {
   name: string;
@@ -31,7 +34,7 @@ export function contactReceiptSubject(): string {
   return `Thank you for writing to ${SITE_NAME}`;
 }
 
-export function contactReceiptText(payload: ContactReceiptPayload): string {
+export function contactReceiptText(payload: ContactReceiptPayload, contact: ReceiptContact): string {
   return [
     `Thank you, ${payload.name}.`,
     "",
@@ -41,9 +44,9 @@ export function contactReceiptText(payload: ContactReceiptPayload): string {
     payload.message,
     "",
     "Studio",
-    `Email: ${CONTACT.email}`,
-    `Phone: ${CONTACT.phone}`,
-    ...CONTACT.studioLines,
+    `Email: ${contact.email}`,
+    ...(contact.phone ? [`Phone: ${contact.phone}`] : []),
+    ...contact.studioLines,
     "",
     `Website: ${LIVE_SITE_URL}`,
     `Portfolio: ${LIVE_SITE_URL}/medium`,
@@ -51,11 +54,20 @@ export function contactReceiptText(payload: ContactReceiptPayload): string {
   ].join("\n");
 }
 
-export function contactReceiptHtml(payload: ContactReceiptPayload): string {
+export function contactReceiptHtml(payload: ContactReceiptPayload, contact: ReceiptContact): string {
   const firstName = payload.name.split(/\s+/)[0] || payload.name;
   const messageHtml = formatMessageHtml(payload.message);
   const home = LIVE_SITE_URL;
-  const phoneHref = `tel:${CONTACT.phone.replace(/\s/g, "")}`;
+  const phoneHref = toPhoneHref(contact.phone);
+  const phoneRow = contact.phone
+    ? `
+                  <tr>
+                    <td style="padding:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f1f1f;">
+                      <span style="display:block;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#6b6b6b;">Phone</span>
+                      <a href="${escapeHtml(phoneHref)}" style="color:#1f1f1f;text-decoration:none;">${escapeHtml(contact.phone)}</a>
+                    </td>
+                  </tr>`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -101,19 +113,13 @@ export function contactReceiptHtml(payload: ContactReceiptPayload): string {
                   <tr>
                     <td style="padding:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f1f1f;">
                       <span style="display:block;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#6b6b6b;">Email</span>
-                      <a href="mailto:${CONTACT.email}" style="color:#1f1f1f;text-decoration:none;">${CONTACT.email}</a>
+                      <a href="mailto:${contact.email}" style="color:#1f1f1f;text-decoration:none;">${contact.email}</a>
                     </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f1f1f;">
-                      <span style="display:block;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#6b6b6b;">Phone</span>
-                      <a href="${phoneHref}" style="color:#1f1f1f;text-decoration:none;">${CONTACT.phone}</a>
-                    </td>
-                  </tr>
+                  </tr>${phoneRow}
                   <tr>
                     <td style="padding:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1f1f1f;">
                       <span style="display:block;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#6b6b6b;">Studio</span>
-                      ${CONTACT.studioLines.map((line) => escapeHtml(line)).join("<br>")}
+                      ${contact.studioLines.map((line) => escapeHtml(line)).join("<br>")}
                     </td>
                   </tr>
                 </table>

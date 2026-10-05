@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
-import rehypeRaw from "rehype-raw";
+import { richTextComponents, richTextRehypePlugins, richTextRemarkPlugins } from "@/components/RichText";
+import { richTextElementClass } from "@/lib/richText";
 
 /** Indented lines after a blank break inside seeded gallery HTML were parsed as markdown code blocks. */
 function normalizePostGalleryHtml(content: string): string {
@@ -36,8 +37,12 @@ export function ProseMarkdown({
       : `max-w-prose space-y-4 text-sm leading-relaxed text-muted [&_h2]:mt-10 [&_h2]:text-2xl [&_li]:my-1 [&_p_img]:my-2 [&_.post-gallery]:my-12`;
 
   return (
-    <div className={`${layout} ${sharedMarkdown}`}>
-      <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+    <div className={`${layout} ${sharedMarkdown} ${richTextElementClass}`}>
+      <ReactMarkdown
+        remarkPlugins={richTextRemarkPlugins}
+        rehypePlugins={richTextRehypePlugins}
+        components={richTextComponents}
+      >
         {variant === "article" ? normalizePostGalleryHtml(content) : content}
       </ReactMarkdown>
     </div>

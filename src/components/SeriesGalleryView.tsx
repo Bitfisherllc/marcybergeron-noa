@@ -7,6 +7,7 @@ import { GalleryIndexCards } from "@/components/GalleryIndexCards";
 import { GalleryLightboxProvider, GalleryLightboxTrigger } from "@/components/GalleryLightbox";
 import { IntrinsicGalleryImage } from "@/components/IntrinsicGalleryImage";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
+import { RichText } from "@/components/RichText";
 import { StatementSlideshow } from "@/components/StatementSlideshow";
 import { getAdminSession } from "@/lib/auth";
 import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
@@ -187,7 +188,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                 <p className="text-xs tracking-[0.22em] text-muted uppercase">Studio</p>
                 <h1 className="mt-4 font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
                 {publicExcerpt ? (
-                  <p className="mt-6 text-base leading-relaxed text-muted">{publicExcerpt}</p>
+                  <RichText content={publicExcerpt} className="mt-6 text-base leading-relaxed text-muted" />
                 ) : null}
                 <div className="mt-10">
                   <GalleryAbout
@@ -207,7 +208,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
               </p>
               <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
               {publicExcerpt ? (
-                <p className="mt-6 max-w-3xl text-base leading-relaxed text-muted">{publicExcerpt}</p>
+                <RichText content={publicExcerpt} className="mt-6 max-w-3xl text-base leading-relaxed text-muted" />
               ) : null}
               {isChildSeries ? (
                 <p className="mt-4">

@@ -28,6 +28,11 @@ export default async function AdminHomePage() {
           <div className="mt-2 font-serif text-2xl tracking-tight">About page</div>
           <p className="mt-3 text-sm text-muted">Portrait, statement, bio, education, exhibitions</p>
         </AdminLink>
+        <AdminLink variant="menu" href="/admin/contact-page">
+          <div className="text-xs tracking-[0.18em] text-muted uppercase">Contact</div>
+          <div className="mt-2 font-serif text-2xl tracking-tight">Contact page</div>
+          <p className="mt-3 text-sm text-muted">Title, text, phone, studio address, social links</p>
+        </AdminLink>
         <AdminLink variant="menu" href="/admin/series">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">Galleries</div>
           <div className="mt-2 font-serif text-2xl tracking-tight">Galleries &amp; artwork</div>

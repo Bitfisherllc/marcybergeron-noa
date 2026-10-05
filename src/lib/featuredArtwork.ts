@@ -1,9 +1,19 @@
 import type { Artwork, Series } from "@/db";
+import { GALLERY_PLACEHOLDER_IMAGE } from "@/lib/galleryDefaults";
 
-export type FeaturedArtworkMode = "random" | "static";
+export type FeaturedArtworkMode = "random" | "static" | "upload";
 
 export function parseFeaturedArtworkMode(raw: string | null | undefined): FeaturedArtworkMode {
-  return raw === "static" ? "static" : "random";
+  return raw === "static" || raw === "upload" ? raw : "random";
+}
+
+/** Listing card set to the uploaded card image, and one has actually been uploaded. */
+export function usesUploadedCover(series: Pick<Series, "featuredImage" | "featuredArtworkMode">): boolean {
+  return (
+    parseFeaturedArtworkMode(series.featuredArtworkMode) === "upload" &&
+    Boolean(series.featuredImage) &&
+    series.featuredImage !== GALLERY_PLACEHOLDER_IMAGE
+  );
 }
 
 export function pickRandomArtwork<T>(pieces: T[]): T | null {
@@ -160,6 +170,16 @@ export function resolveStatementArtwork(
   pieces: Artwork[],
 ): ResolvedStatementArtwork {
   const mode = parseFeaturedArtworkMode(series.featuredArtworkMode);
+
+  if (usesUploadedCover(series)) {
+    return {
+      artwork: null,
+      image: series.featuredImage,
+      alt: `${series.title} — featured artwork`,
+      title: series.title,
+      gridIndex: null,
+    };
+  }
 
   if (mode === "static" && series.featuredArtworkId) {
     const fixed = pieces.find((p) => p.id === series.featuredArtworkId);

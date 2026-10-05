@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { forgetForm, setFormDirty, setFormSaving } from "@/lib/adminDirtyForms";
 
 function getCheckboxGroupSnapshot(form: HTMLFormElement, name: string): string {
   const boxes = form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${CSS.escape(name)}"]`);
@@ -46,40 +47,43 @@ function snapshotsEqual(a: Record<string, string>, b: Record<string, string>): b
   return true;
 }
 
-const btnSave =
-  "border border-red-700 bg-red-700 px-5 py-3 text-xs tracking-[0.18em] text-white uppercase transition hover:bg-red-800 focus-ring";
-
-/** Red SAVE button — only visible after the parent form has unsaved changes. */
-export function AdminDirtySave({ formId }: { formId: string }) {
-  const [dirty, setDirty] = useState(false);
-
+/** Reports unsaved changes in the form to the SAVE button in the admin bar. */
+export function AdminSaveTracker({ formId }: { formId: string }) {
   useEffect(() => {
     const form = document.getElementById(formId) as HTMLFormElement | null;
     if (!form) return;
 
-    const initial = getFormSnapshot(form);
+    let initial = getFormSnapshot(form);
 
     const onMaybeDirty = () => {
       requestAnimationFrame(() => {
-        setDirty(!snapshotsEqual(initial, getFormSnapshot(form)));
+        // A focused field fires "change" as it is removed when the page re-renders after a save.
+        if (!form.isConnected) return;
+        setFormDirty(formId, !snapshotsEqual(initial, getFormSnapshot(form)));
+      });
+    };
+    const onSubmit = () => setFormSaving(formId, true);
+    // React resets uncontrolled forms to the freshly saved values once the server action finishes.
+    const onReset = () => {
+      requestAnimationFrame(() => {
+        initial = getFormSnapshot(form);
+        setFormSaving(formId, false);
+        setFormDirty(formId, false);
       });
     };
 
     form.addEventListener("input", onMaybeDirty);
     form.addEventListener("change", onMaybeDirty);
+    form.addEventListener("submit", onSubmit);
+    form.addEventListener("reset", onReset);
     return () => {
       form.removeEventListener("input", onMaybeDirty);
       form.removeEventListener("change", onMaybeDirty);
+      form.removeEventListener("submit", onSubmit);
+      form.removeEventListener("reset", onReset);
+      forgetForm(formId);
     };
   }, [formId]);
 
-  if (!dirty) return null;
-
-  return (
-    <div className="mt-6 flex flex-wrap items-center gap-4 border-t border-line pt-6">
-      <button type="submit" className={btnSave}>
-        SAVE
-      </button>
-    </div>
-  );
+  return null;
 }

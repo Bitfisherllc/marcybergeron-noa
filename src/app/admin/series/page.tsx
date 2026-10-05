@@ -1,9 +1,46 @@
-import Image from "next/image";
 import { setSeriesPrivacy } from "@/app/admin/actions";
+import { AdminCoverThumb } from "@/components/AdminCoverThumb";
 import { AdminLink } from "@/components/AdminLink";
 import { isMediumGallerySlug, isStudioGallerySlug, MEDIUM_GALLERY_SLUGS } from "@/lib/mediumGalleries";
+import type { Artwork, Series } from "@/db";
+import { parseFeaturedArtworkMode, resolveStatementArtwork, usesUploadedCover } from "@/lib/featuredArtwork";
 import { privateGalleryHref } from "@/lib/privateGalleries";
-import { listSeriesAdminOverview } from "@/lib/queries";
+import {
+  listArtworksForSeries,
+  listArtworksGroupedForMediumGalleries,
+  listSeriesAdminOverview,
+} from "@/lib/queries";
+
+type CoverKind = "upload" | "fixed" | "random";
+type ResolvedCover = { image: string; title: string; kind: CoverKind };
+
+function isRandomCover(s: { featuredArtworkMode: string | null; featuredArtworkId: string | null }) {
+  return parseFeaturedArtworkMode(s.featuredArtworkMode) !== "static" || !s.featuredArtworkId;
+}
+
+function resolveCover(s: Series, pieces: Artwork[]): ResolvedCover {
+  const cover = resolveStatementArtwork(s, pieces);
+  const kind: CoverKind = usesUploadedCover(s)
+    ? "upload"
+    : parseFeaturedArtworkMode(s.featuredArtworkMode) === "static" && cover.artwork?.id === s.featuredArtworkId
+      ? "fixed"
+      : "random";
+  return { image: cover.image, title: cover.artwork?.title ?? "", kind };
+}
+
+function CoverCaption({ cover }: { cover: ResolvedCover }) {
+  return (
+    <div className="mt-1 text-xs text-muted">
+      {cover.kind === "upload"
+        ? "Cover: uploaded card image"
+        : cover.kind === "fixed"
+          ? `Cover: ${cover.title}`
+          : cover.title
+            ? `Cover: a random painting on each visit (now showing ${cover.title})`
+            : "Cover: no paintings yet"}
+    </div>
+  );
+}
 
 export default async function AdminSeriesIndexPage() {
   const rows = await listSeriesAdminOverview();
@@ -17,6 +54,14 @@ export default async function AdminSeriesIndexPage() {
     .filter((s) => s.parentSeriesId && mediumOrder.has(s.parentSeriesId))
     .sort((a, b) => mediumOrder.get(a.parentSeriesId!)! - mediumOrder.get(b.parentSeriesId!)!);
   const privateRows = rows.filter((s) => s.isPrivate);
+  const [portfolioPieces, seriesPieces] = await Promise.all([
+    listArtworksGroupedForMediumGalleries(portfolioRows),
+    Promise.all(seriesRows.map((s) => listArtworksForSeries(s.id))),
+  ]);
+  const covers = new Map<string, ResolvedCover>([
+    ...portfolioRows.map((s) => [s.id, resolveCover(s, portfolioPieces.get(s.id) ?? [])] as const),
+    ...seriesRows.map((s, i) => [s.id, resolveCover(s, seriesPieces[i] ?? [])] as const),
+  ]);
   const totalArtworks = rows.reduce((n, s) => n + s.artworkCount, 0);
 
   return (
@@ -38,11 +83,6 @@ export default async function AdminSeriesIndexPage() {
             {totalArtworks === 1 ? "painting" : "paintings"}
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <AdminLink variant="primary" href="/admin/series/new">
-            Add a series
-          </AdminLink>
-        </div>
       </div>
 
       {portfolioRows.length === 0 && seriesRows.length === 0 && studioRows.length === 0 && privateRows.length === 0 ? (
@@ -53,7 +93,7 @@ export default async function AdminSeriesIndexPage() {
       ) : (
         <div className="space-y-10">
           {portfolioRows.length > 0 ? (
-            <div className="space-y-4">
+            <div data-admin-section="Portfolio galleries" className="space-y-4">
               <div>
                 <h2 className="font-serif text-2xl tracking-tight">Portfolio galleries</h2>
                 <p className="mt-2 max-w-prose text-sm text-muted">
@@ -72,23 +112,25 @@ export default async function AdminSeriesIndexPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {portfolioRows.map((s) => (
+                    {portfolioRows.map((s) => {
+                      const cover = covers.get(s.id)!;
+                      return (
                       <tr key={s.id} className="border-b border-line last:border-b-0">
                         <td className="px-4 py-3">
-                          <div className="relative h-16 w-24 overflow-hidden border border-line bg-black/[0.03]">
-                            <Image src={s.featuredImage} alt="" fill className="object-cover" sizes="96px" />
-                          </div>
+                          <AdminCoverThumb image={cover.image} random={cover.kind === "random"} randomBadge />
                         </td>
                         <td className="px-4 py-3">
                           <div className="font-medium">{s.title}</div>
                           <div className="text-xs text-muted">/art/{s.slug}</div>
+                          <CoverCaption cover={cover} />
                         </td>
                         <td className="px-4 py-3 text-muted">{s.artworkCount}</td>
                         <td className="px-4 py-3 text-right">
                           <AdminLink href={`/admin/series/${s.id}`}>Manage paintings</AdminLink>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -96,7 +138,7 @@ export default async function AdminSeriesIndexPage() {
           ) : null}
 
           {studioRows.length > 0 ? (
-            <div className="space-y-4">
+            <div data-admin-section="The Studio (About)" className="space-y-4">
               <div>
                 <h2 className="font-serif text-2xl tracking-tight">About</h2>
                 <p className="mt-2 max-w-prose text-sm text-muted">
@@ -118,9 +160,7 @@ export default async function AdminSeriesIndexPage() {
                     {studioRows.map((s) => (
                       <tr key={s.id} className="border-b border-line last:border-b-0">
                         <td className="px-4 py-3">
-                          <div className="relative h-16 w-24 overflow-hidden border border-line bg-black/[0.03]">
-                            <Image src={s.featuredImage} alt="" fill className="object-cover" sizes="96px" />
-                          </div>
+                          <AdminCoverThumb image={s.featuredImage} random={isRandomCover(s)} />
                         </td>
                         <td className="px-4 py-3">
                           <div className="font-medium">{s.title}</div>
@@ -139,7 +179,7 @@ export default async function AdminSeriesIndexPage() {
           ) : null}
 
           {seriesRows.length > 0 ? (
-            <div className="space-y-4">
+            <div data-admin-section="Series" className="space-y-4">
               <div>
                 <h2 className="font-serif text-2xl tracking-tight">Series</h2>
                 <p className="mt-2 max-w-prose text-sm text-muted">
@@ -158,16 +198,17 @@ export default async function AdminSeriesIndexPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {seriesRows.map((s) => (
+                    {seriesRows.map((s) => {
+                      const cover = covers.get(s.id)!;
+                      return (
                       <tr key={s.id} className="border-b border-line last:border-b-0">
                         <td className="px-4 py-3">
-                          <div className="relative h-16 w-24 overflow-hidden border border-line bg-black/[0.03]">
-                            <Image src={s.featuredImage} alt="" fill className="object-cover" sizes="96px" />
-                          </div>
+                          <AdminCoverThumb image={cover.image} random={cover.kind === "random"} randomBadge />
                         </td>
                         <td className="px-4 py-3">
                           <div className="font-medium">{s.title}</div>
                           <div className="text-xs text-muted">/art/{s.slug}</div>
+                          <CoverCaption cover={cover} />
                         </td>
                         <td className="px-4 py-3 text-muted">{mediumTitle.get(s.parentSeriesId!)}</td>
                         <td className="px-4 py-3 text-muted">{s.artworkCount}</td>
@@ -175,7 +216,8 @@ export default async function AdminSeriesIndexPage() {
                           <AdminLink href={`/admin/series/${s.id}`}>Manage series</AdminLink>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -183,7 +225,7 @@ export default async function AdminSeriesIndexPage() {
           ) : null}
 
           {privateRows.length > 0 ? (
-            <div className="space-y-4">
+            <div data-admin-section="Private galleries" className="space-y-4">
               <div>
                 <h2 className="font-serif text-2xl tracking-tight">Private galleries</h2>
                 <p className="mt-2 max-w-prose text-sm text-muted">
@@ -204,9 +246,7 @@ export default async function AdminSeriesIndexPage() {
                     {privateRows.map((s) => (
                       <tr key={s.id} className="border-b border-line last:border-b-0">
                         <td className="px-4 py-3">
-                          <div className="relative h-16 w-24 overflow-hidden border border-line bg-black/[0.03]">
-                            <Image src={s.featuredImage} alt="" fill className="object-cover" sizes="96px" />
-                          </div>
+                          <AdminCoverThumb image={s.featuredImage} random={isRandomCover(s)} />
                         </td>
                         <td className="px-4 py-3">
                           <div className="font-medium">{s.title}</div>

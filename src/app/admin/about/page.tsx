@@ -3,7 +3,8 @@ import { saveAboutPortraitAction, saveAboutSectionAction } from "@/app/admin/abo
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminLightboxThumb } from "@/components/AdminImageLightbox";
 import { AdminExternalLink } from "@/components/AdminLink";
-import { AdminDirtySave } from "@/components/AdminSectionSave";
+import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
+import { AdminSaveTracker } from "@/components/AdminSaveTracker";
 import { ABOUT_SECTION_KEYS, type AboutSectionKey } from "@/lib/aboutDefaults";
 import { getAboutPortraitForAdmin, listAboutSectionsForAdmin } from "@/lib/aboutPage";
 
@@ -20,37 +21,37 @@ const sectionLabels: Record<
   },
   artist_statement: {
     heading: "Artist statement",
-    hint: "Main statement copy. Body supports Markdown paragraphs.",
+    hint: "Main statement copy.",
     showTitle: true,
     bodyRows: 8,
   },
   biography: {
     heading: "Biography",
-    hint: "Biography paragraphs. Body supports Markdown.",
+    hint: "Biography paragraphs.",
     showTitle: true,
     bodyRows: 8,
   },
   education: {
     heading: "Education, workshops, and classes",
-    hint: "Use a Markdown bullet list (one line per item, starting with -).",
+    hint: "Use the bulleted list button, one item per line.",
     showTitle: true,
     bodyRows: 12,
   },
   exhibitions: {
     heading: "Selected exhibitions",
-    hint: "Use a Markdown bullet list (one line per exhibition).",
+    hint: "Use the bulleted list button, one exhibition per line.",
     showTitle: true,
     bodyRows: 8,
   },
   affiliations: {
     heading: "Affiliations (juried member)",
-    hint: "Use a Markdown bullet list of memberships.",
+    hint: "Use the bulleted list button for memberships.",
     showTitle: true,
     bodyRows: 6,
   },
   studio: {
     heading: "Studio",
-    hint: "Studio address and location. Plain lines or Markdown — shown at the bottom of the page.",
+    hint: "Studio address and location. Shown at the bottom of the page.",
     showTitle: true,
     bodyRows: 5,
   },
@@ -81,8 +82,8 @@ export default async function AdminAboutPage({
       <div>
         <h1 className="font-serif text-3xl tracking-tight">About page</h1>
         <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
-          Each section shows a red <strong className="font-medium text-ink">SAVE</strong> button only after you
-          change something in that section. Body fields accept Markdown (paragraphs, bullet lists, [links](url)).
+          When you change something, a red <strong className="font-medium text-ink">SAVE</strong> button flashes in
+          the top bar. Use the toolbar above each body field for bold, lists, links, and more.
         </p>
         {savedLabel ? <p className="mt-3 text-sm text-ink">Saved: {savedLabel}.</p> : null}
         {sp.error === "portrait" ? (
@@ -94,7 +95,7 @@ export default async function AdminAboutPage({
       </div>
 
       <div className="space-y-10">
-        <form id="about-portrait" action={saveAboutPortraitAction} className="border border-line bg-white/50 p-6">
+        <form id="about-portrait" data-admin-section="Portrait photo" action={saveAboutPortraitAction} className="border border-line bg-white/50 p-6">
           <h2 className="font-serif text-xl tracking-tight">Portrait photo</h2>
           <p className="mt-2 max-w-prose text-sm text-muted">
             Shown beside the text on desktop. Upload a new file to replace the current image, or leave empty to keep it.
@@ -122,14 +123,14 @@ export default async function AdminAboutPage({
               </label>
             </div>
           </div>
-          <AdminDirtySave formId="about-portrait" />
+          <AdminSaveTracker formId="about-portrait" />
         </form>
 
         {ABOUT_SECTION_KEYS.map((key) => {
           const meta = sectionLabels[key];
           const row = sections[key];
           return (
-            <form key={key} id={`about-section-${key}`} action={saveAboutSectionAction} className="border border-line bg-white/50 p-6">
+            <form key={key} id={`about-section-${key}`} data-admin-section={meta.heading} action={saveAboutSectionAction} className="border border-line bg-white/50 p-6">
               <input type="hidden" name="section" value={key} />
               <h2 className="font-serif text-xl tracking-tight">{meta.heading}</h2>
               <p className="mt-2 max-w-prose text-sm text-muted">{meta.hint}</p>
@@ -157,16 +158,17 @@ export default async function AdminAboutPage({
               ) : (
                 <input type="hidden" name="title" value={row.title} />
               )}
-              <label className="mt-4 block text-sm text-muted">
-                Body {key === "hero" ? "(intro text)" : "(Markdown)"}
-                <textarea
+              <div className="mt-4 block text-sm text-muted">
+                Body{key === "hero" ? " (intro text)" : ""}
+                <AdminRichTextEditor
                   name="body"
-                  rows={meta.bodyRows}
                   defaultValue={row.body}
-                  className="mt-2 w-full border border-line bg-paper px-3 py-2 font-mono text-sm leading-relaxed"
+                  size={meta.bodyRows > 8 ? "lg" : meta.bodyRows > 4 ? "md" : "sm"}
+                  headings={key !== "hero"}
+                  ariaLabel="Body"
                 />
-              </label>
-              <AdminDirtySave formId={`about-section-${key}`} />
+              </div>
+              <AdminSaveTracker formId={`about-section-${key}`} />
             </form>
           );
         })}
