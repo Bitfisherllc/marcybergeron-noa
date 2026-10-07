@@ -30,20 +30,6 @@ function SlideImage({ slide, priority }: { slide: HeroSlide; priority?: boolean 
   );
 }
 
-function SlideCaption({ slide }: { slide: HeroSlide }) {
-  if (!slide.title && !slide.subtitle) return null;
-  return (
-    <div className="min-h-[3.25rem] border-t border-line pt-4 text-center">
-      {slide.title ? (
-        <div className="font-serif text-lg font-medium tracking-tight text-ink">{slide.title}</div>
-      ) : null}
-      {slide.subtitle ? (
-        <div className={`text-sm leading-relaxed text-muted ${slide.title ? "mt-1" : ""}`}>{slide.subtitle}</div>
-      ) : null}
-    </div>
-  );
-}
-
 export function HeroSlideshow({ slides }: { slides: HeroSlide[] }) {
   const n = slides.length;
   const [index, setIndex] = useState(0);
@@ -89,16 +75,10 @@ export function HeroSlideshow({ slides }: { slides: HeroSlide[] }) {
 
   if (n === 0) return null;
 
-  const current = slides[index] ?? slides[0]!;
-
   if (n === 1) {
-    const s = slides[0]!;
     return (
-      <div className="space-y-4">
-        <div className="relative aspect-[4/5] overflow-hidden bg-black/[0.03]">
-          <SlideImage slide={s} priority />
-        </div>
-        <SlideCaption slide={s} />
+      <div className="relative aspect-[4/5] overflow-hidden bg-black/[0.03]">
+        <SlideImage slide={slides[0]!} priority />
       </div>
     );
   }
@@ -123,8 +103,6 @@ export function HeroSlideshow({ slides }: { slides: HeroSlide[] }) {
           </div>
         ))}
       </div>
-
-      <SlideCaption slide={current} />
 
       <div className="flex items-center justify-between gap-4 border-t border-line pt-4">
         <button
