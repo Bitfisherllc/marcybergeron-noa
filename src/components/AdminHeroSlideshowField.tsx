@@ -67,7 +67,7 @@ const COPY: Record<
 > = {
   gallery: {
     legend: "Gallery page slideshow",
-    hint: "Optional. Off by default — About then sits under the title. Turn on Display slideshow to restore the side-by-side About row. One chosen image stays as a single photo with no slideshow arrows. Two or three become a slideshow with navigation. You do not have to fill every slot. Upload a photo, pick one already on the site, or choose a painting from this gallery. This is separate from the rotating card on the main Portfolio page.",
+    hint: "Optional. Off by default — About then sits under the title. Turn on Display slideshow to restore the side-by-side About row. One chosen image stays as a single photo with no slideshow arrows. Two or three become a slideshow with navigation. You do not have to fill every slot. Upload a photo, pick one already on the site, or choose a painting from this gallery. This is separate from the listing card on the main Portfolio page.",
     paintingLabel: "Or painting in this gallery",
     emptyPaintings: "Add paintings if you want to pick from this gallery’s works.",
     afterSaveEmpty:
@@ -510,6 +510,8 @@ export function AdminHeroSlideshowField({
                 <div className="space-y-2 text-sm text-muted">
                   <p>{copy.paintingLabel}</p>
                   <AdminArtworkSelect
+                    visual
+                    compact
                     name={`${fieldPrefix}Artwork${i}`}
                     value={draft.artworkId}
                     options={pickerOptions}

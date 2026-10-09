@@ -9,6 +9,7 @@ import { checkFormSubmission, createFormChallenge, formValues, logBlockedSubmiss
 import type { GuardedFormError, GuardedFormState } from "@/lib/formGuardTypes";
 import { parsePostKind } from "@/lib/postKind";
 import { getPostBySlug } from "@/lib/queries";
+import { canViewWorkshops } from "@/lib/siteFeatures";
 import { workshopInterestHref } from "@/lib/workshopCopy";
 
 function interestReturnHref(slug: string, error?: string): string {
@@ -17,6 +18,8 @@ function interestReturnHref(slug: string, error?: string): string {
 }
 
 export async function submitWorkshopInterest(prev: GuardedFormState, formData: FormData): Promise<GuardedFormState> {
+  if (!(await canViewWorkshops())) redirect("/");
+
   const workshopSlug = String(formData.get("workshopSlug") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();

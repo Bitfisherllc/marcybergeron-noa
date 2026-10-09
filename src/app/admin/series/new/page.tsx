@@ -1,8 +1,9 @@
 import { upsertSeries } from "@/app/admin/actions";
-import { AdminFilePicker } from "@/components/AdminFilePicker";
+import { AdminFeaturedArtworkField } from "@/components/AdminFeaturedArtworkField";
 import { AdminLink, adminBtnPrimary } from "@/components/AdminLink";
 import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
 import { AdminSeriesMediumField } from "@/components/AdminSeriesMediumField";
+import { AdminWhereShown } from "@/components/AdminWhereShown";
 import { publicPortfolioGalleries } from "@/lib/mediumGalleries";
 import { listMediumGalleries } from "@/lib/queries";
 
@@ -53,12 +54,32 @@ export default async function NewSeriesPage({
         <div className="block text-sm text-muted">
           Listing excerpt
           <AdminRichTextEditor name="excerpt" size="sm" ariaLabel="Listing excerpt" />
-          <span className="mt-2 block text-xs">Shown on the series card on the medium’s page.</span>
+          <AdminWhereShown
+            places={[
+              { where: "The medium’s page", detail: "the text on this series’ card in the Series list." },
+              {
+                where: "Home page",
+                detail: "the text on this series’ card in the featured series section, when this series is picked there.",
+              },
+              {
+                where: "Search results and link previews",
+                detail: "the short description Google and social media show for this page.",
+              },
+            ]}
+            note="Keep it to a sentence or two. It only shows on the series page itself if the About box below is empty."
+          />
         </div>
         <div className="block text-sm text-muted">
           About
           <AdminRichTextEditor name="content" size="lg" headings ariaLabel="About" />
-          <span className="mt-2 block text-xs">Shown under the title on the series page.</span>
+          <AdminWhereShown
+            places={[
+              {
+                where: "This series’ page",
+                detail: "the About section directly under the title, at the top of the page.",
+              },
+            ]}
+          />
         </div>
         <div className="grid gap-6 md:grid-cols-2">
           <label className="block text-sm text-muted">
@@ -66,10 +87,17 @@ export default async function NewSeriesPage({
             <input name="sortOrder" defaultValue="0" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
             <span className="mt-2 block text-xs">Lower numbers appear first among this medium’s series.</span>
           </label>
-          <AdminFilePicker name="featured" label="Series card image (optional)" buttonLabel="Upload image" />
         </div>
+        <AdminFeaturedArtworkField
+          mode="upload"
+          artworkId={null}
+          pieces={[]}
+          listingSurface="series"
+          cardImage=""
+          submitLabel="Create series"
+        />
         <p className="text-xs text-muted">
-          After creating the series you can add paintings to it. Until then, the card uses a placeholder image.
+          After creating the series you can add paintings to it, then choose one of them for the card.
         </p>
         <div className="flex flex-wrap gap-3">
           <button className={adminBtnPrimary} type="submit">

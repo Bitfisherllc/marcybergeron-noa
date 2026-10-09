@@ -5,6 +5,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/r
 import StarterKit from "@tiptap/starter-kit";
 import { marked } from "marked";
 import { useRef, type ReactNode } from "react";
+import { Indent } from "@/lib/editorIndent";
 import { isRichTextHtml, richTextElementClass } from "@/lib/richText";
 
 function toEditorHtml(value: string): string {
@@ -45,6 +46,7 @@ export function AdminRichTextEditor({ name, defaultValue, required, size = "md",
         link: { openOnClick: false, autolink: true, defaultProtocol: "https", HTMLAttributes: { rel: null, target: null } },
       }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
+      Indent,
     ],
     content: toEditorHtml(defaultValue ?? ""),
     editorProps: {
@@ -95,6 +97,8 @@ function Toolbar({ editor, headings }: { editor: Editor; headings: boolean }) {
       link: ed.isActive("link"),
       alignCenter: ed.isActive({ textAlign: "center" }),
       alignRight: ed.isActive({ textAlign: "right" }),
+      canIndent: ed.can().indent(),
+      canOutdent: ed.can().outdent(),
       canUndo: ed.can().undo(),
       canRedo: ed.can().redo(),
     }),
@@ -158,6 +162,12 @@ function Toolbar({ editor, headings }: { editor: Editor; headings: boolean }) {
       <ToolButton label="Quote" active={state.blockquote} onClick={() => chain().toggleBlockquote().run()}>
         <Icon d="M7 7h4v4c0 3-1.5 5-4 6M14 7h4v4c0 3-1.5 5-4 6" />
       </ToolButton>
+      <ToolButton label="Decrease indent (⌘[)" disabled={!state.canOutdent} onClick={() => chain().outdent().run()}>
+        <Icon d="M4 5h16M11 10h9M11 14h9M4 19h16M7.5 9.5 4.5 12l3 2.5" />
+      </ToolButton>
+      <ToolButton label="Increase indent (⌘])" disabled={!state.canIndent} onClick={() => chain().indent().run()}>
+        <Icon d="M4 5h16M11 10h9M11 14h9M4 19h16M4.5 9.5l3 2.5-3 2.5" />
+      </ToolButton>
       <Divider />
       <ToolButton
         label="Align left"
@@ -179,7 +189,7 @@ function Toolbar({ editor, headings }: { editor: Editor; headings: boolean }) {
       <ToolButton label="Horizontal line" onClick={() => chain().setHorizontalRule().run()}>
         <Icon d="M4 12h16" />
       </ToolButton>
-      <ToolButton label="Clear formatting" onClick={() => chain().unsetAllMarks().clearNodes().unsetTextAlign().run()}>
+      <ToolButton label="Clear formatting" onClick={() => chain().unsetAllMarks().clearNodes().unsetTextAlign().unsetIndent().run()}>
         <Icon d="M6 6h12M12 6l-3 12M15 15l5 5M20 15l-5 5" />
       </ToolButton>
       <Divider />

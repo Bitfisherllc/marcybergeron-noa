@@ -184,6 +184,16 @@ function main() {
   }
 
   try {
+    execSync("npx tsx scripts/migrate-site-feature.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] site feature table migration failed.", e);
+    process.exit(1);
+  }
+
+  try {
     execSync("npx tsx scripts/migrate-contact-page.ts", {
       stdio: "inherit",
       env: process.env,

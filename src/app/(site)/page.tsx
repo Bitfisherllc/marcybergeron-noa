@@ -50,7 +50,7 @@ export default async function HomePage() {
   if (heroSlides.length === 0) {
     heroSlides = [
       toHeroSlide(
-        featuredSeries[0]?.featuredImage ?? "/images/logo.svg",
+        featuredSeries[0]?.cardImage ?? "/images/logo.svg",
         featuredSeries[0]?.title ?? "",
         "Featured abstract painting",
       ),
@@ -113,6 +113,8 @@ export default async function HomePage() {
               <SeriesCard
                 key={s.id}
                 s={s}
+                image={s.cardImage}
+                alt={s.cardAlt}
                 portfolioType={s.parentSeriesId ? mediumTitleById.get(s.parentSeriesId) : null}
               />
             ))}

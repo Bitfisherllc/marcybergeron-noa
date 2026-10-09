@@ -2,17 +2,20 @@ import type { MetadataRoute } from "next";
 import { listChildSeries, listMediumGalleries, listPublishedPosts } from "@/lib/queries";
 import { postPublicHref } from "@/lib/postKind";
 import { SITE_URL } from "@/lib/site";
+import { getWorkshopsPublic } from "@/lib/siteFeatures";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let galleries: Awaited<ReturnType<typeof listMediumGalleries>> = [];
   let seriesGalleries: Awaited<ReturnType<typeof listChildSeries>> = [];
   let posts: Awaited<ReturnType<typeof listPublishedPosts>> = [];
   let workshops: Awaited<ReturnType<typeof listPublishedPosts>> = [];
+  let workshopsPublic = false;
   try {
     galleries = await listMediumGalleries();
     seriesGalleries = await listChildSeries();
     posts = await listPublishedPosts("news");
-    workshops = await listPublishedPosts("workshop");
+    workshopsPublic = await getWorkshopsPublic();
+    if (workshopsPublic) workshops = await listPublishedPosts("workshop");
   } catch {
     /* Build or deploy without reachable DB — emit static URLs only. */
   }
@@ -29,7 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: s.updatedAt,
     })),
     { url: `${SITE_URL}/about`, lastModified: new Date() },
-    { url: `${SITE_URL}/workshops`, lastModified: new Date() },
+    ...(workshopsPublic ? [{ url: `${SITE_URL}/workshops`, lastModified: new Date() }] : []),
     ...workshops.map((p) => ({
       url: `${SITE_URL}${postPublicHref("workshop", p.slug)}`,
       lastModified: p.updatedAt,

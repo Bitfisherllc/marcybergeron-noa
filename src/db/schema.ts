@@ -7,7 +7,7 @@ export const series = pgTable("series", {
   excerpt: text("excerpt").notNull(),
   content: text("content").notNull().default(""),
   featuredImage: text("featured_image").notNull(),
-  /** `random` picks from gallery works on each page load; `static` uses `featuredArtworkId`. */
+  /** `upload` uses `featuredImage`; `static` uses `featuredArtworkId`. Legacy `random` shows the first painting. */
   featuredArtworkMode: text("featured_artwork_mode").notNull().default("random"),
   featuredArtworkId: text("featured_artwork_id"),
   sortOrder: integer("sort_order").notNull().default(0),
@@ -246,5 +246,12 @@ export const contactPage = pgTable("contact_page", {
 export const siteFavicon = pgTable("site_favicon", {
   id: text("id").primaryKey(),
   image: text("image").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
+});
+
+/** Site-wide on/off switches keyed by feature (e.g. `workshops`). A missing row means off. */
+export const siteFeature = pgTable("site_feature", {
+  key: text("key").primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });

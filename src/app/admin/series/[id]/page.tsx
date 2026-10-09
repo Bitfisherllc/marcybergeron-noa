@@ -1,24 +1,24 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { upsertArtwork, upsertSeries, deleteSeries } from "@/app/admin/actions";
 import { AdminChildSeriesList } from "@/components/AdminChildSeriesList";
-import { AdminCoverThumb, hasCoverImage } from "@/components/AdminCoverThumb";
+import { hasCoverImage } from "@/components/AdminCoverThumb";
 import { AdminDeleteSeriesForm } from "@/components/AdminDeleteSeriesForm";
 import { AdminFeaturedArtworkField } from "@/components/AdminFeaturedArtworkField";
 import { AdminHeroSlideshowField } from "@/components/AdminHeroSlideshowField";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminGalleryPrivacyPanel } from "@/components/AdminGalleryPrivacyPanel";
 import { AdminGalleryArtworkTable } from "@/components/AdminGalleryArtworkTable";
-import { AdminLightboxThumb } from "@/components/AdminImageLightbox";
 import { AdminLink, adminBtnDanger } from "@/components/AdminLink";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
 import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
 import { AdminSaveTracker } from "@/components/AdminSaveTracker";
 import { AdminSeriesMediumField } from "@/components/AdminSeriesMediumField";
-import { parseFeaturedArtworkMode, resolveInteriorHeroSlides, usesUploadedCover } from "@/lib/featuredArtwork";
+import { AdminWhereShown, type WhereShownPlace } from "@/components/AdminWhereShown";
+import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
 import { isPlaceholderGalleryStatement } from "@/lib/galleryCopy";
 import { mediumGalleryAbout } from "@/lib/mediumGalleryCopy";
 import { isMediumGallerySlug, isStudioGallerySlug, publicPortfolioGalleries } from "@/lib/mediumGalleries";
+import { artSeriesHref } from "@/lib/routeSlug";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
 import {
   getSeriesById,
@@ -70,6 +70,54 @@ export default async function EditSeriesPage({
   const aboutValue = isPlaceholderGalleryStatement(s.content)
     ? (mediumGalleryAbout(s.slug) ?? s.content)
     : s.content;
+
+  const isPrivateGallery = !isMediumGallery && !isChildSeries && s.isPrivate;
+  const pageHref = isPrivateGallery ? (s.accessToken ? `/private/${s.accessToken}` : undefined) : artSeriesHref(s.slug);
+  const pageName = isStudioGallery
+    ? "The Studio page"
+    : isPrivateGallery
+      ? "The private gallery page"
+      : isChildSeries
+        ? "This series’ page"
+        : "This gallery’s page";
+  const searchPreview: WhereShownPlace = isPrivateGallery
+    ? { where: "Link previews", detail: "the short description shown when the private link is shared in an email or message." }
+    : {
+        where: "Search results and link previews",
+        detail: "the short description Google and social media show for this page.",
+      };
+  const excerptPlaces: WhereShownPlace[] = isStudioGallery || isPrivateGallery
+    ? [searchPreview]
+    : isChildSeries
+      ? [
+          {
+            where: parentMedium ? `${parentMedium.title} page` : "The medium’s page",
+            detail: "the text on this series’ card in the Series list.",
+            href: parentMedium ? artSeriesHref(parentMedium.slug) : undefined,
+          },
+          {
+            where: "Home page",
+            detail: "the text on this series’ card in the featured series section, when this series is picked there.",
+            href: "/",
+          },
+          searchPreview,
+        ]
+      : [
+          { where: "Portfolio page", detail: "the text on this gallery’s card.", href: "/medium" },
+          searchPreview,
+        ];
+  const excerptNote = isMediumGallery && !isStudioGallery
+    ? "Keep it to a sentence or two. It is not shown on the gallery page itself."
+    : "Keep it to a sentence or two. It only shows on the page itself if the About box below is empty.";
+  const aboutPlaces: WhereShownPlace[] = [
+    {
+      where: pageName,
+      detail: isStudioGallery
+        ? "the About text beside the studio slideshow, under the title."
+        : "the About section directly under the title, at the top of the page.",
+      href: pageHref,
+    },
+  ];
 
   return (
     <div className="space-y-12">
@@ -134,69 +182,25 @@ export default async function EditSeriesPage({
         <div className="block text-sm text-muted">
           Listing excerpt
           <AdminRichTextEditor name="excerpt" defaultValue={s.excerpt} size="sm" ariaLabel="Listing excerpt" />
-          <span className="mt-2 block text-xs">
-            {isChildSeries
-              ? "Shown on the series card on the medium’s page. Not used as the About paragraph on the series page."
-              : isStudioGallery
-                ? "Optional listing blurb. Not used as the About paragraph on the gallery page."
-                : isMediumGallery
-                  ? "Shown on Portfolio listing cards. Not used as the About paragraph on the gallery page."
-                  : "Shown on listing cards. Not used as the About paragraph on the gallery page."}
-          </span>
+          <AdminWhereShown places={excerptPlaces} note={excerptNote} />
         </div>
         <div className="block text-sm text-muted">
           About
           <AdminRichTextEditor name="content" defaultValue={aboutValue} size="lg" headings ariaLabel="About" />
-          <span className="mt-2 block text-xs">Shown under the title on the public gallery page.</span>
+          <AdminWhereShown places={aboutPlaces} />
         </div>
         <div className="grid gap-6 md:grid-cols-2">
           <label className="block text-sm text-muted">
             Sort order
             <input name="sortOrder" defaultValue={String(s.sortOrder)} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
           </label>
-          <AdminFilePicker
-            name="featured"
-            label={isChildSeries ? "Series card image" : "Portfolio card image"}
-            buttonLabel="Upload image"
-            existingValue={s.featuredImage}
-          />
-        </div>
-        <div className="flex items-center gap-4">
-          {hasCoverImage(s.featuredImage) ? (
-            <AdminLightboxThumb src={s.featuredImage} alt={s.title} caption={`${s.title} — portfolio card image`}>
-              <div className="relative h-24 w-36 cursor-zoom-in overflow-hidden border border-line bg-black/[0.03]">
-                <Image src={s.featuredImage} alt="" fill className="object-cover" />
-              </div>
-            </AdminLightboxThumb>
-          ) : (
-            <AdminCoverThumb
-              image={null}
-              random={parseFeaturedArtworkMode(s.featuredArtworkMode) !== "static" || !s.featuredArtworkId}
-              className="h-24 w-36 shrink-0"
-            />
-          )}
-          <p className="max-w-prose text-xs leading-relaxed text-muted">
-            <strong className="font-medium text-ink">
-              To show this image on the {isChildSeries ? "medium’s page" : "Portfolio page"}, choose{" "}
-              <span className="whitespace-nowrap">Use the uploaded card image</span> in the{" "}
-              {isChildSeries ? "Series" : "Portfolio"} listing card below, then click Save.
-            </strong>{" "}
-            {usesUploadedCover(s)
-              ? "It is showing there now."
-              : `Right now the listing card is set to ${
-                  parseFeaturedArtworkMode(s.featuredArtworkMode) === "static" && s.featuredArtworkId
-                    ? "a fixed painting"
-                    : "a random painting"
-                }, so this image is not shown.`}{" "}
-            Leave empty to keep the current image.
-          </p>
         </div>
         <AdminFeaturedArtworkField
           mode={s.featuredArtworkMode}
           artworkId={s.featuredArtworkId}
           pieces={statementPieceOptions}
           listingSurface={isChildSeries ? "series" : "portfolio"}
-          hasUploadedImage={hasCoverImage(s.featuredImage)}
+          cardImage={hasCoverImage(s.featuredImage) ? s.featuredImage : ""}
         />
         <AdminHeroSlideshowField
           pieces={statementPieceOptions}

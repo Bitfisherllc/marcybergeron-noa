@@ -5,6 +5,7 @@ import { getPostBySlug, listPostGalleryImages, listPublishedPosts } from "@/lib/
 import { parsePostKind, postPublicHref } from "@/lib/postKind";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 import { SITE_URL } from "@/lib/site";
+import { requireWorkshopsVisible } from "@/lib/siteFeatures";
 import { richTextToPlain } from "@/lib/richText";
 
 export const revalidate = 300;
@@ -14,6 +15,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  await requireWorkshopsVisible();
   const { slug: rawSlug } = await params;
   const slug = normalizeRouteSlug(rawSlug);
   const p = await getPostBySlug(slug);
@@ -26,6 +28,7 @@ export async function generateMetadata({
 }
 
 export default async function WorkshopPostPage({ params }: { params: Promise<{ slug: string }> }) {
+  await requireWorkshopsVisible();
   const { slug: rawSlug } = await params;
   const slug = normalizeRouteSlug(rawSlug);
   const [p, published] = await Promise.all([getPostBySlug(slug), listPublishedPosts("workshop")]);

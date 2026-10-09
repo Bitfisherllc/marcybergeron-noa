@@ -2,12 +2,14 @@ import { AdminLink } from "@/components/AdminLink";
 import { countContactMessages } from "@/lib/contactMessages";
 import { countWorkshopInquiries } from "@/lib/workshopInquiries";
 import { listSeries } from "@/lib/queries";
+import { getWorkshopsPublicForAdmin } from "@/lib/siteFeatures";
 
 export default async function AdminHomePage() {
-  const [rows, messageCount, workshopInterestCount] = await Promise.all([
+  const [rows, messageCount, workshopInterestCount, workshopsPublic] = await Promise.all([
     listSeries(),
     countContactMessages(),
     countWorkshopInquiries(),
+    getWorkshopsPublicForAdmin(),
   ]);
   return (
     <div className="space-y-8">
@@ -49,6 +51,9 @@ export default async function AdminHomePage() {
           <div className="text-xs tracking-[0.18em] text-muted uppercase">Workshops</div>
           <div className="mt-2 font-serif text-2xl tracking-tight">Workshops</div>
           <p className="mt-3 text-sm text-muted">Dates, details, and class notes</p>
+          <p className={`mt-2 text-sm ${workshopsPublic ? "text-green-700" : "font-medium text-ink/80"}`}>
+            {workshopsPublic ? "On the website" : "Hidden from visitors"}
+          </p>
         </AdminLink>
         <AdminLink variant="menu" href="/admin/workshop-inquiries">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">Inbox</div>

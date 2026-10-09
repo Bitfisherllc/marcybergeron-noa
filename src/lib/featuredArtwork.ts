@@ -1,10 +1,11 @@
 import type { Artwork, Series } from "@/db";
 import { GALLERY_PLACEHOLDER_IMAGE } from "@/lib/galleryDefaults";
 
-export type FeaturedArtworkMode = "random" | "static" | "upload";
+export type FeaturedArtworkMode = "static" | "upload";
 
-export function parseFeaturedArtworkMode(raw: string | null | undefined): FeaturedArtworkMode {
-  return raw === "static" || raw === "upload" ? raw : "random";
+/** Null for legacy `random` rows, which now show the gallery’s first painting until a choice is saved. */
+export function parseFeaturedArtworkMode(raw: string | null | undefined): FeaturedArtworkMode | null {
+  return raw === "static" || raw === "upload" ? raw : null;
 }
 
 /** Listing card set to the uploaded card image, and one has actually been uploaded. */
@@ -16,8 +17,19 @@ export function usesUploadedCover(series: Pick<Series, "featuredImage" | "featur
   );
 }
 
-export function pickRandomArtwork<T>(pieces: T[]): T | null {
-  return pickRandomArtworks(pieces, 1)[0] ?? null;
+/**
+ * Painting on the listing card when the uploaded card image is not in use:
+ * the chosen piece, else the first painting in the gallery.
+ */
+export function listingCardPiece<T extends { id: string }>(
+  series: Pick<Series, "featuredArtworkMode" | "featuredArtworkId">,
+  pieces: T[],
+): T | null {
+  const chosen =
+    parseFeaturedArtworkMode(series.featuredArtworkMode) === "static" && series.featuredArtworkId
+      ? pieces.find((piece) => piece.id === series.featuredArtworkId)
+      : undefined;
+  return chosen ?? pieces[0] ?? null;
 }
 
 export function pickRandomArtworks<T>(pieces: T[], count: number): T[] {
@@ -116,7 +128,7 @@ function fromPiece(piece: Artwork, pieces: Artwork[]): ResolvedStatementArtwork 
 
 /**
  * Large image(s) beside About when a gallery has Display slideshow turned on.
- * Independent of the rotating Portfolio listing card. Uses saved slots when set.
+ * Independent of the Portfolio listing card. Uses saved slots when set.
  */
 export function resolveInteriorHeroSlides(
   series: Pick<Series, "title" | "featuredImage" | "featuredArtworkMode" | "featuredArtworkId">,
@@ -169,42 +181,9 @@ export function resolveStatementArtwork(
   series: Pick<Series, "title" | "featuredImage" | "featuredArtworkMode" | "featuredArtworkId">,
   pieces: Artwork[],
 ): ResolvedStatementArtwork {
-  const mode = parseFeaturedArtworkMode(series.featuredArtworkMode);
-
-  if (usesUploadedCover(series)) {
-    return {
-      artwork: null,
-      image: series.featuredImage,
-      alt: `${series.title} — featured artwork`,
-      title: series.title,
-      gridIndex: null,
-    };
-  }
-
-  if (mode === "static" && series.featuredArtworkId) {
-    const fixed = pieces.find((p) => p.id === series.featuredArtworkId);
-    if (fixed) {
-      const gridIndex = pieces.findIndex((p) => p.id === fixed.id);
-      return {
-        artwork: fixed,
-        image: fixed.image,
-        alt: fixed.alt,
-        title: fixed.title,
-        gridIndex: gridIndex >= 0 ? gridIndex : null,
-      };
-    }
-  }
-
-  const random = pickRandomArtwork(pieces);
-  if (random) {
-    const gridIndex = pieces.findIndex((p) => p.id === random.id);
-    return {
-      artwork: random,
-      image: random.image,
-      alt: random.alt,
-      title: random.title,
-      gridIndex: gridIndex >= 0 ? gridIndex : null,
-    };
+  if (!usesUploadedCover(series)) {
+    const piece = listingCardPiece(series, pieces);
+    if (piece) return fromPiece(piece, pieces);
   }
 
   return {

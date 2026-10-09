@@ -5,7 +5,13 @@ import type { Artwork, Series } from "@/db";
 import { artwork, artworkSeries, mailingListSignup, post, postCategory, postGalleryImage, series, seriesHeroSlide } from "@/db/schema";
 import { getDb } from "@/db";
 import { CACHE_TAGS, SITE_REVALIDATE_SECONDS } from "@/lib/cacheConfig";
-import { parseFeaturedArtworkMode, resolveStatementArtwork, type HeroSlideshowSlot } from "@/lib/featuredArtwork";
+import {
+  listingCardPiece,
+  parseFeaturedArtworkMode,
+  resolveStatementArtwork,
+  usesUploadedCover,
+  type HeroSlideshowSlot,
+} from "@/lib/featuredArtwork";
 import { toHeroSlide, type HeroSlide } from "@/lib/heroSlides";
 import {
   isMediumGallerySlug,
@@ -120,46 +126,34 @@ export async function listArtworksGroupedForMediumGalleries(galleries: Series[])
   if (galleries.length === 0) return grouped;
 
   const db = getDb();
-  const staticArtworkIds: string[] = [];
-  const randomMediumIds: string[] = [];
+  const needsPiece = galleries.filter((gallery) => !usesUploadedCover(gallery));
+  if (needsPiece.length === 0) return grouped;
+  const staticArtworkIds = needsPiece
+    .filter((gallery) => parseFeaturedArtworkMode(gallery.featuredArtworkMode) === "static")
+    .map((gallery) => gallery.featuredArtworkId)
+    .filter((id): id is string => Boolean(id));
+  const mediumIds = needsPiece.map((gallery) => gallery.id);
 
-  for (const gallery of galleries) {
-    const mode = parseFeaturedArtworkMode(gallery.featuredArtworkMode);
-    if (mode === "static" && gallery.featuredArtworkId) {
-      staticArtworkIds.push(gallery.featuredArtworkId);
-    } else {
-      randomMediumIds.push(gallery.id);
-    }
-  }
-
-  const [staticPieces, randomPieces] = await Promise.all([
+  const [staticPieces, firstPieces] = await Promise.all([
     staticArtworkIds.length > 0
       ? db.select().from(artwork).where(inArray(artwork.id, staticArtworkIds))
       : Promise.resolve([] as Artwork[]),
-    randomMediumIds.length > 0
-      ? db
-          .select()
-          .from(artwork)
-          .where(
-            sql`${artwork.id} IN (
-              SELECT DISTINCT ON (${artwork.mediumSeriesId}) ${artwork.id}
-              FROM ${artwork}
-              WHERE ${artwork.mediumSeriesId} IN ${randomMediumIds}
-              ORDER BY ${artwork.mediumSeriesId}, random()
-            )`,
-          )
-      : Promise.resolve([] as Artwork[]),
+    db
+      .select()
+      .from(artwork)
+      .where(
+        sql`${artwork.id} IN (
+          SELECT DISTINCT ON (${artwork.mediumSeriesId}) ${artwork.id}
+          FROM ${artwork}
+          WHERE ${artwork.mediumSeriesId} IN ${mediumIds}
+          ORDER BY ${artwork.mediumSeriesId}, ${artwork.sortOrder}, ${artwork.title}
+        )`,
+      ),
   ]);
 
-  const staticById = new Map(staticPieces.map((piece) => [piece.id, piece]));
-  for (const gallery of galleries) {
-    const mode = parseFeaturedArtworkMode(gallery.featuredArtworkMode);
-    if (mode === "static" && gallery.featuredArtworkId) {
-      const piece = staticById.get(gallery.featuredArtworkId);
-      if (piece) grouped.set(gallery.id, [piece]);
-      continue;
-    }
-    const piece = randomPieces.find((p) => p.mediumSeriesId === gallery.id);
+  for (const gallery of needsPiece) {
+    const inGallery = [...firstPieces, ...staticPieces].filter((piece) => piece.mediumSeriesId === gallery.id);
+    const piece = listingCardPiece(gallery, inGallery);
     if (piece) grouped.set(gallery.id, [piece]);
   }
 

@@ -3,6 +3,7 @@ import { deleteSeries } from "@/app/admin/actions";
 import type { Series } from "@/db";
 import { AdminArtworkSiteEdit } from "@/components/AdminArtworkSiteEdit";
 import { AdminDeleteSeriesForm } from "@/components/AdminDeleteSeriesForm";
+import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { GalleryIndexCards } from "@/components/GalleryIndexCards";
 import { GalleryLightboxProvider, GalleryLightboxTrigger } from "@/components/GalleryLightbox";
 import { IntrinsicGalleryImage } from "@/components/IntrinsicGalleryImage";
@@ -160,6 +161,17 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
     };
   });
 
+  const crumbs: Crumb[] = isStudioGallery
+    ? [{ label: "About", href: "/about" }]
+    : [
+        { label: "Portfolio", href: "/medium" },
+        ...(parentMedium ? [{ label: parentMedium.title, href: parentHref }] : []),
+      ];
+  const breadcrumbs =
+    variant === "public" ? (
+      <Breadcrumbs items={[...crumbs, { label: s.title, href: artSeriesHref(s.slug) }]} className="mb-8" />
+    ) : null;
+
   const studioHero = isStudioGallery && showSlideshow;
   const seriesList = (
     <>
@@ -182,6 +194,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       <GalleryLightboxProvider slides={lightboxSlides}>
       <header className="border-b border-line">
         <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
+          {breadcrumbs}
           {studioHero ? (
             <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
               <div>
@@ -209,13 +222,6 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
               <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
               {publicExcerpt ? (
                 <RichText content={publicExcerpt} className="mt-6 max-w-3xl text-base leading-relaxed text-muted" />
-              ) : null}
-              {isChildSeries ? (
-                <p className="mt-4">
-                  <Link href={parentHref} className="link-quiet text-sm tracking-wide">
-                    ← {parentTitle}
-                  </Link>
-                </p>
               ) : null}
               {variant === "private" ? (
                 <p className="mt-4 max-w-3xl text-sm text-muted">

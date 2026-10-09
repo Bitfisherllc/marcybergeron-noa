@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   addPostCategory,
   deletePost,
@@ -26,9 +27,12 @@ const errorCopy: Record<string, string> = {
 export async function AdminPostsManager({
   kind,
   searchParams,
+  settings,
 }: {
   kind: PostKind;
   searchParams: Promise<{ saved?: string; error?: string }>;
+  /** Shown between the page heading and the page intro form. */
+  settings?: ReactNode;
 }) {
   const sp = await searchParams;
   const copy = postKindCopy(kind);
@@ -57,6 +61,8 @@ export async function AdminPostsManager({
           {sp.error && errorCopy[sp.error] ? <p className="mt-3 text-sm text-red-700">{errorCopy[sp.error]}</p> : null}
         </div>
       </div>
+
+      {settings}
 
       <form id="post-index-copy" data-admin-section="Page intro" action={savePostIndexCopy} className="border border-line bg-white/50 p-6">
         <input type="hidden" name="kind" value={kind} />

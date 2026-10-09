@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { AdminWorkshopsNavItem } from "@/components/AdminOnly";
 import { SiteMobileMenu } from "@/components/SiteMobileMenu";
 import { SocialIcon } from "@/components/SocialIcon";
 import type { Series } from "@/db";
@@ -12,6 +13,7 @@ import {
   publicPortfolioGalleries,
 } from "@/lib/mediumGalleries";
 import { SITE_NAME } from "@/lib/site";
+import { getWorkshopsPublic } from "@/lib/siteFeatures";
 import { socialLinkLabel } from "@/lib/socialLinks";
 
 const workshopsLink = { href: "/workshops", label: "Workshops" } as const;
@@ -106,15 +108,16 @@ type NavItem = { href: string; label: string };
 type HeaderNav = {
   home?: NavItem;
   portfolio: { href: string; overviewLabel: string; items: NavItem[] };
-  workshops: NavItem;
+  /** `null` while Workshops are hidden from visitors (shown client-side to a signed-in admin). */
+  workshops: NavItem | null;
   about: { href: string; items: NavItem[] };
   links: readonly NavItem[];
 };
 
-function publicNav(galleries: Series[]): HeaderNav {
+function publicNav(galleries: Series[], workshopsPublic: boolean): HeaderNav {
   return {
     portfolio: { href: "/medium", overviewLabel: "View portfolio", items: portfolioNavDropdownItems(galleries) },
-    workshops: workshopsLink,
+    workshops: workshopsPublic ? workshopsLink : null,
     about: { href: "/about", items: aboutNavDropdownItems() },
     links: navLinks,
   };
@@ -146,8 +149,12 @@ function adminNav(galleries: Series[]): HeaderNav {
 }
 
 export async function SiteHeader({ admin = false }: { admin?: boolean }) {
-  const [portfolioGalleries, contact] = await Promise.all([listMediumGalleries(), getSiteContact()]);
-  const nav = admin ? adminNav(portfolioGalleries) : publicNav(portfolioGalleries);
+  const [portfolioGalleries, contact, workshopsPublic] = await Promise.all([
+    listMediumGalleries(),
+    getSiteContact(),
+    admin ? true : getWorkshopsPublic(),
+  ]);
+  const nav = admin ? adminNav(portfolioGalleries) : publicNav(portfolioGalleries, workshopsPublic);
 
   return (
     <header className="border-b border-line bg-paper">
@@ -208,11 +215,15 @@ export async function SiteHeader({ admin = false }: { admin?: boolean }) {
                 items={nav.portfolio.items}
               />
             </li>
-            <li>
-              <Link href={nav.workshops.href} className="hover:text-ink focus-ring rounded-sm">
-                {nav.workshops.label}
-              </Link>
-            </li>
+            {nav.workshops ? (
+              <li>
+                <Link href={nav.workshops.href} className="hover:text-ink focus-ring rounded-sm">
+                  {nav.workshops.label}
+                </Link>
+              </li>
+            ) : (
+              <AdminWorkshopsNavItem className="hover:text-ink focus-ring rounded-sm" />
+            )}
             <li className="group relative">
               <NavDropdownLink href={nav.about.href} label="About" />
               <NavDropdownPanel ariaLabel="About" items={nav.about.items} />

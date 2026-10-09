@@ -18,12 +18,12 @@ export type GalleryIndexCard = {
 
 export function GalleryIndexCards({ cards, cta }: { cards: GalleryIndexCard[]; cta: string }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid auto-rows-fr grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
       {cards.map((card) => {
         const excerpt = publicGalleryExcerpt(card.excerpt);
         return (
-        <article key={card.id} className="group border border-line bg-white/40">
-          <Link href={card.href} className="focus-ring block">
+        <article key={card.id} className="group flex flex-col border border-line bg-white/40">
+          <Link href={card.href} className="focus-ring flex flex-1 flex-col">
             <GalleryListingImage
               galleryId={card.id}
               src={card.image}
@@ -33,17 +33,21 @@ export function GalleryIndexCards({ cards, cta }: { cards: GalleryIndexCard[]; c
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
               imageClassName="transition duration-500 group-hover:scale-[1.01]"
             />
-            <div className="px-6 py-7">
+            <div className="flex flex-1 flex-col px-6 py-7">
               {card.portfolioType ? (
-                <p className="text-xs tracking-[0.18em] text-muted uppercase">{card.portfolioType}</p>
+                <p className="truncate text-xs tracking-[0.18em] text-muted uppercase">{card.portfolioType}</p>
               ) : null}
-              <h2 className={`font-serif text-3xl tracking-tight ${card.portfolioType ? "mt-3" : ""}`}>
+              <h2 className={`line-clamp-2 font-serif text-3xl tracking-tight ${card.portfolioType ? "mt-3" : ""}`}>
                 {card.title}
               </h2>
               {excerpt ? (
-                <RichText content={excerpt} insideLink className="mt-3 text-sm leading-relaxed text-muted" />
+                <RichText
+                  content={excerpt}
+                  insideLink
+                  className="mt-3 line-clamp-4 text-sm leading-relaxed text-muted"
+                />
               ) : null}
-              <span className="mt-3 inline-flex text-xs tracking-[0.18em] text-ink/70 uppercase">{cta}</span>
+              <span className="mt-auto inline-flex pt-3 text-xs tracking-[0.18em] text-ink/70 uppercase">{cta}</span>
             </div>
           </Link>
         </article>

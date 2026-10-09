@@ -225,7 +225,8 @@ export default async function AdminHomePage({
                   <p className="text-sm text-ink">Series cards</p>
                   <p className="mt-1 max-w-prose text-xs leading-relaxed text-muted">
                     Choose from Series (Standing Tall As Trees, Born in France, Mexico as Muse)—not Portfolio
-                    galleries. Leave every slot on Auto to use those three in menu order.
+                    galleries. Leave every slot on Auto to use those three in menu order. Each card shows the picture
+                    chosen in that series’ Series listing card.
                   </p>
                   <div className="mt-4 grid gap-6 sm:grid-cols-3">
                     {[0, 1, 2].map((slot) => (

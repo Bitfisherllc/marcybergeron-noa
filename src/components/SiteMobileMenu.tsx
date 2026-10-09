@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
+import { AdminWorkshopsNavItem } from "@/components/AdminOnly";
 import { SocialIcon } from "@/components/SocialIcon";
 import { socialLinkLabel, type SocialLink } from "@/lib/socialLinks";
 
@@ -132,7 +133,7 @@ export function SiteMobileMenu({
   portfolioOverviewLabel?: string;
   portfolioItems: NavItem[];
   aboutItems: NavItem[];
-  workshopsLink: NavItem;
+  workshopsLink: NavItem | null;
   navLinks: readonly NavItem[];
   socialLinks: SocialLink[];
 }) {
@@ -229,15 +230,19 @@ export function SiteMobileMenu({
             onToggle={() => toggleSection("portfolio")}
             onNavigate={close}
           />
-          <li>
-            <Link
-              className="block rounded-sm px-1 py-2.5 hover:bg-black/[0.03]"
-              href={workshopsLink.href}
-              onClick={close}
-            >
-              {workshopsLink.label}
-            </Link>
-          </li>
+          {workshopsLink ? (
+            <li>
+              <Link
+                className="block rounded-sm px-1 py-2.5 hover:bg-black/[0.03]"
+                href={workshopsLink.href}
+                onClick={close}
+              >
+                {workshopsLink.label}
+              </Link>
+            </li>
+          ) : (
+            <AdminWorkshopsNavItem className="block rounded-sm px-1 py-2.5 hover:bg-black/[0.03]" onClick={close} />
+          )}
           <MobileNavSection
             title="About"
             items={aboutItems}

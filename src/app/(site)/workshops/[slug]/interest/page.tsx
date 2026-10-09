@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { submitWorkshopInterest } from "@/app/(site)/workshops/[slug]/interest/actions";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { WorkshopInterestForm } from "@/components/WorkshopInterestForm";
 import { createFormChallenge } from "@/lib/formGuard";
 import { getPostBySlug, listPublishedPosts } from "@/lib/queries";
 import { parsePostKind, postPublicHref } from "@/lib/postKind";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 import { SITE_URL } from "@/lib/site";
+import { requireWorkshopsVisible } from "@/lib/siteFeatures";
 import { WORKSHOP_MATERIALS_DEFAULT, WORKSHOP_PRICE_FLOOR_NOTE, workshopInterestHref } from "@/lib/workshopCopy";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +19,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  await requireWorkshopsVisible();
   const { slug: rawSlug } = await params;
   const slug = normalizeRouteSlug(rawSlug);
   const p = await getPostBySlug(slug);
@@ -35,6 +38,7 @@ export default async function WorkshopInterestPage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ sent?: string; error?: string }>;
 }) {
+  await requireWorkshopsVisible();
   const { slug: rawSlug } = await params;
   const slug = normalizeRouteSlug(rawSlug);
   const sp = await searchParams;
@@ -50,6 +54,14 @@ export default async function WorkshopInterestPage({
     <div>
       <section className="border-b border-line">
         <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-20">
+          <Breadcrumbs
+            items={[
+              { label: "Workshops", href: "/workshops" },
+              { label: p.title, href },
+              { label: "I’m interested", href: workshopInterestHref(p.slug) },
+            ]}
+            className="mb-8"
+          />
           <p className="text-xs tracking-[0.22em] text-muted uppercase">Workshops</p>
           <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">I&apos;m interested</h1>
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted">

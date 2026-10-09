@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Post, PostGalleryImage } from "@/db";
 import { BlogPostGalleryLightbox } from "@/components/BlogPostGalleryLightbox";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { HomeJournalSlider } from "@/components/HomeJournalSlider";
 import { PostArticleGallery } from "@/components/PostArticleGallery";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
@@ -42,6 +43,13 @@ export function PostArticleView({
     <article>
       <section className="border-b border-line">
         <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-20">
+          <Breadcrumbs
+            items={[
+              { label: copy.metaTitle, href: indexHref },
+              { label: p.title, href: postPublicHref(kind, p.slug) },
+            ]}
+            className="mb-8"
+          />
           <p className="text-xs tracking-[0.22em] text-muted uppercase">{p.category}</p>
           <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{p.title}</h1>
           {kind === "workshop" ? (

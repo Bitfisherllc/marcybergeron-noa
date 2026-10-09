@@ -135,7 +135,8 @@ export async function upsertSeries(formData: FormData) {
   const privacyField = formData.get("isPrivate");
   const featured = formData.get("featured") as File | null;
 
-  const featuredArtworkMode = parseFeaturedArtworkMode(String(formData.get("featuredArtworkMode") ?? ""));
+  const featuredArtworkMode =
+    parseFeaturedArtworkMode(String(formData.get("featuredArtworkMode") ?? "")) ?? "upload";
   const featuredArtworkIdRaw = String(formData.get("featuredArtworkId") ?? "").trim();
   const showHeroSlideshow = String(formData.get("showHeroSlideshow") ?? "") === "on";
 

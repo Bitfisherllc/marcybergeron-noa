@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { RichText } from "@/components/RichText";
 import { StudioDirectionsLinks, StudioLocationPanel } from "@/components/StudioDirectionsClient";
 import { getSiteContact } from "@/lib/contactPage";
@@ -21,6 +22,13 @@ export default async function DirectionsPage() {
     <div>
       <section className="border-b border-line">
         <div className="mx-auto max-w-3xl px-5 py-14 md:px-8 md:py-16">
+          <Breadcrumbs
+            items={[
+              { label: "Contact", href: "/contact" },
+              { label: "Directions", href: "/directions" },
+            ]}
+            className="mb-8"
+          />
           {contact.directionsEyebrow ? (
             <p className="text-xs tracking-[0.22em] text-muted uppercase">{contact.directionsEyebrow}</p>
           ) : null}

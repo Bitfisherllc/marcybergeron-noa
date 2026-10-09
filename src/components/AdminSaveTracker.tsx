@@ -27,6 +27,9 @@ function getFormSnapshot(form: HTMLFormElement): Record<string, string> {
       data[name] = el.files?.length ? `file:${el.files[0]!.name}` : "";
     } else if (el instanceof HTMLInputElement && el.type === "checkbox") {
       checkboxNames.add(name);
+    } else if (el instanceof HTMLInputElement && el.type === "radio") {
+      if (el.checked) data[name] = el.value;
+      else data[name] ??= "";
     } else {
       data[name] = el.value;
     }

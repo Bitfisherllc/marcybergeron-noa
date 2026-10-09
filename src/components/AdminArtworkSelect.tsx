@@ -177,43 +177,47 @@ export function ArtworkPickerDialog({
             </button>
           </div>
         </div>
-        <div className="grid gap-3 border-b border-line px-5 py-3 sm:grid-cols-3">
-          <label className="block text-xs tracking-wide text-muted uppercase">
-            Portfolio
-            <select
-              value={portfolio}
-              className={`${filterSelectClass} mt-1 normal-case tracking-normal`}
-              onChange={(event) => {
-                setPortfolio(event.target.value);
-                setSeriesFilter("all");
-              }}
-            >
-              <option value="all">All portfolios</option>
-              {portfolios.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-xs tracking-wide text-muted uppercase">
-            Series
-            <select
-              value={seriesFilter}
-              disabled={seriesInPortfolio.length === 0}
-              className={`${filterSelectClass} mt-1 normal-case tracking-normal disabled:opacity-50`}
-              onChange={(event) => setSeriesFilter(event.target.value)}
-            >
-              <option value="all">
-                {seriesInPortfolio.length === 0 ? "No series in this portfolio" : "All series"}
-              </option>
-              {seriesInPortfolio.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className={`grid gap-3 border-b border-line px-5 py-3 ${portfolios.length > 0 ? "sm:grid-cols-3" : ""}`}>
+          {portfolios.length > 0 ? (
+            <>
+              <label className="block text-xs tracking-wide text-muted uppercase">
+                Portfolio
+                <select
+                  value={portfolio}
+                  className={`${filterSelectClass} mt-1 normal-case tracking-normal`}
+                  onChange={(event) => {
+                    setPortfolio(event.target.value);
+                    setSeriesFilter("all");
+                  }}
+                >
+                  <option value="all">All portfolios</option>
+                  {portfolios.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-xs tracking-wide text-muted uppercase">
+                Series
+                <select
+                  value={seriesFilter}
+                  disabled={seriesInPortfolio.length === 0}
+                  className={`${filterSelectClass} mt-1 normal-case tracking-normal disabled:opacity-50`}
+                  onChange={(event) => setSeriesFilter(event.target.value)}
+                >
+                  <option value="all">
+                    {seriesInPortfolio.length === 0 ? "No series in this portfolio" : "All series"}
+                  </option>
+                  {seriesInPortfolio.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
           <label className="block text-xs tracking-wide text-muted uppercase">
             Search
             <input
@@ -317,46 +321,67 @@ export function AdminArtworkSelect({
     );
   }
 
+  const statusText = selected
+    ? selected.label
+    : emptyLabel === "— Auto —"
+      ? "Automatic pick until you choose one"
+      : "No painting chosen yet";
+  const chooseLabel = current ? "Change painting" : "Choose a painting";
+
   return (
     <div className="space-y-2">
       <input type="hidden" name={name} value={current} />
-      <div className={compact ? "flex flex-col gap-2" : "flex flex-wrap items-center gap-3"}>
-        <button
-          type="button"
-          className={compact ? `${btnSecondary} w-full justify-center` : btnSecondary}
-          onClick={() => setOpen(true)}
-        >
-          Choose painting
-        </button>
-        {current || compact ? (
+      {compact ? (
+        <div className="flex flex-col gap-2">
+          <button type="button" className={`${btnSecondary} w-full justify-center`} onClick={() => setOpen(true)}>
+            {chooseLabel}
+          </button>
           <button
             type="button"
-            className={`${compact ? `${btnSecondary} w-full justify-center` : btnSecondary} ${
-              !current ? "pointer-events-none opacity-30" : ""
-            }`}
+            className={`${btnSecondary} w-full justify-center ${!current ? "pointer-events-none opacity-30" : ""}`}
             disabled={!current}
             onClick={(event) => pick("", event.currentTarget.form)}
           >
             Clear
           </button>
-        ) : null}
-        <p className="min-w-0 truncate text-xs leading-relaxed text-muted">
-          {selected ? selected.label : emptyLabel === "— Auto —" ? "Automatic pick until you choose one" : "No painting chosen yet"}
-        </p>
-      </div>
-      {!compact && selected?.image ? (
+          <p className="min-w-0 truncate text-xs leading-relaxed text-muted">{statusText}</p>
+        </div>
+      ) : (
         <div className="flex items-start gap-3">
-          <div className="relative h-24 w-20 shrink-0 overflow-hidden border border-ink bg-black/[0.03]">
-            {selected.image.startsWith("/") ? (
+          <button
+            type="button"
+            className={`focus-ring relative h-24 w-20 shrink-0 overflow-hidden border bg-black/[0.03] ${
+              selected ? "border-ink" : "border-dashed border-line"
+            }`}
+            aria-label={chooseLabel}
+            onClick={() => setOpen(true)}
+          >
+            {selected?.image?.startsWith("/") ? (
               <Image src={selected.image} alt="" fill className="object-cover" sizes="80px" />
-            ) : (
+            ) : selected?.image ? (
               // eslint-disable-next-line @next/next/no-img-element -- remote URLs
               <img src={selected.image} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span className="flex h-full items-center justify-center p-2 text-center text-[0.65rem] leading-snug text-muted">
+                {selected ? "No image" : "None"}
+              </span>
             )}
+          </button>
+          <div className="min-w-0 flex-1 space-y-2">
+            <p className={`text-sm leading-snug ${selected ? "text-ink" : "text-muted"}`}>{statusText}</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={btnSecondary} onClick={() => setOpen(true)}>
+                {chooseLabel}
+              </button>
+              {current ? (
+                <button type="button" className={btnSecondary} onClick={(event) => pick("", event.currentTarget.form)}>
+                  Clear
+                </button>
+              ) : null}
+            </div>
           </div>
-          <p className="pt-1 text-sm leading-relaxed text-ink">{selected.label}</p>
         </div>
-      ) : null}
+      )}
 
       {open ? (
         <ArtworkPickerDialog

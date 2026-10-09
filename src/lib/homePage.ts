@@ -19,9 +19,17 @@ import {
   HOME_SLIDESHOW_SECTION,
   type HomeSectionKey,
 } from "@/lib/homeDefaults";
-import { featuredHomePieces, getPrimarySeriesForArtworks, heroHomeSlides, listChildSeries, listPublishedPosts } from "@/lib/queries";
-import { HOME_SLIDESHOW_MAX } from "@/lib/featuredArtwork";
+import {
+  featuredHomePieces,
+  getPrimarySeriesForArtworks,
+  heroHomeSlides,
+  listArtworksForSeries,
+  listChildSeries,
+  listPublishedPosts,
+} from "@/lib/queries";
+import { HOME_SLIDESHOW_MAX, resolveStatementArtwork } from "@/lib/featuredArtwork";
 import { heroSlideAlt, type HeroSlide, toHeroSlide } from "@/lib/heroSlides";
+import { getWorkshopsPublic, isWorkshopsHref } from "@/lib/siteFeatures";
 
 export type HomeSectionResolved = {
   eyebrow: string;
@@ -91,6 +99,18 @@ export async function getResolvedFeaturedSeries(): Promise<Series[]> {
     .map((id) => (id ? byId.get(id) : undefined))
     .filter((s): s is Series => Boolean(s));
   return (ordered.length > 0 ? ordered : allSeries).slice(0, 3);
+}
+
+export type FeaturedSeriesCard = Series & { cardImage: string; cardAlt: string };
+
+/** Featured series with the same listing-card picture as the medium page’s Series list. */
+async function getFeaturedSeriesCards(): Promise<FeaturedSeriesCard[]> {
+  const featured = await getResolvedFeaturedSeries();
+  const pieces = await Promise.all(featured.map((s) => listArtworksForSeries(s.id)));
+  return featured.map((s, i) => {
+    const card = resolveStatementArtwork(s, pieces[i] ?? []);
+    return { ...s, cardImage: card.image, cardAlt: card.alt };
+  });
 }
 
 async function slotPostIds(): Promise<(string | null)[]> {
@@ -170,21 +190,26 @@ export async function getResolvedSelectedWorks(): Promise<{ series: Series; piec
 }
 
 async function getPublicHomePayloadUncached() {
-  const [sections, featuredSeries, journalPosts, selectedPicks, slides, slideshowVisible] = await Promise.all([
-    getResolvedHomeSections(),
-    getResolvedFeaturedSeries(),
-    getResolvedJournalPostsForHome(),
-    getResolvedSelectedWorks(),
-    getResolvedHeroSlides(),
-    getHomeSlideshowVisible(),
-  ]);
+  const [sections, featuredSeries, journalPosts, selectedPicks, allSlides, slideshowVisible, workshopsPublic] =
+    await Promise.all([
+      getResolvedHomeSections(),
+      getFeaturedSeriesCards(),
+      getResolvedJournalPostsForHome(),
+      getResolvedSelectedWorks(),
+      getResolvedHeroSlides(),
+      getHomeSlideshowVisible(),
+      getWorkshopsPublic(),
+    ]);
+  const slides = workshopsPublic
+    ? allSlides
+    : allSlides.map((slide) => (isWorkshopsHref(slide.href) ? { ...slide, href: undefined } : slide));
   return { sections, featuredSeries, journalPosts, selectedPicks, slides, slideshowVisible };
 }
 
 /** Cached home payload so public visitors don't hit Railway on every request. */
-export const getPublicHomePayload = unstable_cache(getPublicHomePayloadUncached, ["public-home-payload", "v7"], {
+export const getPublicHomePayload = unstable_cache(getPublicHomePayloadUncached, ["public-home-payload", "v9"], {
   revalidate: SITE_REVALIDATE_SECONDS,
-  tags: [CACHE_TAGS.home, CACHE_TAGS.posts, CACHE_TAGS.artwork, CACHE_TAGS.series],
+  tags: [CACHE_TAGS.home, CACHE_TAGS.posts, CACHE_TAGS.artwork, CACHE_TAGS.series, CACHE_TAGS.site],
 });
 
 /** Admin: raw section rows for form (empty strings if row exists with blanks). */

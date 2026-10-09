@@ -13,11 +13,19 @@ import { AdminLink, adminBtnDanger, adminBtnPrimary } from "@/components/AdminLi
 import { AdminReorderButtons } from "@/components/AdminReorderButtons";
 import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
 import { AdminSaveTracker } from "@/components/AdminSaveTracker";
+import { AdminWhereShown } from "@/components/AdminWhereShown";
 import { AdminPostCategorySelect } from "@/components/AdminPostCategorySelect";
 import { getDb } from "@/db";
 import { post } from "@/db/schema";
 import { listPostCategories, listPostGalleryImages } from "@/lib/queries";
-import { parsePostKind, postAdminBasePath, postKindCopy, postPublicHref, type PostKind } from "@/lib/postKind";
+import {
+  parsePostKind,
+  postAdminBasePath,
+  postKindCopy,
+  postPublicBasePath,
+  postPublicHref,
+  type PostKind,
+} from "@/lib/postKind";
 import { DEFAULT_WORKSHOP_PRICE } from "@/lib/workshopPrice";
 import { eq } from "drizzle-orm";
 
@@ -256,6 +264,12 @@ function AdminPostFields({
     materialsNote: string;
   };
 }) {
+  const isWorkshop = kind === "workshop";
+  const itemName = isWorkshop ? "workshop" : "article";
+  const indexName = postKindCopy(kind).metaTitle;
+  const indexHref = postPublicBasePath(kind);
+  const pageHref = defaults?.published && defaults.slug ? postPublicHref(kind, defaults.slug) : undefined;
+
   return (
     <>
       <div className="grid gap-6 md:grid-cols-2">
@@ -281,6 +295,29 @@ function AdminPostFields({
       <div className="block text-sm text-muted">
         Excerpt
         <AdminRichTextEditor name="excerpt" required defaultValue={defaults?.excerpt} size="sm" ariaLabel="Excerpt" />
+        <AdminWhereShown
+          places={[
+            {
+              where: `${indexName} page`,
+              detail: `the short summary on this ${itemName}’s card.`,
+              href: indexHref,
+            },
+            ...(isWorkshop
+              ? []
+              : [
+                  {
+                    where: "Home page",
+                    detail: "the summary on this article’s card in the News carousel, when the article is shown there.",
+                    href: "/",
+                  },
+                ]),
+            {
+              where: "Search results and link previews",
+              detail: "the short description Google and social media show for this page.",
+            },
+          ]}
+          note={`Keep it to a sentence or two. It is not shown on the ${itemName} page itself.`}
+        />
       </div>
       <div className="block text-sm text-muted">
         Content
@@ -292,6 +329,17 @@ function AdminPostFields({
           headings
           ariaLabel="Content"
         />
+        <AdminWhereShown
+          places={[
+            {
+              where: `This ${itemName}’s page`,
+              detail: isWorkshop
+                ? "the main description, below the title, cost, and dates."
+                : "the main text of the article, below the title and image.",
+              href: pageHref,
+            },
+          ]}
+        />
       </div>
       <div className="grid gap-6 md:grid-cols-2">
         <AdminPostCategorySelect categories={categories} defaultValue={defaults?.category} />
@@ -302,6 +350,9 @@ function AdminPostFields({
             defaultValue={defaults?.tags}
             className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
           />
+          <span className="mt-2 block text-xs leading-relaxed">
+            Shown at the very bottom of this {itemName}’s page, after the main text.
+          </span>
         </label>
       </div>
       {kind === "workshop" ? (
@@ -360,6 +411,17 @@ function AdminPostFields({
         label="Add image"
         buttonLabel="Upload image"
         existingValue={defaults?.featuredImage ?? ""}
+      />
+      <AdminWhereShown
+        places={[
+          { where: `${indexName} page`, detail: `the picture on this ${itemName}’s card.`, href: indexHref },
+          ...(isWorkshop
+            ? []
+            : [
+                { where: "Home page", detail: "the picture on this article’s card in the News carousel.", href: "/" },
+                { where: "This article’s page", detail: "the large picture under the title.", href: pageHref },
+              ]),
+        ]}
       />
     </>
   );

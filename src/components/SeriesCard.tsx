@@ -5,14 +5,25 @@ import { RichText } from "@/components/RichText";
 import { SITE_IMAGE_QUALITY } from "@/lib/imageQuality";
 import { artSeriesHref } from "@/lib/routeSlug";
 
-export function SeriesCard({ s, portfolioType }: { s: Series; portfolioType?: string | null }) {
+export function SeriesCard({
+  s,
+  image,
+  alt,
+  portfolioType,
+}: {
+  s: Series;
+  /** Resolved listing-card picture; defaults to the stored card image. */
+  image?: string;
+  alt?: string;
+  portfolioType?: string | null;
+}) {
   return (
     <article className="group flex flex-col border border-line bg-white/40">
       <Link href={artSeriesHref(s.slug)} className="focus-ring block">
         <div className="relative aspect-[4/3] overflow-hidden bg-black/[0.03]">
           <Image
-            src={s.featuredImage}
-            alt={`${s.title} — featured artwork`}
+            src={image ?? s.featuredImage}
+            alt={alt ?? `${s.title} — featured artwork`}
             fill
             quality={SITE_IMAGE_QUALITY}
             className="object-cover transition duration-500 group-hover:scale-[1.02]"
