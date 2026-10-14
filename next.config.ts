@@ -9,8 +9,11 @@ const nextConfig: NextConfig = {
   turbopack: {},
   experimental: {
     serverActions: {
-      /** Art uploads via admin forms (default is 1mb). */
-      bodySizeLimit: "2mb",
+      /**
+       * Admin uploads are resized in the browser first (see shrinkImageForUpload). Keep in sync with
+       * ADMIN_UPLOAD_REQUEST_MAX_BYTES and under Vercel's 4.5 MB function body limit.
+       */
+      bodySizeLimit: "4mb",
     },
   },
   async rewrites() {

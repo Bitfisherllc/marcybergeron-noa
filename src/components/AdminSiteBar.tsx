@@ -150,12 +150,12 @@ export function AdminSiteBar({ inboxCount: serverInboxCount }: AdminSiteBarProps
           <button
             type="button"
             onClick={saveDirtyForms}
-            disabled={saveState === "saving"}
+            disabled={saveState === "saving" || saveState === "optimizing"}
             className={`focus-ring inline-flex h-9 items-center justify-center border border-red-500 px-5 text-xs font-medium tracking-[0.18em] text-white uppercase disabled:cursor-wait ${
-              saveState === "saving" ? "bg-red-800" : "admin-save-flash bg-red-600"
+              saveState === "saving" || saveState === "optimizing" ? "bg-red-800" : "admin-save-flash bg-red-600"
             }`}
           >
-            {saveState === "saving" ? "Saving…" : "Save"}
+            {saveState === "saving" ? "Saving…" : saveState === "optimizing" ? "Optimizing…" : "Save"}
           </button>
         ) : justSaved ? (
           <span role="status" className="text-xs tracking-[0.16em] text-green-300 uppercase">

@@ -4,13 +4,8 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Artwork } from "@/db";
 import { ArtworkPickerDialog, type AdminArtworkSelectOption } from "@/components/AdminArtworkSelect";
-import {
-  ADMIN_UPLOAD_MAX_BYTES,
-  ADMIN_UPLOAD_MAX_LABEL,
-  ADMIN_UPLOAD_WARN_BYTES,
-  uploadLargeFileWarning,
-  uploadTooLargeMessage,
-} from "@/lib/adminUploadLimits";
+import { ADMIN_UPLOAD_HINT } from "@/lib/adminUploadLimits";
+import { useAdminImageUpload } from "@/lib/shrinkImageForUpload";
 import { listingCardPiece, parseFeaturedArtworkMode, type FeaturedArtworkMode } from "@/lib/featuredArtwork";
 
 type AdminFeaturedArtworkFieldProps = {
@@ -74,6 +69,7 @@ export function AdminFeaturedArtworkField({
   const [sizeError, setSizeError] = useState<string | null>(null);
   const [sizeWarning, setSizeWarning] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const uploadPrep = useAdminImageUpload();
 
   useEffect(() => {
     return () => {
@@ -97,6 +93,7 @@ export function AdminFeaturedArtworkField({
   }
 
   function releaseUpload() {
+    uploadPrep.reset();
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;
@@ -115,19 +112,27 @@ export function AdminFeaturedArtworkField({
     notifyFormDirty(form ?? fileRef.current?.form ?? null);
   }
 
-  function onFile(file: File | undefined) {
-    if (!file || file.size === 0) return;
-    if (file.size > ADMIN_UPLOAD_MAX_BYTES) {
-      releaseUpload();
-      setSizeError(uploadTooLargeMessage(file.name, file.size));
+  async function onFile(input: HTMLInputElement, picked: File | undefined) {
+    if (!picked || picked.size === 0) return;
+    setSizeError(null);
+    setSizeWarning(null);
+    const prepared = await uploadPrep.prepare(input, picked);
+    if (!prepared) return;
+    if ("error" in prepared) {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+      setUpload(null);
+      setSizeError(prepared.error);
       return;
     }
+    const { file } = prepared;
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     const src = URL.createObjectURL(file);
     objectUrlRef.current = src;
     setUpload({ src, name: file.name });
-    setSizeError(null);
-    setSizeWarning(file.size >= ADMIN_UPLOAD_WARN_BYTES ? uploadLargeFileWarning(file.name, file.size) : null);
+    setSizeWarning(prepared.warning);
     setSelectedMode("upload");
   }
 
@@ -186,7 +191,17 @@ export function AdminFeaturedArtworkField({
               This {noun} has no paintings yet, so you can only upload an image.
             </p>
           ) : null}
-          <p className="text-xs text-muted">Maximum upload size: {ADMIN_UPLOAD_MAX_LABEL}</p>
+          {uploadPrep.optimizing ? (
+            <p role="status" className="text-xs text-ink">
+              Optimizing image…
+            </p>
+          ) : uploadPrep.note ? (
+            <p role="status" className="text-xs text-muted">
+              {uploadPrep.note}
+            </p>
+          ) : (
+            <p className="text-xs text-muted">{ADMIN_UPLOAD_HINT}</p>
+          )}
           {sizeError ? (
             <p role="alert" className="text-xs leading-relaxed text-amber-800">
               {sizeError}
@@ -216,7 +231,7 @@ export function AdminFeaturedArtworkField({
         className="sr-only"
         tabIndex={-1}
         aria-hidden
-        onChange={(event) => onFile(event.target.files?.[0])}
+        onChange={(event) => void onFile(event.currentTarget, event.currentTarget.files?.[0])}
       />
       {pickerOpen ? (
         <ArtworkPickerDialog

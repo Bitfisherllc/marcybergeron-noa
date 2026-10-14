@@ -10,13 +10,8 @@ import {
   type AdminArtworkSeriesTag,
 } from "@/components/AdminArtworkSelect";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
-import {
-  ADMIN_UPLOAD_MAX_BYTES,
-  ADMIN_UPLOAD_MAX_LABEL,
-  ADMIN_UPLOAD_WARN_BYTES,
-  uploadLargeFileWarning,
-  uploadTooLargeMessage,
-} from "@/lib/adminUploadLimits";
+import { ADMIN_UPLOAD_MAX_LABEL } from "@/lib/adminUploadLimits";
+import { useAdminImageUpload } from "@/lib/shrinkImageForUpload";
 import { HERO_SLIDESHOW_MAX, type HeroSlideshowSlot } from "@/lib/featuredArtwork";
 import type { HomeSlideLinkGroup } from "@/lib/homeSlideLinks";
 
@@ -189,6 +184,7 @@ function HomeSlidePicker({
   const [open, setOpen] = useState(false);
   const [sizeError, setSizeError] = useState<string | null>(null);
   const [sizeWarning, setSizeWarning] = useState<string | null>(null);
+  const uploadPrep = useAdminImageUpload();
   const keptImage = isBlobPreviewSrc(draft.pickerSrc) ? "" : draft.pickerSrc;
   const hasValue = Boolean(draft.pickerSrc || draft.artworkId);
 
@@ -199,6 +195,7 @@ function HomeSlidePicker({
   }, []);
 
   function releaseUpload() {
+    uploadPrep.reset();
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;
@@ -215,18 +212,21 @@ function HomeSlidePicker({
     setOpen(false);
   }
 
-  function onFile(file: File | undefined) {
-    if (!file || file.size === 0) return;
-    if (file.size > ADMIN_UPLOAD_MAX_BYTES) {
-      releaseUpload();
-      setSizeError(uploadTooLargeMessage(file.name, file.size));
+  async function onFile(input: HTMLInputElement, picked: File | undefined) {
+    if (!picked || picked.size === 0) return;
+    setSizeError(null);
+    setSizeWarning(null);
+    const prepared = await uploadPrep.prepare(input, picked);
+    if (!prepared) return;
+    if ("error" in prepared) {
+      setSizeError(prepared.error);
+      if (isBlobPreviewSrc(draft.pickerSrc)) onDraft({ pickerSrc: "" });
       return;
     }
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(prepared.file);
     objectUrlRef.current = url;
-    setSizeError(null);
-    setSizeWarning(file.size >= ADMIN_UPLOAD_WARN_BYTES ? uploadLargeFileWarning(file.name, file.size) : null);
+    setSizeWarning(prepared.warning);
     onDraft({ artworkId: "", pickerSrc: url });
     notifyFormDirty(inputRef.current?.form ?? null);
   }
@@ -245,6 +245,15 @@ function HomeSlidePicker({
         Clear
       </button>
       <p className="truncate text-xs leading-relaxed text-muted">{statusLabel || "No painting chosen yet"}</p>
+      {uploadPrep.optimizing ? (
+        <p role="status" className="text-xs leading-relaxed text-ink">
+          Optimizing image…
+        </p>
+      ) : uploadPrep.note ? (
+        <p role="status" className="text-xs leading-relaxed text-muted">
+          {uploadPrep.note}
+        </p>
+      ) : null}
       {sizeError ? (
         <p role="alert" className="text-xs leading-relaxed text-amber-800">
           {sizeError}
@@ -263,7 +272,7 @@ function HomeSlidePicker({
         className="sr-only"
         tabIndex={-1}
         aria-hidden
-        onChange={(event) => onFile(event.target.files?.[0])}
+        onChange={(event) => void onFile(event.currentTarget, event.currentTarget.files?.[0])}
       />
       <input type="hidden" name={`${fieldName}Existing`} value={keptImage} />
       <input type="hidden" name={artworkFieldName} value={draft.artworkId} />

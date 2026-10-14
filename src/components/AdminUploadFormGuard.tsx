@@ -2,7 +2,7 @@
 
 import type { FormEvent, ReactNode } from "react";
 import { useState } from "react";
-import { findOversizedUploadInForm, uploadTooLargeMessage } from "@/lib/adminUploadLimits";
+import { findUploadProblemInForm } from "@/lib/adminUploadLimits";
 
 type AdminUploadFormGuardProps = {
   children: ReactNode;
@@ -16,15 +16,15 @@ export function AdminUploadFormGuard({ children }: AdminUploadFormGuardProps) {
     const target = event.target;
     if (!(target instanceof HTMLFormElement)) return;
 
-    const oversized = findOversizedUploadInForm(target);
-    if (!oversized) {
+    const problem = findUploadProblemInForm(target);
+    if (!problem) {
       setWarning(null);
       return;
     }
 
     event.preventDefault();
     event.stopPropagation();
-    setWarning(uploadTooLargeMessage(oversized.name, oversized.size));
+    setWarning(problem);
   }
 
   return (

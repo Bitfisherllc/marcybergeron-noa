@@ -2,15 +2,16 @@
 
 import { useSyncExternalStore } from "react";
 
-export type AdminSaveState = "clean" | "dirty" | "saving";
+export type AdminSaveState = "clean" | "dirty" | "optimizing" | "saving";
 
 const dirty = new Set<string>();
 const saving = new Set<string>();
 const listeners = new Set<() => void>();
+let optimizing = false;
 let state: AdminSaveState = "clean";
 
 function emit() {
-  state = saving.size > 0 ? "saving" : dirty.size > 0 ? "dirty" : "clean";
+  state = saving.size > 0 ? "saving" : optimizing ? "optimizing" : dirty.size > 0 ? "dirty" : "clean";
   for (const listener of listeners) listener();
 }
 
@@ -33,6 +34,13 @@ export function setFormSaving(formId: string, isSaving: boolean) {
   emit();
 }
 
+/** True while an upload is still being resized in the browser. */
+export function setUploadOptimizing(isOptimizing: boolean) {
+  if (isOptimizing === optimizing) return;
+  optimizing = isOptimizing;
+  emit();
+}
+
 export function forgetForm(formId: string) {
   const had = dirty.delete(formId) || saving.delete(formId);
   if (had) emit();
@@ -44,6 +52,7 @@ export function hasUnsavedForms(): boolean {
 
 /** Submits every changed form on the page; Next.js runs the server actions one at a time. */
 export function saveDirtyForms() {
+  if (optimizing) return;
   for (const formId of [...dirty]) {
     const form = document.getElementById(formId);
     if (form instanceof HTMLFormElement) form.requestSubmit();

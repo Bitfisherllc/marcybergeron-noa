@@ -3,13 +3,8 @@
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 import { listSiteImagesAction } from "@/lib/adminImageActions";
-import {
-  ADMIN_UPLOAD_MAX_BYTES,
-  ADMIN_UPLOAD_MAX_LABEL,
-  ADMIN_UPLOAD_WARN_BYTES,
-  uploadLargeFileWarning,
-  uploadTooLargeMessage,
-} from "@/lib/adminUploadLimits";
+import { ADMIN_UPLOAD_HINT } from "@/lib/adminUploadLimits";
+import { useAdminImageUpload } from "@/lib/shrinkImageForUpload";
 import type { SiteImageOption } from "@/lib/siteImages";
 
 const btnChoose =
@@ -107,7 +102,10 @@ export function AdminFilePicker({
   const [options, setOptions] = useState<SiteImageOption[]>([]);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [galleryFilter, setGalleryFilter] = useState("all");
+  const upload = useAdminImageUpload();
 
+  const visibleOptions =
+    galleryFilter === "all" ? options : options.filter((option) => (option.galleries ?? []).includes(galleryFilter));
   const displaySrc = objectUrl || selectedExisting;
   const isReplacement = Boolean(objectUrl) || (selectedExisting !== "" && selectedExisting !== existingValue);
 
@@ -159,6 +157,7 @@ export function AdminFilePicker({
   }
 
   function pickExisting(src: string) {
+    upload.reset();
     setPreviewFile(undefined);
     setSelectedExisting(src);
     setFileName("");
@@ -170,6 +169,7 @@ export function AdminFilePicker({
   }
 
   function clearSelection() {
+    upload.reset();
     setPreviewFile(undefined);
     setSelectedExisting("");
     setFileName("");
@@ -179,24 +179,30 @@ export function AdminFilePicker({
     onPreviewChange?.("");
   }
 
-  function onFileChange(file: File | undefined) {
-    if (file && file.size > 0) {
-      if (file.size > ADMIN_UPLOAD_MAX_BYTES) {
-        setSizeError(uploadTooLargeMessage(file.name, file.size));
-        setSizeWarning(null);
+  async function onFileChange(input: HTMLInputElement, picked: File | undefined) {
+    let file = picked;
+    let warning: string | null = null;
+    if (picked && picked.size > 0) {
+      setSizeError(null);
+      setSizeWarning(null);
+      const prepared = await upload.prepare(input, picked);
+      if (!prepared) return;
+      if ("error" in prepared) {
+        setSizeError(prepared.error);
         setFileName("");
         setSelectedExisting("");
         setPreviewFile(undefined);
-        if (inputRef.current) inputRef.current.value = "";
         onPreviewChange?.("");
         return;
       }
+      file = prepared.file;
+      warning = prepared.warning;
+    } else {
+      upload.reset();
     }
 
     setSizeError(null);
-    setSizeWarning(
-      file && file.size >= ADMIN_UPLOAD_WARN_BYTES ? uploadLargeFileWarning(file.name, file.size) : null,
-    );
+    setSizeWarning(warning);
     setFileName(file?.name ?? "");
     if (file?.name) {
       setSelectedExisting("");
@@ -264,10 +270,16 @@ export function AdminFilePicker({
         <div className={layout === "stack" ? "min-w-0 text-xs text-muted" : "min-w-0 text-sm"}>
           {layout === "stack" ? null : <div className="font-medium text-ink">{label}</div>}
           <div className={layout === "stack" ? "truncate leading-relaxed" : "mt-0.5 text-xs text-muted"}>{statusText}</div>
-          {!sizeError ? (
-            <div className={layout === "stack" ? "truncate leading-relaxed" : "mt-0.5 text-xs text-muted"}>
-              Maximum upload size: {ADMIN_UPLOAD_MAX_LABEL}
+          {upload.optimizing ? (
+            <div role="status" className={layout === "stack" ? "leading-relaxed text-ink" : "mt-0.5 text-xs text-ink"}>
+              Optimizing image…
             </div>
+          ) : upload.note ? (
+            <div role="status" className={layout === "stack" ? "leading-relaxed" : "mt-0.5 text-xs text-muted"}>
+              {upload.note}
+            </div>
+          ) : !sizeError ? (
+            <div className={layout === "stack" ? "leading-relaxed" : "mt-0.5 text-xs text-muted"}>{ADMIN_UPLOAD_HINT}</div>
           ) : null}
         </div>
       </div>
@@ -300,7 +312,7 @@ export function AdminFilePicker({
         accept={accept}
         required={required && !selectedExisting}
         className="sr-only"
-        onChange={(e) => onFileChange(e.target.files?.[0])}
+        onChange={(e) => void onFileChange(e.currentTarget, e.currentTarget.files?.[0])}
       />
       <input type="hidden" name={existingName} value={selectedExisting} />
 
@@ -364,18 +376,11 @@ export function AdminFilePicker({
                 <p className="text-sm text-muted">Loading images…</p>
               ) : options.length === 0 ? (
                 <p className="text-sm text-muted">No images found yet.</p>
+              ) : visibleOptions.length === 0 ? (
+                <p className="text-sm text-muted">No images in this gallery yet.</p>
               ) : (
-                (() => {
-                  const visible =
-                    galleryFilter === "all"
-                      ? options
-                      : options.filter((option) => (option.galleries ?? []).includes(galleryFilter));
-                  if (visible.length === 0) {
-                    return <p className="text-sm text-muted">No images in this gallery yet.</p>;
-                  }
-                  return (
                 <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                  {visible.map((option) => {
+                  {visibleOptions.map((option) => {
                     const selected = selectedExisting === option.src;
                     return (
                       <li key={option.src}>
@@ -402,8 +407,6 @@ export function AdminFilePicker({
                     );
                   })}
                 </ul>
-                  );
-                })()
               )}
             </div>
           </div>
