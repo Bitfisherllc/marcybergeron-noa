@@ -7,6 +7,7 @@ import { mailingListSignup } from "@/db/schema";
 import { isContactEmailConfigured, sendMailingListSignupEmail } from "@/lib/contactEmail";
 import { checkFormSubmission, createFormChallenge, formValues, logBlockedSubmission } from "@/lib/formGuard";
 import type { GuardedFormError, GuardedFormState } from "@/lib/formGuardTypes";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 export async function submitMailingListSignup(prev: GuardedFormState, formData: FormData): Promise<GuardedFormState> {
   const name = String(formData.get("name") ?? "").trim();
@@ -27,6 +28,7 @@ export async function submitMailingListSignup(prev: GuardedFormState, formData: 
     redirect("/mailing-list?ok=1");
   }
   if (guard !== "ok") return retry(guard);
+  if (!(await verifyTurnstile(formData))) return retry("turnstile");
 
   await getDb()
     .insert(mailingListSignup)

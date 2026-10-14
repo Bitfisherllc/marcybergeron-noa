@@ -7,6 +7,7 @@ import { getDb } from "@/db";
 import { isContactEmailConfigured, sendContactEmail } from "@/lib/contactEmail";
 import { checkFormSubmission, createFormChallenge, formValues, logBlockedSubmission } from "@/lib/formGuard";
 import type { GuardedFormError, GuardedFormState } from "@/lib/formGuardTypes";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 function contactReturnHref(artwork: string, series: string, error?: string): string {
   const params = new URLSearchParams();
@@ -39,6 +40,7 @@ export async function submitContact(prev: GuardedFormState, formData: FormData):
     redirect("/contact?sent=1");
   }
   if (guard !== "ok") return retry(guard);
+  if (!(await verifyTurnstile(formData))) return retry("turnstile");
 
   await getDb().insert(contactMessage).values({
     id: nanoid(),

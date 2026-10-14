@@ -10,6 +10,7 @@ import type { GuardedFormError, GuardedFormState } from "@/lib/formGuardTypes";
 import { parsePostKind } from "@/lib/postKind";
 import { getPostBySlug } from "@/lib/queries";
 import { canViewWorkshops } from "@/lib/siteFeatures";
+import { verifyTurnstile } from "@/lib/turnstile";
 import { workshopInterestHref } from "@/lib/workshopCopy";
 
 function interestReturnHref(slug: string, error?: string): string {
@@ -56,6 +57,7 @@ export async function submitWorkshopInterest(prev: GuardedFormState, formData: F
     redirect(`${workshopInterestHref(workshop.slug)}?sent=1`);
   }
   if (guard !== "ok") return retry(guard);
+  if (!(await verifyTurnstile(formData))) return retry("turnstile");
 
   await getDb().insert(workshopInquiry).values({
     id: nanoid(),

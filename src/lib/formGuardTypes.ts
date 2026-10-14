@@ -6,7 +6,7 @@ export const FORM_GUARD_FIELDS = {
 
 export type FormChallenge = { token: string; question: string };
 
-export type GuardedFormError = "fields" | "challenge" | "rate";
+export type GuardedFormError = "fields" | "challenge" | "rate" | "turnstile";
 
 /** `useActionState` state for public forms protected by the spam guard. */
 export type GuardedFormState = {
@@ -21,4 +21,5 @@ export const GUARDED_FORM_ERRORS: Record<GuardedFormError, string> = {
   fields: "Please complete the required fields and try again.",
   challenge: "The answer to the quick check was not right. Please answer the new question below.",
   rate: "Too many messages were sent from your connection in a short time. Please wait a few minutes and try again, or email directly.",
+  turnstile: "Please confirm you're not a robot and try again.",
 };

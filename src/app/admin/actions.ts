@@ -29,6 +29,7 @@ import {
 } from "@/lib/featuredArtwork";
 import { isMediumGallerySlug, isStudioGallerySlug } from "@/lib/mediumGalleries";
 import { generatePrivateGalleryAccessToken } from "@/lib/privateGalleries";
+import { verifyTurnstile } from "@/lib/turnstile";
 import {
   getSeriesById,
   listArtworksForHeroPicks,
@@ -42,6 +43,7 @@ import {
 } from "@/lib/seriesDelete";
 
 export async function loginAction(formData: FormData) {
+  if (!(await verifyTurnstile(formData))) redirect("/admin/login?error=robot");
   const password = String(formData.get("password") ?? "");
   if (!verifyAdminPassword(password)) redirect("/admin/login?error=1");
   await createAdminSession();

@@ -1,6 +1,7 @@
+import { Turnstile } from "@/components/Turnstile";
 import { FORM_GUARD_FIELDS, GUARDED_FORM_ERRORS, type GuardedFormState } from "@/lib/formGuardTypes";
 
-/** Hidden token, honeypot, and the quick-check question for public forms. */
+/** Hidden token, honeypot, the quick-check question, and Cloudflare Turnstile for public forms. */
 export function FormGuardFields({ state }: { state: GuardedFormState }) {
   return (
     <>
@@ -25,6 +26,7 @@ export function FormGuardFields({ state }: { state: GuardedFormState }) {
           }`}
         />
       </label>
+      <Turnstile />
     </>
   );
 }

@@ -1,5 +1,6 @@
 import { loginAction } from "@/app/admin/actions";
 import { AdminPasswordField } from "@/components/AdminPasswordField";
+import { Turnstile } from "@/components/Turnstile";
 
 export default async function AdminLoginPage({
   searchParams,
@@ -15,7 +16,10 @@ export default async function AdminLoginPage({
 
       <form action={loginAction} className="mt-8 space-y-4 border border-line bg-white/50 p-6">
         <AdminPasswordField />
-        {sp.error ? (
+        <Turnstile />
+        {sp.error === "robot" ? (
+          <p className="text-sm text-red-700">Please confirm you&apos;re not a robot and try again.</p>
+        ) : sp.error ? (
           <p className="text-sm text-red-700">Could not sign in. Check the password and try again.</p>
         ) : null}
         <button
