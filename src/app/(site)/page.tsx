@@ -83,12 +83,6 @@ export default async function HomePage() {
                   >
                     View portfolio
                   </Link>
-                  <Link
-                    href="/contact"
-                    className="inline-flex items-center border border-line bg-transparent px-5 py-3 text-xs tracking-[0.18em] text-ink uppercase hover:bg-black/[0.03] focus-ring"
-                  >
-                    Studio &amp; contact
-                  </Link>
                 </div>
               </div>
             ) : null}
@@ -154,12 +148,18 @@ export default async function HomePage() {
               />
               <h2 className="font-serif text-3xl tracking-tight">{artistSec.title}</h2>
               <div className="mt-5 h-px w-16 bg-line" />
-              <div className="mt-8">
+              <div className="mt-8 flex flex-wrap gap-4">
                 <Link
                   href="/about"
                   className="inline-flex items-center border border-ink bg-ink px-5 py-3 text-xs tracking-[0.18em] text-paper uppercase hover:bg-ink/90 focus-ring"
                 >
                   About Marcy
+                </Link>
+                <Link
+                  href="/contact"
+                  className="inline-flex items-center border border-line bg-transparent px-5 py-3 text-xs tracking-[0.18em] text-ink uppercase hover:bg-black/[0.03] focus-ring"
+                >
+                  Studio &amp; contact
                 </Link>
               </div>
             </div>
@@ -174,7 +174,7 @@ export default async function HomePage() {
                   alt="Signature — Marcy Bergeron-Noa"
                   width={1448}
                   height={385}
-                  className="h-8 w-auto max-w-[12rem] object-contain object-left opacity-[0.78] sm:h-9 sm:max-w-[14rem]"
+                  className="h-auto w-full max-w-[16rem] object-contain object-left opacity-[0.78]"
                 />
               </div>
             </blockquote>

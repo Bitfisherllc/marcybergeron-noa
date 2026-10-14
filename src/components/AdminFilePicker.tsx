@@ -14,7 +14,7 @@ const btnSecondary =
   "inline-flex shrink-0 border border-line bg-paper px-4 py-3 text-xs tracking-[0.18em] text-ink uppercase transition hover:bg-black/[0.03] focus-ring";
 
 const filterBtn =
-  "focus-ring border px-3 py-1.5 text-[0.65rem] tracking-[0.16em] uppercase transition";
+  "focus-ring border px-3 py-1.5 text-[0.78rem] tracking-[0.16em] uppercase transition";
 
 function galleryFilterNames(options: SiteImageOption[]): string[] {
   const names = new Set<string>();
@@ -399,7 +399,7 @@ export function AdminFilePicker({
                               <img src={option.src} alt="" className="h-full w-full object-cover" />
                             )}
                           </div>
-                          <span className="mt-1.5 block truncate text-[0.65rem] leading-snug text-muted">
+                          <span className="mt-1.5 block truncate text-[0.78rem] leading-snug text-muted">
                             {option.label}
                           </span>
                         </button>

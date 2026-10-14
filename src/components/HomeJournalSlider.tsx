@@ -204,12 +204,12 @@ export function HomeJournalSlider({
                 )}
               </div>
               <div className="flex flex-1 flex-col gap-3 px-5 py-6">
-                <div className="text-[0.65rem] tracking-[0.2em] text-muted uppercase">{p.category}</div>
+                <div className="text-[0.78rem] tracking-[0.2em] text-muted uppercase">{p.category}</div>
                 <h3 className="font-serif text-xl leading-snug tracking-tight text-ink">{p.title}</h3>
                 <div className="flex-1">
                   <RichText content={p.excerpt} insideLink className="line-clamp-3 text-sm leading-relaxed text-muted" />
                 </div>
-                <span className="text-[0.65rem] tracking-[0.18em] text-ink/70 uppercase">Read →</span>
+                <span className="text-[0.78rem] tracking-[0.18em] text-ink/70 uppercase">Read →</span>
               </div>
             </Link>
           </article>

@@ -79,7 +79,7 @@ export async function SiteFooter() {
               alt="Signature — Marcy Bergeron-Noa"
               width={1448}
               height={385}
-              className="h-6 max-w-[9rem] object-contain object-left opacity-[0.72] sm:h-7 sm:max-w-[11rem] md:max-w-[13rem]"
+              className="h-8 w-auto max-w-full object-contain object-left opacity-[0.72] sm:h-12"
             />
           </div>
           <div className="flex flex-col gap-2 text-muted/90 md:items-end">

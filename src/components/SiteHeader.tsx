@@ -37,7 +37,7 @@ const dropdownPanelClass =
 function dropdownItemClass(emphasized?: boolean) {
   return emphasized
     ? "block px-4 py-2.5 text-sm text-ink/90 transition-colors hover:bg-black/[0.04] hover:text-ink focus-visible:bg-black/[0.04] focus-visible:outline-none"
-    : "block px-4 py-2 text-[0.8125rem] leading-snug text-ink/75 transition-colors hover:bg-black/[0.04] hover:text-ink focus-visible:bg-black/[0.04] focus-visible:outline-none";
+    : "block px-4 py-2 text-[0.975rem] leading-snug text-ink/75 transition-colors hover:bg-black/[0.04] hover:text-ink focus-visible:bg-black/[0.04] focus-visible:outline-none";
 }
 
 function NavDropdownPanel({
@@ -192,7 +192,7 @@ export async function SiteHeader({ admin = false }: { admin?: boolean }) {
               alt=""
               width={512}
               height={1254}
-              className="h-[1.45em] w-auto shrink-0 object-contain object-left brightness-0"
+              className="h-[2.4em] w-auto shrink-0 object-contain object-left brightness-0"
             />
             <span>{SITE_NAME}</span>
           </Link>

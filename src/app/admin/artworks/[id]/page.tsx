@@ -51,7 +51,7 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
             preview="hero"
           />
           <div className="mt-4 border border-line bg-white/35 p-4">
-            <p className="text-[0.65rem] tracking-[0.2em] text-muted uppercase">Live site preview</p>
+            <p className="text-[0.78rem] tracking-[0.2em] text-muted uppercase">Live site preview</p>
             <ArtCaption as="div" title={a.title} subtitle={liveSubtitle || "—"} status={a.status} />
             {a.description ? (
               <p className="mt-3 text-sm leading-relaxed text-muted">{a.description}</p>

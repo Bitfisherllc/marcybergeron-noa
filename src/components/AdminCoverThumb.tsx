@@ -21,7 +21,7 @@ export function AdminCoverThumb({
         <Image src={image} alt="" fill className="object-cover" sizes={sizes} />
       ) : (
         <div className="flex h-full w-full items-center justify-center px-1.5 text-center leading-tight">
-          <span className="text-[10px] font-medium tracking-[0.12em] text-ink/80 uppercase">No image</span>
+          <span className="text-[12px] font-medium tracking-[0.12em] text-ink/80 uppercase">No image</span>
         </div>
       )}
     </div>

@@ -178,7 +178,7 @@ export function AdminSiteBar({ inboxCount: serverInboxCount }: AdminSiteBarProps
         >
           <MailIcon />
           {inboxCount > 0 ? (
-            <span className="absolute -top-1.5 -right-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[0.65rem] font-semibold tracking-normal text-white">
+            <span className="absolute -top-1.5 -right-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[0.78rem] font-semibold tracking-normal text-white">
               {inboxCount > 99 ? "99+" : inboxCount}
             </span>
           ) : null}

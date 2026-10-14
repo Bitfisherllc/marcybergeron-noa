@@ -252,12 +252,12 @@ export function ArtworkPickerDialog({
                           // eslint-disable-next-line @next/next/no-img-element -- remote URLs
                           <img src={option.image} alt="" className="h-full w-full object-cover" />
                         ) : (
-                          <div className="flex h-full items-center justify-center text-[0.65rem] text-muted">
+                          <div className="flex h-full items-center justify-center text-[0.78rem] text-muted">
                             No image
                           </div>
                         )}
                       </div>
-                      <span className="mt-1.5 block truncate text-[0.65rem] leading-snug text-ink">
+                      <span className="mt-1.5 block truncate text-[0.78rem] leading-snug text-ink">
                         {option.label}
                       </span>
                     </button>
@@ -362,7 +362,7 @@ export function AdminArtworkSelect({
               // eslint-disable-next-line @next/next/no-img-element -- remote URLs
               <img src={selected.image} alt="" className="h-full w-full object-cover" />
             ) : (
-              <span className="flex h-full items-center justify-center p-2 text-center text-[0.65rem] leading-snug text-muted">
+              <span className="flex h-full items-center justify-center p-2 text-center text-[0.78rem] leading-snug text-muted">
                 {selected ? "No image" : "None"}
               </span>
             )}
