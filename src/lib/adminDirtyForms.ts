@@ -2,16 +2,26 @@
 
 import { useSyncExternalStore } from "react";
 
-export type AdminSaveState = "clean" | "dirty" | "optimizing" | "saving";
+export type AdminSaveState = "clean" | "dirty" | "optimizing" | "saving" | "failed";
 
 const dirty = new Set<string>();
 const saving = new Set<string>();
 const listeners = new Set<() => void>();
 let optimizing = false;
+let failed = false;
 let state: AdminSaveState = "clean";
 
 function emit() {
-  state = saving.size > 0 ? "saving" : optimizing ? "optimizing" : dirty.size > 0 ? "dirty" : "clean";
+  state =
+    saving.size > 0
+      ? "saving"
+      : optimizing
+        ? "optimizing"
+        : dirty.size > 0
+          ? "dirty"
+          : failed
+            ? "failed"
+            : "clean";
   for (const listener of listeners) listener();
 }
 
@@ -29,8 +39,17 @@ export function setFormDirty(formId: string, isDirty: boolean) {
 
 export function setFormSaving(formId: string, isSaving: boolean) {
   if (isSaving === saving.has(formId)) return;
-  if (isSaving) saving.add(formId);
-  else saving.delete(formId);
+  if (isSaving) {
+    saving.add(formId);
+    failed = false;
+  } else saving.delete(formId);
+  emit();
+}
+
+/** Set by the admin error boundary so the bar says the save failed instead of "Saved". */
+export function setSaveFailed(isFailed: boolean) {
+  if (isFailed === failed) return;
+  failed = isFailed;
   emit();
 }
 
@@ -41,9 +60,15 @@ export function setUploadOptimizing(isOptimizing: boolean) {
   emit();
 }
 
+/** A save that redirects re-mounts the page, so the old form unmounts without ever firing "reset". */
 export function forgetForm(formId: string) {
-  const had = dirty.delete(formId) || saving.delete(formId);
-  if (had) emit();
+  const wasDirty = dirty.delete(formId);
+  const wasSaving = saving.delete(formId);
+  if (wasDirty || wasSaving) emit();
+}
+
+export function isSaving(): boolean {
+  return saving.size > 0;
 }
 
 export function hasUnsavedForms(): boolean {

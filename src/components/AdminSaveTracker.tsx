@@ -65,7 +65,10 @@ export function AdminSaveTracker({ formId }: { formId: string }) {
         setFormDirty(formId, !snapshotsEqual(initial, getFormSnapshot(form)));
       });
     };
-    const onSubmit = () => setFormSaving(formId, true);
+    // Upload guards cancel the submit in the capture phase; nothing will be sent, so stay "dirty".
+    const onSubmit = (event: SubmitEvent) => {
+      if (!event.defaultPrevented) setFormSaving(formId, true);
+    };
     // React resets uncontrolled forms to the freshly saved values once the server action finishes.
     const onReset = () => {
       requestAnimationFrame(() => {

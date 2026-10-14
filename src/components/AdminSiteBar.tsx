@@ -61,7 +61,7 @@ export function AdminSiteBar({ inboxCount: serverInboxCount }: AdminSiteBarProps
   }, [pathname]);
 
   useEffect(() => {
-    if (saveState === "clean") return;
+    if (saveState === "clean" || saveState === "failed") return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!leavingConfirmed.current) event.preventDefault();
     };
@@ -146,7 +146,11 @@ export function AdminSiteBar({ inboxCount: serverInboxCount }: AdminSiteBarProps
 
         <div className="flex-1" />
 
-        {saveState !== "clean" ? (
+        {saveState === "failed" ? (
+          <span role="alert" className="text-xs tracking-[0.16em] text-red-300 uppercase">
+            Save failed
+          </span>
+        ) : saveState !== "clean" ? (
           <button
             type="button"
             onClick={saveDirtyForms}
