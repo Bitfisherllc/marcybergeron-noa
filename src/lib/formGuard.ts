@@ -1,6 +1,6 @@
-import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { headers } from "next/headers";
-import { FORM_GUARD_FIELDS, type FormChallenge } from "@/lib/formGuardTypes";
+import { FORM_GUARD_FIELDS } from "@/lib/formGuardTypes";
 
 /** Humans cannot read and fill a form this quickly. */
 const MIN_FILL_MS = 3_000;
@@ -27,19 +27,15 @@ function guardSecret(): string {
   return "form-guard:development";
 }
 
-function sign(issuedAt: number, nonce: string, answer: number): string {
-  return createHmac("sha256", guardSecret()).update(`${issuedAt}.${nonce}.${answer}`).digest("base64url");
+function sign(issuedAt: number, nonce: string): string {
+  return createHmac("sha256", guardSecret()).update(`${issuedAt}.${nonce}`).digest("base64url");
 }
 
-export function createFormChallenge(): FormChallenge {
-  const a = randomInt(1, 10);
-  const b = randomInt(1, 10);
+/** Signed timestamp so the server can tell how long the form was open. */
+export function createFormToken(): string {
   const issuedAt = Date.now();
   const nonce = randomBytes(9).toString("base64url");
-  return {
-    token: `${issuedAt}.${nonce}.${sign(issuedAt, nonce, a + b)}`,
-    question: `What is ${a} plus ${b}?`,
-  };
+  return `${issuedAt}.${nonce}.${sign(issuedAt, nonce)}`;
 }
 
 function countLinks(text: string): number {
@@ -73,38 +69,35 @@ function overRateLimit(key: string): boolean {
   return false;
 }
 
-function answerMatches(token: string, rawAnswer: string): "ok" | "wrong" | "expired" | "too-fast" | "invalid" {
+function checkToken(token: string): "ok" | "expired" | "too-fast" | "invalid" {
   const [issuedRaw, nonce, signature] = token.split(".");
   const issuedAt = Number(issuedRaw);
   if (!issuedAt || !nonce || !signature) return "invalid";
+  const expected = Buffer.from(sign(issuedAt, nonce));
+  const given = Buffer.from(signature);
+  // A real visitor can hold a token signed with a since-rotated secret; let them retry with a fresh one.
+  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return "expired";
   const age = Date.now() - issuedAt;
   if (age < MIN_FILL_MS) return "too-fast";
   if (age > MAX_TOKEN_AGE_MS) return "expired";
-  const answer = Number.parseInt(rawAnswer.trim(), 10);
-  if (!Number.isFinite(answer)) return "wrong";
-  const expected = Buffer.from(sign(issuedAt, nonce, answer));
-  const given = Buffer.from(signature);
-  return expected.length === given.length && timingSafeEqual(expected, given) ? "ok" : "wrong";
+  return "ok";
 }
 
 /**
  * - `spam`: pretend the form was sent, but store and email nothing.
- * - `challenge` / `rate`: show the visitor an error so a real person can retry.
+ * - `expired` / `rate`: show the visitor an error so a real person can retry.
  */
 export async function checkFormSubmission(
   formData: FormData,
   options: { form: string; name?: string; text: string[] },
-): Promise<"ok" | "spam" | "challenge" | "rate"> {
+): Promise<"ok" | "spam" | "expired" | "rate"> {
   if (String(formData.get(FORM_GUARD_FIELDS.honeypot) ?? "").trim()) return "spam";
 
-  const result = answerMatches(
-    String(formData.get(FORM_GUARD_FIELDS.token) ?? ""),
-    String(formData.get(FORM_GUARD_FIELDS.answer) ?? ""),
-  );
+  const result = checkToken(String(formData.get(FORM_GUARD_FIELDS.token) ?? ""));
   if (result === "invalid" || result === "too-fast") return "spam";
   if (looksLikeSpam({ name: options.name, text: options.text })) return "spam";
   if (overRateLimit(await clientKey(options.form))) return "rate";
-  if (result !== "ok") return "challenge";
+  if (result === "expired") return "expired";
   return "ok";
 }
 

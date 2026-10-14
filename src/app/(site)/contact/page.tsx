@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ContactForm } from "@/components/ContactForm";
 import { RichText } from "@/components/RichText";
 import { SocialIcon } from "@/components/SocialIcon";
-import { createFormChallenge } from "@/lib/formGuard";
+import { createFormToken } from "@/lib/formGuard";
 import { buildArtworkInquiryMessage } from "@/lib/artworkInquiry";
 import { phoneHref } from "@/lib/contactDefaults";
 import { getSiteContact } from "@/lib/contactPage";
@@ -193,7 +193,7 @@ export default async function ContactPage({
                   ) : null}
 
                   <ContactForm
-                    challenge={createFormChallenge()}
+                    token={createFormToken()}
                     artworkId={artworkId && inquiryPiece ? artworkId : undefined}
                     seriesSlug={seriesSlug && inquirySeries ? seriesSlug : undefined}
                     defaultMessage={defaultMessage}

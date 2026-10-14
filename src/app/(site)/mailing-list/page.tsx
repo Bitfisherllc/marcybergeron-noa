@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MailingListForm } from "@/components/MailingListForm";
-import { createFormChallenge } from "@/lib/formGuard";
+import { createFormToken } from "@/lib/formGuard";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +59,7 @@ export default async function MailingListPage({
             ) : null}
 
             {!sp.ok ? (
-              <MailingListForm challenge={createFormChallenge()} />
+              <MailingListForm token={createFormToken()} />
             ) : (
               <p className="mt-6 text-sm text-muted">
                 <Link className="link-quiet" href="/">

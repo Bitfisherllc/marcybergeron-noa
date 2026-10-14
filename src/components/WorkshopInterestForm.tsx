@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { FormGuardFields, GuardedFormError } from "@/components/FormGuardFields";
-import type { FormChallenge, GuardedFormState } from "@/lib/formGuardTypes";
+import type { GuardedFormState } from "@/lib/formGuardTypes";
 import { WORKSHOP_MATERIALS_DEFAULT, WORKSHOP_PRICE_FLOOR_NOTE } from "@/lib/workshopCopy";
 
 export type WorkshopInterestOption = {
@@ -19,16 +19,16 @@ export function WorkshopInterestForm({
   workshopTitle,
   workshopSlug,
   otherWorkshops,
-  challenge,
+  token,
   action: submit,
 }: {
   workshopTitle: string;
   workshopSlug: string;
   otherWorkshops: WorkshopInterestOption[];
-  challenge: FormChallenge;
+  token: string;
   action: (prev: GuardedFormState, formData: FormData) => Promise<GuardedFormState>;
 }) {
-  const [state, action, pending] = useActionState(submit, { attempt: 0, challenge });
+  const [state, action, pending] = useActionState(submit, { attempt: 0, token });
   const values = state.values;
   const chosenOthers = asList(values?.otherWorkshops);
 

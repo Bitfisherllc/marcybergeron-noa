@@ -3,22 +3,21 @@
 import { useActionState } from "react";
 import { submitContact } from "@/app/(site)/contact/actions";
 import { FormGuardFields, GuardedFormError } from "@/components/FormGuardFields";
-import type { FormChallenge } from "@/lib/formGuardTypes";
 
 const fieldClass = "mt-2 w-full border border-line bg-paper px-3 py-2 text-sm";
 
 export function ContactForm({
-  challenge,
+  token,
   artworkId,
   seriesSlug,
   defaultMessage,
 }: {
-  challenge: FormChallenge;
+  token: string;
   artworkId?: string;
   seriesSlug?: string;
   defaultMessage: string;
 }) {
-  const [state, action, pending] = useActionState(submitContact, { attempt: 0, challenge });
+  const [state, action, pending] = useActionState(submitContact, { attempt: 0, token });
   const values = state.values ?? {};
 
   return (

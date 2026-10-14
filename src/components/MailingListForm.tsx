@@ -4,12 +4,11 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { submitMailingListSignup } from "@/app/(site)/mailing-list/actions";
 import { FormGuardFields, GuardedFormError } from "@/components/FormGuardFields";
-import type { FormChallenge } from "@/lib/formGuardTypes";
 
 const fieldClass = "mt-2 w-full border border-line bg-paper px-3 py-2 text-sm";
 
-export function MailingListForm({ challenge }: { challenge: FormChallenge }) {
-  const [state, action, pending] = useActionState(submitMailingListSignup, { attempt: 0, challenge });
+export function MailingListForm({ token }: { token: string }) {
+  const [state, action, pending] = useActionState(submitMailingListSignup, { attempt: 0, token });
   const values = state.values ?? {};
 
   return (

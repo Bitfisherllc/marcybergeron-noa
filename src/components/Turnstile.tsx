@@ -68,7 +68,7 @@ export function Turnstile({ className = "" }: { className?: string }) {
           sitekey: siteKey,
           theme: "light",
           size: "flexible",
-          appearance: "interaction-only",
+          appearance: "always",
         });
       })
       .catch((err) => console.error(err));

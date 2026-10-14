@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { workshopInquiry } from "@/db/schema";
 import { getDb } from "@/db";
 import { isContactEmailConfigured, sendWorkshopInquiryEmail } from "@/lib/contactEmail";
-import { checkFormSubmission, createFormChallenge, formValues, logBlockedSubmission } from "@/lib/formGuard";
+import { checkFormSubmission, createFormToken, formValues, logBlockedSubmission } from "@/lib/formGuard";
 import type { GuardedFormError, GuardedFormState } from "@/lib/formGuardTypes";
 import { parsePostKind } from "@/lib/postKind";
 import { getPostBySlug } from "@/lib/queries";
@@ -37,7 +37,7 @@ export async function submitWorkshopInterest(prev: GuardedFormState, formData: F
 
   const retry = (error: GuardedFormError): GuardedFormState => ({
     attempt: prev.attempt + 1,
-    challenge: createFormChallenge(),
+    token: createFormToken(),
     error,
     values: formValues(formData, ["name", "email", "phone", "notes", "confirmThis", "otherWorkshops"]),
   });

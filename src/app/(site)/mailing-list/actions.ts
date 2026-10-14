@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { mailingListSignup } from "@/db/schema";
 import { isContactEmailConfigured, sendMailingListSignupEmail } from "@/lib/contactEmail";
-import { checkFormSubmission, createFormChallenge, formValues, logBlockedSubmission } from "@/lib/formGuard";
+import { checkFormSubmission, createFormToken, formValues, logBlockedSubmission } from "@/lib/formGuard";
 import type { GuardedFormError, GuardedFormState } from "@/lib/formGuardTypes";
 import { verifyTurnstile } from "@/lib/turnstile";
 
@@ -15,7 +15,7 @@ export async function submitMailingListSignup(prev: GuardedFormState, formData: 
 
   const retry = (error: GuardedFormError): GuardedFormState => ({
     attempt: prev.attempt + 1,
-    challenge: createFormChallenge(),
+    token: createFormToken(),
     error,
     values: formValues(formData, ["name", "email"]),
   });

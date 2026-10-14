@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { contactMessage } from "@/db/schema";
 import { getDb } from "@/db";
 import { isContactEmailConfigured, sendContactEmail } from "@/lib/contactEmail";
-import { checkFormSubmission, createFormChallenge, formValues, logBlockedSubmission } from "@/lib/formGuard";
+import { checkFormSubmission, createFormToken, formValues, logBlockedSubmission } from "@/lib/formGuard";
 import type { GuardedFormError, GuardedFormState } from "@/lib/formGuardTypes";
 import { verifyTurnstile } from "@/lib/turnstile";
 
@@ -27,7 +27,7 @@ export async function submitContact(prev: GuardedFormState, formData: FormData):
 
   const retry = (error: GuardedFormError): GuardedFormState => ({
     attempt: prev.attempt + 1,
-    challenge: createFormChallenge(),
+    token: createFormToken(),
     error,
     values: formValues(formData, ["name", "email", "message"]),
   });
