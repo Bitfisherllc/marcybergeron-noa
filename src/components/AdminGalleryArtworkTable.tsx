@@ -3,10 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback } from "react";
-import { saveGalleryArtworkOrder } from "@/app/admin/actions";
+import { deleteArtwork, saveGalleryArtworkOrder } from "@/app/admin/actions";
 import { AdminLightboxProvider, AdminLightboxTrigger } from "@/components/AdminImageLightbox";
 import { OrderArrows, OrderStatus, useInstantOrder } from "@/components/AdminInstantOrder";
-import { adminLinkVariants } from "@/components/AdminLink";
+import { adminBtnDanger, adminLinkVariants } from "@/components/AdminLink";
 
 export type AdminGalleryArtworkRow = {
   id: string;
@@ -56,11 +56,24 @@ export function AdminGalleryArtworkTable({ seriesId, rows: initialRows }: { seri
                   </td>
                   <td className="px-4 py-3 text-muted">{idx + 1}</td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       <OrderArrows label={a.title} index={idx} count={rows.length} onMove={move} />
                       <Link href={`/admin/artworks/${a.id}`} className={adminLinkVariants.secondary}>
                         Edit
                       </Link>
+                      <form action={deleteArtwork}>
+                        <input type="hidden" name="id" value={a.id} />
+                        <input type="hidden" name="contextSeriesId" value={seriesId} />
+                        <button
+                          type="submit"
+                          className={adminBtnDanger}
+                          onClick={(e) => {
+                            if (!confirm(`Delete “${a.title}”? This cannot be undone.`)) e.preventDefault();
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </form>
                     </div>
                   </td>
                 </tr>

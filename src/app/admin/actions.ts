@@ -617,6 +617,7 @@ export async function deleteArtworkFromSite(formData: FormData) {
 }
 
 export async function deleteArtwork(formData: FormData) {
+  await requireAdminSession();
   const id = String(formData.get("id") ?? "");
   const contextSeriesId = String(formData.get("contextSeriesId") ?? "");
   if (!id || !contextSeriesId) redirect("/admin/series");

@@ -240,7 +240,8 @@ export default async function EditSeriesPage({
           <div>
             <h2 className="font-serif text-2xl tracking-tight">Paintings in this gallery</h2>
             <p className="mt-2 text-sm text-muted">
-              All photos shown on the public gallery page. Use the arrow buttons to change order.
+              All photos shown on the public gallery page. Use the arrow buttons to change order, or Delete to remove a
+              painting from the site.
             </p>
           </div>
         </div>
