@@ -22,6 +22,9 @@ export function resolveLiveViewTargetSync(pathname: string): AdminEditTarget | n
   }
   if (path === "/admin/about") return { href: "/about", label: "View about page" };
   if (path === "/admin/series" || path === "/admin/series/new") return { href: "/medium", label: "View portfolio" };
+  if (path === "/admin/exhibitions" || path === "/admin/exhibitions/new") {
+    return { href: "/exhibitions", label: "View exhibitions" };
+  }
   if (path === "/admin/artworks/new") return { href: "/medium", label: "View portfolio" };
   if (path === "/admin/posts" || path === "/admin/posts/new") return { href: "/news", label: "View news" };
   if (path === "/admin/workshops" || path === "/admin/workshops/new") {

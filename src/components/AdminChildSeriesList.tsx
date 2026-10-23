@@ -8,8 +8,18 @@ import { adminLinkVariants } from "@/components/AdminLink";
 
 export type AdminChildSeriesRow = { id: string; title: string };
 
-/** Series under a medium; arrow buttons set the order they appear on the public page. */
-export function AdminChildSeriesList({ mediumId, rows: initialRows }: { mediumId: string; rows: AdminChildSeriesRow[] }) {
+/** Series under a medium, or exhibitions under the exhibitions page. */
+export function AdminChildSeriesList({
+  mediumId,
+  rows: initialRows,
+  manageBase = "/admin/series",
+  manageLabel = "Manage series",
+}: {
+  mediumId: string;
+  rows: AdminChildSeriesRow[];
+  manageBase?: string;
+  manageLabel?: string;
+}) {
   const save = useCallback((ids: string[]) => saveChildSeriesOrder(mediumId, ids), [mediumId]);
   const { rows, status, move } = useInstantOrder(initialRows, save);
 
@@ -25,8 +35,8 @@ export function AdminChildSeriesList({ mediumId, rows: initialRows }: { mediumId
             </span>
             <span className="flex items-center gap-2">
               {rows.length > 1 ? <OrderArrows label={c.title} index={idx} count={rows.length} onMove={move} /> : null}
-              <Link href={`/admin/series/${c.id}`} className={adminLinkVariants.secondary}>
-                Manage series
+              <Link href={`${manageBase}/${c.id}`} className={adminLinkVariants.secondary}>
+                {manageLabel}
               </Link>
             </span>
           </li>

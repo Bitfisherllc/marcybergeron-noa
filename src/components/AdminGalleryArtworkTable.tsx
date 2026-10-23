@@ -15,10 +15,18 @@ export type AdminGalleryArtworkRow = {
   size: string;
   image: string;
   alt: string;
+  /** This painting also appears in another gallery. */
+  alsoElsewhere?: boolean;
 };
 
 /** Paintings list whose arrow buttons reorder instantly; the order is saved in the background. */
-export function AdminGalleryArtworkTable({ seriesId, rows: initialRows }: { seriesId: string; rows: AdminGalleryArtworkRow[] }) {
+export function AdminGalleryArtworkTable({
+  seriesId,
+  rows: initialRows,
+}: {
+  seriesId: string;
+  rows: AdminGalleryArtworkRow[];
+}) {
   const save = useCallback((ids: string[]) => saveGalleryArtworkOrder(seriesId, ids), [seriesId]);
   const { rows, status, move } = useInstantOrder(initialRows, save);
   const slides = rows.map((a) => ({ src: a.image, alt: a.alt || a.title, caption: a.title }));
@@ -68,10 +76,13 @@ export function AdminGalleryArtworkTable({ seriesId, rows: initialRows }: { seri
                           type="submit"
                           className={adminBtnDanger}
                           onClick={(e) => {
-                            if (!confirm(`Delete “${a.title}”? This cannot be undone.`)) e.preventDefault();
+                            const message = a.alsoElsewhere
+                              ? `Remove “${a.title}” from this gallery? It stays in the other galleries.`
+                              : `Delete “${a.title}”? This is its only gallery, so it will be removed from the site.`;
+                            if (!confirm(message)) e.preventDefault();
                           }}
                         >
-                          Delete
+                          {a.alsoElsewhere ? "Remove" : "Delete"}
                         </button>
                       </form>
                     </div>

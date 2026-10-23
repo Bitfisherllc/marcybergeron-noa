@@ -7,6 +7,12 @@ const CONFIG_ERROR_CODES = new Set(["missing-input-secret", "invalid-input-secre
 
 let warnedDisabled = false;
 
+/** Local dev uses a hostname the production Turnstile key will not issue a token for. */
+function isLocalDevHost(host: string | null): boolean {
+  const name = host?.split(":")[0]?.toLowerCase() ?? "";
+  return name === "localhost" || name === "127.0.0.1" || name === "[::1]" || name === "::1";
+}
+
 async function clientIp(): Promise<string | undefined> {
   const h = await headers();
   return (
@@ -25,6 +31,10 @@ async function clientIp(): Promise<string | undefined> {
  * so the other spam checks (and the admin password) still apply instead of locking everyone out.
  */
 export async function verifyTurnstile(formData: FormData, ip?: string): Promise<boolean> {
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  if (isLocalDevHost(host)) return true;
+
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret || !process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
     if (!warnedDisabled) {

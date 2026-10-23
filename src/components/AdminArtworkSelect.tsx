@@ -24,9 +24,6 @@ const selectClass = "mt-2 w-full border border-line bg-paper px-3 py-2 text-sm t
 const btnSecondary =
   "inline-flex shrink-0 border border-line bg-paper px-4 py-3 text-xs tracking-[0.18em] text-ink uppercase transition hover:bg-black/[0.03] focus-ring";
 
-const btnPrimary =
-  "inline-flex shrink-0 border border-ink bg-ink px-4 py-3 text-xs tracking-[0.18em] text-paper uppercase transition hover:bg-ink/90 focus-ring";
-
 const filterSelectClass = "focus-ring w-full border border-line bg-paper px-3 py-2 text-sm text-ink";
 
 type AdminArtworkSelectProps = {
@@ -105,8 +102,7 @@ type ArtworkPickerDialogProps = {
   hint?: string;
   onPick: (id: string, form: HTMLFormElement | null) => void;
   onClose: () => void;
-  /** Shows an Upload a painting button in the header. */
-  onUpload?: () => void;
+  loading?: boolean;
 };
 
 export function ArtworkPickerDialog({
@@ -115,7 +111,7 @@ export function ArtworkPickerDialog({
   hint = "Click a painting to use it for this slide.",
   onPick,
   onClose,
-  onUpload,
+  loading = false,
 }: ArtworkPickerDialogProps) {
   const [portfolio, setPortfolio] = useState("all");
   const [seriesFilter, setSeriesFilter] = useState("all");
@@ -163,11 +159,6 @@ export function ArtworkPickerDialog({
             <p className="mt-1 text-xs text-muted">{hint}</p>
           </div>
           <div className="flex items-center gap-2">
-            {onUpload ? (
-              <button type="button" className={btnPrimary} onClick={onUpload}>
-                Upload a painting
-              </button>
-            ) : null}
             <button
               type="button"
               className="focus-ring border border-line px-3 py-1.5 text-xs tracking-wide uppercase"
@@ -230,7 +221,9 @@ export function ArtworkPickerDialog({
           </label>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <p className="text-sm text-muted">Loading paintings…</p>
+          ) : filtered.length === 0 ? (
             <p className="text-sm text-muted">No paintings match this filter.</p>
           ) : (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">

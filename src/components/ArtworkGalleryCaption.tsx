@@ -2,6 +2,7 @@ import Link from "next/link";
 import { captionSubtitle } from "@/components/ArtCaption";
 import { ArtworkInquiryLink } from "@/components/ArtworkInquiryLink";
 import { RichText } from "@/components/RichText";
+import { formatArtworkPrice } from "@/lib/artworkPrice";
 import { artSeriesHref } from "@/lib/routeSlug";
 
 export type GallerySeriesLink = { slug: string; title: string };
@@ -14,6 +15,8 @@ type ArtworkGalleryCaptionProps = {
   mediumGallery?: GallerySeriesLink | null;
   description?: string;
   status?: string;
+  /** Whole USD. Omit on portfolio and series pages. */
+  price?: number | null;
   artworkId?: string;
   as?: "figcaption" | "div";
   /** Light text for the lightbox overlay. */
@@ -30,6 +33,7 @@ export function ArtworkGalleryCaption({
   mediumGallery,
   description,
   status,
+  price,
   artworkId,
   as: Tag = "figcaption",
   variant = "default",
@@ -56,6 +60,11 @@ export function ArtworkGalleryCaption({
         </div>
       )}
       {subtitle ? <div className={`text-sm leading-relaxed ${textClass}`}>{subtitle}</div> : null}
+      {price != null ? (
+        <div className={`text-sm leading-relaxed ${isLightbox ? "text-white/80" : "text-ink"}`}>
+          {formatArtworkPrice(price)}
+        </div>
+      ) : null}
       {!isLightbox && portfolioSeries.length > 0 ? (
         <div className={`text-sm ${textClass}`}>
           <span className={labelClass}>Series </span>

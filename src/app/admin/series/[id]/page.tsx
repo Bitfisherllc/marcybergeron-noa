@@ -1,5 +1,8 @@
 import { notFound } from "next/navigation";
+import { inArray } from "drizzle-orm";
 import { upsertArtwork, upsertSeries, deleteSeries } from "@/app/admin/actions";
+import { getDb } from "@/db";
+import { artworkSeries } from "@/db/schema";
 import { AdminChildSeriesList } from "@/components/AdminChildSeriesList";
 import { hasCoverImage } from "@/components/AdminCoverThumb";
 import { AdminDeleteSeriesForm } from "@/components/AdminDeleteSeriesForm";
@@ -19,6 +22,8 @@ import { isPlaceholderGalleryStatement } from "@/lib/galleryCopy";
 import { mediumGalleryAbout } from "@/lib/mediumGalleryCopy";
 import { isMediumGallerySlug, isStudioGallerySlug, publicPortfolioGalleries } from "@/lib/mediumGalleries";
 import { artSeriesHref } from "@/lib/routeSlug";
+import { ARTWORK_PRICE_HINT } from "@/lib/artworkPrice";
+import { exhibitionPublicHref, isExhibitionsParentSlug } from "@/lib/exhibitions";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
 import {
   getSeriesById,
@@ -48,7 +53,9 @@ export default async function EditSeriesPage({
   if (!s) notFound();
   const isMediumGallery = isMediumGallerySlug(s.slug);
   const isStudioGallery = isStudioGallerySlug(s.slug);
-  const isChildSeries = Boolean(s.parentSeriesId);
+  const parentRow = s.parentSeriesId ? await getSeriesById(s.parentSeriesId) : null;
+  const isExhibition = Boolean(parentRow && isExhibitionsParentSlug(parentRow.slug));
+  const isChildSeries = Boolean(s.parentSeriesId) && !isExhibition;
   const [arts, mediumGalleries, membershipOptions, deleteImpact, statementPieceOptions, heroSlots, childSeries] =
     await Promise.all([
       listArtworksForPublicGallery(s),
@@ -59,6 +66,21 @@ export default async function EditSeriesPage({
       listHeroSlideshowSlots(s.id),
       isMediumGallery && !isStudioGallery ? listChildSeries(s.id) : Promise.resolve([]),
     ]);
+  const artIds = arts.map((piece) => piece.id);
+  const membershipRows =
+    artIds.length === 0
+      ? []
+      : await getDb()
+          .select({ artworkId: artworkSeries.artworkId, seriesId: artworkSeries.seriesId })
+          .from(artworkSeries)
+          .where(inArray(artworkSeries.artworkId, artIds));
+  const homesByArtwork = new Map<string, Set<string>>();
+  for (const piece of arts) {
+    const homes = new Set<string>();
+    if (piece.mediumSeriesId) homes.add(piece.mediumSeriesId);
+    homesByArtwork.set(piece.id, homes);
+  }
+  for (const row of membershipRows) homesByArtwork.get(row.artworkId)?.add(row.seriesId);
   const seriesMediums = publicPortfolioGalleries(mediumGalleries);
   const parentMedium = isChildSeries ? mediumGalleries.find((m) => m.id === s.parentSeriesId) : undefined;
   const error = sp.error ? (ERROR_MESSAGES[sp.error] ?? "Something went wrong. Try again.") : null;
@@ -71,15 +93,23 @@ export default async function EditSeriesPage({
     ? (mediumGalleryAbout(s.slug) ?? s.content)
     : s.content;
 
-  const isPrivateGallery = !isMediumGallery && !isChildSeries && s.isPrivate;
-  const pageHref = isPrivateGallery ? (s.accessToken ? `/private/${s.accessToken}` : undefined) : artSeriesHref(s.slug);
-  const pageName = isStudioGallery
-    ? "The Studio page"
+  const isPrivateGallery = !isMediumGallery && !isChildSeries && !isExhibition && s.isPrivate;
+  const pageHref = isExhibition
+    ? exhibitionPublicHref(s.slug)
     : isPrivateGallery
-      ? "The private gallery page"
-      : isChildSeries
-        ? "This series’ page"
-        : "This gallery’s page";
+      ? s.accessToken
+        ? `/private/${s.accessToken}`
+        : undefined
+      : artSeriesHref(s.slug);
+  const pageName = isExhibition
+    ? "This exhibition’s page"
+    : isStudioGallery
+      ? "The Studio page"
+      : isPrivateGallery
+        ? "The private gallery page"
+        : isChildSeries
+          ? "This series’ page"
+          : "This gallery’s page";
   const searchPreview: WhereShownPlace = isPrivateGallery
     ? { where: "Link previews", detail: "the short description shown when the private link is shared in an email or message." }
     : {
@@ -88,7 +118,16 @@ export default async function EditSeriesPage({
       };
   const excerptPlaces: WhereShownPlace[] = isStudioGallery || isPrivateGallery
     ? [searchPreview]
-    : isChildSeries
+    : isExhibition
+      ? [
+          {
+            where: "Exhibitions page",
+            detail: "the text on this exhibition’s card.",
+            href: "/exhibitions",
+          },
+          searchPreview,
+        ]
+      : isChildSeries
       ? [
           {
             where: parentMedium ? `${parentMedium.title} page` : "The medium’s page",
@@ -122,14 +161,21 @@ export default async function EditSeriesPage({
   return (
     <div className="space-y-12">
       <div>
-        <h1 className="font-serif text-3xl tracking-tight">{isChildSeries ? "Edit series" : "Edit gallery"}</h1>
+        <h1 className="font-serif text-3xl tracking-tight">
+          {isExhibition ? "Edit exhibition" : isChildSeries ? "Edit series" : "Edit gallery"}
+        </h1>
         {!isMediumGallery ? (
           <a href="#delete" className={`${adminBtnDanger} mt-4`}>
-            {isChildSeries ? "Delete series" : "Delete gallery"}
+            {isExhibition ? "Delete exhibition" : isChildSeries ? "Delete series" : "Delete gallery"}
           </a>
         ) : null}
         <p className="mt-3 text-sm text-muted">
-          {s.isPrivate ? (
+          {isExhibition ? (
+            <>
+              Exhibition · <span className="text-ink/80">/exhibitions/{s.slug}</span> · {arts.length}{" "}
+              {arts.length === 1 ? "painting" : "paintings"}
+            </>
+          ) : s.isPrivate ? (
             <>
               Private gallery · {arts.length} {arts.length === 1 ? "painting" : "paintings"} · not listed on the
               public portfolio
@@ -158,16 +204,17 @@ export default async function EditSeriesPage({
         <p className="border border-red-200 bg-red-50/60 px-4 py-3 text-sm text-red-900">{error}</p>
       ) : null}
 
-      {!isMediumGallery && !isChildSeries ? (
+      {!isMediumGallery && !isChildSeries && !isExhibition ? (
         <AdminGalleryPrivacyPanel seriesId={s.id} isPrivate={s.isPrivate} accessToken={s.accessToken} />
       ) : null}
 
       <form
         id="series-edit"
-        data-admin-section={isChildSeries ? "Series details" : "Gallery details"}
+        data-admin-section={isExhibition ? "Exhibition details" : isChildSeries ? "Series details" : "Gallery details"}
         action={upsertSeries}
         className="space-y-6 border border-line bg-white/50 p-6">
         <input type="hidden" name="id" value={s.id} />
+        {isExhibition ? <input type="hidden" name="exhibitionParent" value="1" /> : null}
         {isChildSeries ? <AdminSeriesMediumField mediums={seriesMediums} value={s.parentSeriesId} /> : null}
         <div className="grid gap-6 md:grid-cols-2">
           <label className="block text-sm text-muted">
@@ -199,7 +246,7 @@ export default async function EditSeriesPage({
           mode={s.featuredArtworkMode}
           artworkId={s.featuredArtworkId}
           pieces={statementPieceOptions}
-          listingSurface={isChildSeries ? "series" : "portfolio"}
+          listingSurface={isExhibition ? "exhibition" : isChildSeries ? "series" : "portfolio"}
           cardImage={hasCoverImage(s.featuredImage) ? s.featuredImage : ""}
         />
         <AdminHeroSlideshowField
@@ -238,10 +285,15 @@ export default async function EditSeriesPage({
       <div data-admin-section="Paintings in this gallery" className="space-y-4">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="font-serif text-2xl tracking-tight">Paintings in this gallery</h2>
+            <h2 className="font-serif text-2xl tracking-tight">
+              {isExhibition ? "Paintings in this exhibition" : "Paintings in this gallery"}
+            </h2>
             <p className="mt-2 text-sm text-muted">
-              All photos shown on the public gallery page. Use the arrow buttons to change order, or Delete to remove a
-              painting from the site.
+              {isMediumGallery
+                ? "Edit changes the title, size, material, and price everywhere that painting appears. Remove takes it out of this gallery and leaves it in any other gallery. Delete is only for a painting that appears here alone."
+                : isExhibition
+                  ? "Paintings added from the portfolio keep their title, size, material, and price. Edit changes that information everywhere the painting appears. Remove takes it out of this exhibition and leaves it in any other gallery."
+                  : "Paintings added from another gallery keep their title, size, material, and price. Edit changes that information everywhere the painting appears. Remove takes it out of this gallery and leaves it in any other gallery."}
             </p>
           </div>
         </div>
@@ -255,12 +307,19 @@ export default async function EditSeriesPage({
             size: a.size,
             image: a.image,
             alt: a.alt,
+            alsoElsewhere: [...(homesByArtwork.get(a.id) ?? [])].some((homeId) => homeId !== s.id),
           }))}
         />
       </div>
 
       <div id="add-artwork" data-admin-section="Add artwork" className="border border-line bg-white/50 p-6">
         <h3 className="font-serif text-xl tracking-tight">Add artwork</h3>
+        {isMediumGallery ? null : (
+          <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
+            Choose a painting to add one that is already on the site. Its title, size, material, and price come with
+            it. Upload an image to create a new painting.
+          </p>
+        )}
         <form id="series-add-artwork" action={upsertArtwork} className="mt-6 space-y-4">
           <input type="hidden" name="id" value="" />
           <input type="hidden" name="contextSeriesId" value={s.id} />
@@ -276,6 +335,16 @@ export default async function EditSeriesPage({
                 <option value="available">Available</option>
                 <option value="sold">Sold</option>
               </select>
+            </label>
+            <label className="block text-sm text-muted md:col-span-2">
+              Price
+              <input
+                name="price"
+                inputMode="decimal"
+                placeholder="1200"
+                className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
+              />
+              <span className="mt-1.5 block text-xs leading-relaxed text-muted">{ARTWORK_PRICE_HINT}</span>
             </label>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -302,7 +371,13 @@ export default async function EditSeriesPage({
             <input name="alt" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
           </label>
           <div className="grid gap-4 md:grid-cols-2">
-            <AdminFilePicker name="image" label="Add image" buttonLabel="Upload image" required />
+            <AdminFilePicker
+              name="image"
+              label="Add image"
+              buttonLabel="Upload image"
+              required
+              linkSeriesId={isMediumGallery ? undefined : s.id}
+            />
             <label className="block text-sm text-muted">
               Sort order
               <input name="sortOrder" defaultValue={String((arts[arts.length - 1]?.sortOrder ?? -1) + 1)} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
@@ -313,13 +388,13 @@ export default async function EditSeriesPage({
       </div>
 
       {!isMediumGallery ? (
-        <div id="delete" data-admin-section={isChildSeries ? "Delete series" : "Delete gallery"} className="border border-line bg-white/50 p-6">
+        <div id="delete" data-admin-section={isExhibition ? "Delete exhibition" : isChildSeries ? "Delete series" : "Delete gallery"} className="border border-line bg-white/50 p-6">
           <h3 className="font-serif text-xl tracking-tight text-ink">
-            {isChildSeries ? "Delete series" : "Delete gallery"}
+            {isExhibition ? "Delete exhibition" : isChildSeries ? "Delete series" : "Delete gallery"}
           </h3>
           <p className="mt-2 max-w-prose text-sm text-muted">
-            Remove this {isChildSeries ? "series" : "gallery"} from the site. Paintings that also appear in other
-            galleries will stay there.
+            Remove this {isExhibition ? "exhibition" : isChildSeries ? "series" : "gallery"} from the site. Paintings
+            that also appear in other galleries will stay there.
           </p>
           <div className="mt-4">
             {deleteImpact ? (
@@ -332,7 +407,8 @@ export default async function EditSeriesPage({
                 mediumOptions={mediumGalleries
                   .filter((row) => row.id !== s.id)
                   .map((row) => ({ id: row.id, title: row.title }))}
-                returnTo={`/admin/series/${s.id}`}
+                returnTo={isExhibition ? `/admin/exhibitions/${s.id}` : `/admin/series/${s.id}`}
+                redirectAfter={isExhibition ? "/admin/exhibitions" : "/admin/series"}
               />
             ) : null}
           </div>

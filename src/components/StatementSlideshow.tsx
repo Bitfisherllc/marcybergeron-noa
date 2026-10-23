@@ -14,6 +14,16 @@ export type StatementSlideshowSlide = {
   lightboxIndex: number | null;
 };
 
+const COLUMN_MIN_RATIO = 4 / 5;
+const COLUMN_MAX_RATIO = 4 / 3;
+
+/** Sized to the tallest slide so portraits fill the stage, clamped so the column never gets too tall or short. */
+function columnRatio(slides: StatementSlideshowSlide[]) {
+  const ratios = slides.flatMap((s) => (s.width && s.height ? [s.width / s.height] : []));
+  const tallest = ratios.length ? Math.min(...ratios) : COLUMN_MIN_RATIO;
+  return Math.min(COLUMN_MAX_RATIO, Math.max(COLUMN_MIN_RATIO, tallest));
+}
+
 function SlideImage({
   slide,
   priority,
@@ -111,14 +121,16 @@ export function StatementSlideshow({
   frame = "natural",
 }: {
   slides: StatementSlideshowSlide[];
-  frame?: "natural" | "landscape";
+  frame?: "natural" | "landscape" | "column";
 }) {
   const n = slides.length;
   const [index, setIndex] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [paused, setPaused] = useState(false);
   const landscape = frame === "landscape";
+  const column = frame === "column";
   const fit = landscape ? "cover" : "contain";
+  const stageTint = column ? "" : "bg-black/[0.03]";
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -156,18 +168,26 @@ export function StatementSlideshow({
   if (n === 1) {
     return (
       <MaybeLightbox slide={first}>
-        <div className="overflow-hidden bg-black/[0.03]">
-          <SlideImage slide={first} priority fit={fit} />
-        </div>
+        {column ? (
+          <div className="relative w-full overflow-hidden" style={{ aspectRatio: columnRatio(slides) }}>
+            <SlideImage slide={first} priority fill fit={fit} />
+          </div>
+        ) : (
+          <div className="overflow-hidden bg-black/[0.03]">
+            <SlideImage slide={first} priority fit={fit} />
+          </div>
+        )}
       </MaybeLightbox>
     );
   }
 
   const stageRatio = landscape
     ? "3 / 2"
-    : first.width && first.height
-      ? `${first.width} / ${first.height}`
-      : "4 / 5";
+    : column
+      ? columnRatio(slides)
+      : first.width && first.height
+        ? `${first.width} / ${first.height}`
+        : "4 / 5";
 
   return (
     <div
@@ -176,7 +196,7 @@ export function StatementSlideshow({
       onMouseLeave={() => setPaused(false)}
     >
       <div
-        className="relative w-full overflow-hidden bg-black/[0.03]"
+        className={`relative w-full overflow-hidden ${stageTint}`}
         style={{ aspectRatio: stageRatio }}
         role="region"
         aria-roledescription="carousel"

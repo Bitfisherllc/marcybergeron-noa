@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
@@ -39,13 +39,23 @@ function loadTurnstile(): Promise<TurnstileApi> {
  * Cloudflare Turnstile widget. Place inside a `<form>`: it adds the hidden `cf-turnstile-response` field.
  * Renders nothing until `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set.
  */
+function isLocalDevHost(hostname: string) {
+  const name = hostname.toLowerCase();
+  return name === "localhost" || name === "127.0.0.1" || name === "::1";
+}
+
 export function Turnstile({ className = "" }: { className?: string }) {
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const containerRef = useRef<HTMLDivElement>(null);
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (!isLocalDevHost(window.location.hostname)) setShow(true);
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!siteKey || !container) return;
+    if (!show || !siteKey || !container) return;
 
     let cancelled = false;
     let widgetId: string | undefined;
@@ -78,8 +88,8 @@ export function Turnstile({ className = "" }: { className?: string }) {
       form?.removeEventListener("submit", onSubmit);
       if (api && widgetId) api.remove(widgetId);
     };
-  }, [siteKey]);
+  }, [siteKey, show]);
 
-  if (!siteKey) return null;
+  if (!siteKey || !show) return null;
   return <div ref={containerRef} className={className} />;
 }

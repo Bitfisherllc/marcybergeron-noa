@@ -3,6 +3,7 @@ import { artwork, post, series } from "@/db/schema";
 import { getDb } from "@/db";
 import { normalizeAdminPath, resolveLiveViewTargetSync, type AdminEditTarget } from "@/lib/adminEditTarget";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
+import { exhibitionPublicHref, EXHIBITIONS_PARENT_SLUG, isExhibitionsParentSlug } from "@/lib/exhibitions";
 import { postPublicHref } from "@/lib/postKind";
 import { artSeriesHref } from "@/lib/routeSlug";
 
@@ -26,6 +27,19 @@ export async function resolveAdminEditTarget(pathname: string): Promise<AdminEdi
   if (path === "/workshops") return { href: "/admin/workshops", label: "Edit workshops" };
   if (path === "/mailing-list") return { href: "/admin/mailing-list", label: "View mailing list" };
   if (path === "/contact" || path === "/directions") return { href: "/admin/contact-page", label: "Edit contact page" };
+  if (path === "/exhibitions") return { href: "/admin/exhibitions", label: "Edit exhibitions" };
+
+  const exhibitionMatch = path.match(/^\/exhibitions\/([^/]+)$/);
+  if (exhibitionMatch) {
+    const slug = decodeURIComponent(exhibitionMatch[1]!);
+    const row = await getDb()
+      .select({ id: series.id, title: series.title })
+      .from(series)
+      .where(eq(series.slug, slug))
+      .then((r) => r[0]);
+    if (row) return { href: `/admin/exhibitions/${row.id}`, label: `Edit “${row.title}”` };
+    return { href: "/admin/exhibitions", label: "Edit exhibitions" };
+  }
 
   const workshopInterestMatch = path.match(/^\/workshops\/([^/]+)\/interest$/);
   if (workshopInterestMatch) {
@@ -84,6 +98,20 @@ export async function resolveLiveViewTarget(pathname: string): Promise<AdminEdit
   const sync = resolveLiveViewTargetSync(path);
   if (sync) return sync;
 
+  const exhibitionAdminMatch = path.match(/^\/admin\/exhibitions\/([^/]+)$/);
+  if (exhibitionAdminMatch) {
+    const id = decodeURIComponent(exhibitionAdminMatch[1]!);
+    const row = await getDb()
+      .select({ slug: series.slug, title: series.title })
+      .from(series)
+      .where(eq(series.id, id))
+      .then((r) => r[0]);
+    if (row && !isExhibitionsParentSlug(row.slug)) {
+      return { href: exhibitionPublicHref(row.slug), label: `View “${row.title}”` };
+    }
+    return { href: "/exhibitions", label: "View exhibitions" };
+  }
+
   const seriesMatch = path.match(/^\/admin\/series\/([^/]+)$/);
   if (seriesMatch) {
     const id = decodeURIComponent(seriesMatch[1]!);
@@ -93,6 +121,17 @@ export async function resolveLiveViewTarget(pathname: string): Promise<AdminEdit
       .where(eq(series.id, id))
       .then((r) => r[0]);
     if (row) {
+      if (row.slug === EXHIBITIONS_PARENT_SLUG) return { href: "/exhibitions", label: "View exhibitions" };
+      if (row.parentSeriesId) {
+        const parent = await getDb()
+          .select({ slug: series.slug })
+          .from(series)
+          .where(eq(series.id, row.parentSeriesId))
+          .then((r) => r[0]);
+        if (parent && isExhibitionsParentSlug(parent.slug)) {
+          return { href: exhibitionPublicHref(row.slug), label: `View “${row.title}”` };
+        }
+      }
       const href =
         isMediumGallerySlug(row.slug) || row.parentSeriesId
           ? artSeriesHref(row.slug)

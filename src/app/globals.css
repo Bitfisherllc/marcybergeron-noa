@@ -13,10 +13,10 @@
   --color-muted: var(--muted);
   --font-sans: var(--font-dm-sans);
   --font-serif: var(--font-cormorant);
-  /* 1.2× the default type scale so copy, navigation, and headings grow together. */
+  /* Headings stay at 1.2×. Body copy (sm and base) is a step larger. */
   --text-xs: 0.9rem;
-  --text-sm: 1.05rem;
-  --text-base: 1.2rem;
+  --text-sm: 1.15rem;
+  --text-base: 1.3rem;
   --text-lg: 1.35rem;
   --text-xl: 1.5rem;
   --text-2xl: 1.8rem;

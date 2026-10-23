@@ -1,6 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 import { artwork, artworkSeries, series } from "@/db/schema";
 import { getDb } from "@/db";
+import { isExhibitionsParentSlug } from "@/lib/exhibitions";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
 
 export type ResolvedArtworkAssignment = {
@@ -40,6 +41,35 @@ export async function isArtworkMediumOnly(artworkId: string): Promise<boolean> {
     .then((r) => r[0]);
   if (!row?.mediumSeriesId) return false;
   return (await getArtworkPortfolioOnlySeriesIds(artworkId)).length === 0;
+}
+
+/** Exhibition memberships stay linked, but they are not a painting's portfolio home. */
+export async function partitionExhibitionSeriesIds(seriesIds: string[]): Promise<{
+  exhibitionIds: string[];
+  otherIds: string[];
+}> {
+  const unique = [...new Set(seriesIds)];
+  if (unique.length === 0) return { exhibitionIds: [], otherIds: [] };
+
+  const db = getDb();
+  const rows = await db
+    .select({ id: series.id, parentSeriesId: series.parentSeriesId })
+    .from(series)
+    .where(inArray(series.id, unique));
+  const parentIds = [...new Set(rows.map((row) => row.parentSeriesId).filter((id): id is string => Boolean(id)))];
+  const parents =
+    parentIds.length === 0
+      ? []
+      : await db
+          .select({ id: series.id, slug: series.slug })
+          .from(series)
+          .where(inArray(series.id, parentIds));
+  const exhibitionParents = new Set(parents.filter((parent) => isExhibitionsParentSlug(parent.slug)).map((parent) => parent.id));
+  const exhibitionIds = rows
+    .filter((row) => row.parentSeriesId && exhibitionParents.has(row.parentSeriesId))
+    .map((row) => row.id);
+  const exhibitionSet = new Set(exhibitionIds);
+  return { exhibitionIds, otherIds: unique.filter((id) => !exhibitionSet.has(id)) };
 }
 
 export async function resolveArtworkAssignment(

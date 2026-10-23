@@ -1,12 +1,17 @@
 import { notFound } from "next/navigation";
+import { asc, eq, inArray } from "drizzle-orm";
 import { deleteArtwork, upsertArtwork } from "@/app/admin/actions";
+import { getDb } from "@/db";
+import { artworkSeries, series } from "@/db/schema";
 import { ArtCaption, captionSubtitle } from "@/components/ArtCaption";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminLink, adminBtnDanger } from "@/components/AdminLink";
 import { AdminSaveTracker } from "@/components/AdminSaveTracker";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
 import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
+import { ARTWORK_PRICE_HINT } from "@/lib/artworkPrice";
 import { resolveMediumSeriesId, isMediumGallerySlug } from "@/lib/mediumGalleries";
+import { adminPathForSeriesId, isExhibitionsParentSlug } from "@/lib/exhibitions";
 import { getArtwork, getSeriesById, listMediumGalleries } from "@/lib/queries";
 
 export default async function EditArtworkPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,25 +25,64 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
   if (!storageSeries) notFound();
 
   const mediumAssignment = resolveMediumSeriesId(a, isMediumGallerySlug(storageSeries.slug) ? null : storageSeries);
-  const contextSeriesId = mediumAssignment ?? a.seriesId;
-  const backHref = mediumAssignment ? `/admin/series/${mediumAssignment}` : `/admin/series/${a.seriesId}`;
+  const exhibitionAdmin = await adminPathForSeriesId(a.seriesId);
+  const contextSeriesId = exhibitionAdmin ? a.seriesId : (mediumAssignment ?? a.seriesId);
+  const backHref = exhibitionAdmin ?? (mediumAssignment ? `/admin/series/${mediumAssignment}` : `/admin/series/${a.seriesId}`);
 
   const liveSubtitle = captionSubtitle({ medium: a.medium, size: a.size });
   const portfolioGallery = mediumGalleries.find((g) => g.id === mediumAssignment);
+  const memberships = await getDb()
+    .select({
+      id: series.id,
+      title: series.title,
+      parentSeriesId: series.parentSeriesId,
+    })
+    .from(artworkSeries)
+    .innerJoin(series, eq(artworkSeries.seriesId, series.id))
+    .where(eq(artworkSeries.artworkId, a.id))
+    .orderBy(asc(series.title));
+  const parentIds = [...new Set(memberships.map((row) => row.parentSeriesId).filter((id): id is string => Boolean(id)))];
+  const parents =
+    parentIds.length === 0
+      ? []
+      : await getDb()
+          .select({ id: series.id, slug: series.slug })
+          .from(series)
+          .where(inArray(series.id, parentIds));
+  const exhibitionParents = new Set(parents.filter((parent) => isExhibitionsParentSlug(parent.slug)).map((parent) => parent.id));
+  const places = [
+    ...(portfolioGallery ? [`Portfolio: ${portfolioGallery.title}`] : []),
+    ...memberships
+      .filter((row) => row.id !== portfolioGallery?.id)
+      .map((row) =>
+        row.parentSeriesId && exhibitionParents.has(row.parentSeriesId)
+          ? `Exhibition: ${row.title}`
+          : `Series: ${row.title}`,
+      ),
+  ];
 
   return (
     <div className="space-y-8">
       <div>
         <p className="text-xs tracking-[0.18em] text-muted uppercase">Artwork</p>
         <h1 className="mt-2 font-serif text-3xl tracking-tight">{a.title}</h1>
-        <p className="mt-3 text-sm text-muted">
-          Portfolio gallery:{" "}
-          {portfolioGallery ? (
+        <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
+          {places.length > 1
+            ? "Saving updates the title, material, size, description, and price everywhere this painting appears."
+            : "Portfolio gallery: "}
+          {places.length > 1 ? null : portfolioGallery ? (
             <AdminLink href={`/admin/series/${portfolioGallery.id}`}>{portfolioGallery.title}</AdminLink>
           ) : (
-            <span className="text-muted">None</span>
+            <span>None</span>
           )}
         </p>
+        {places.length > 1 ? (
+          <ul className="mt-3 max-w-prose list-disc space-y-1 pl-5 text-sm text-muted">
+            {places.map((place) => (
+              <li key={place}>{place}</li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       <form id="artwork-edit" action={upsertArtwork} className="grid gap-8 lg:grid-cols-12">
@@ -46,7 +90,7 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
           <AdminFilePicker
             name="image"
             label="Replace image"
-            buttonLabel="Choose new image"
+            buttonLabel="Upload image"
             existingValue={a.image}
             preview="hero"
           />
@@ -101,14 +145,27 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
                 Extra text below the caption on the live gallery page.
               </span>
             </div>
-            <label className="block text-sm text-muted">
-              Status
-              <select name="status" defaultValue={a.status} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm">
-                <option value="unknown">Unknown</option>
-                <option value="available">Available</option>
-                <option value="sold">Sold</option>
-              </select>
-            </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block text-sm text-muted">
+                Status
+                <select name="status" defaultValue={a.status} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm">
+                  <option value="unknown">Unknown</option>
+                  <option value="available">Available</option>
+                  <option value="sold">Sold</option>
+                </select>
+              </label>
+              <label className="block text-sm text-muted">
+                Price
+                <input
+                  name="price"
+                  inputMode="decimal"
+                  defaultValue={a.price ?? ""}
+                  placeholder="1200"
+                  className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
+                />
+                <span className="mt-1.5 block text-xs leading-relaxed text-muted">{ARTWORK_PRICE_HINT}</span>
+              </label>
+            </div>
             <label className="block text-sm text-muted">
               Sort order
               <input name="sortOrder" defaultValue={String(a.sortOrder)} className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
@@ -127,6 +184,7 @@ export default async function EditArtworkPage({ params }: { params: Promise<{ id
       <form action={deleteArtwork} className="max-w-xl border border-red-200 bg-red-50/40 p-4">
         <input type="hidden" name="id" value={a.id} />
         <input type="hidden" name="contextSeriesId" value={contextSeriesId} />
+        <input type="hidden" name="everywhere" value="1" />
         <button className={adminBtnDanger} type="submit">
           Delete artwork
         </button>

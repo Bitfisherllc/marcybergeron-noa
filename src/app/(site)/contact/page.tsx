@@ -8,7 +8,8 @@ import { buildArtworkInquiryMessage } from "@/lib/artworkInquiry";
 import { phoneHref } from "@/lib/contactDefaults";
 import { getSiteContact } from "@/lib/contactPage";
 import { buildSeriesInquiryMessage } from "@/lib/seriesInquiry";
-import { getArtwork, getArtworkGalleryMeta, getSeriesBySlug } from "@/lib/queries";
+import { isExhibitionsParentSlug } from "@/lib/exhibitions";
+import { getArtwork, getArtworkGalleryMeta, getSeriesById, getSeriesBySlug } from "@/lib/queries";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 import { SITE_URL } from "@/lib/site";
 import { socialLinkLabel } from "@/lib/socialLinks";
@@ -41,7 +42,9 @@ export default async function ContactPage({
     const meta = await getArtworkGalleryMeta([artworkId]);
     defaultMessage = buildArtworkInquiryMessage(inquiryPiece, meta.get(artworkId));
   } else if (inquirySeries) {
-    defaultMessage = buildSeriesInquiryMessage(inquirySeries);
+    const parent = inquirySeries.parentSeriesId ? await getSeriesById(inquirySeries.parentSeriesId) : null;
+    const kind = parent && isExhibitionsParentSlug(parent.slug) ? "exhibition" : "series";
+    defaultMessage = buildSeriesInquiryMessage(inquirySeries, kind);
   }
 
   return (

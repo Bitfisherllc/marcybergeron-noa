@@ -7,23 +7,26 @@ export function AdminDeleteArtworkForm({
   artworkId,
   title,
   returnPath,
+  seriesId,
 }: {
   artworkId: string;
   title: string;
   returnPath: string;
+  seriesId: string;
 }) {
   return (
     <form action={deleteArtworkFromSite} className="border-t border-red-200/80 pt-4">
       <input type="hidden" name="id" value={artworkId} />
+      <input type="hidden" name="seriesId" value={seriesId} />
       <input type="hidden" name="returnPath" value={returnPath} />
       <button
         type="submit"
         className={adminBtnDanger}
         onClick={(e) => {
-          if (!confirm(`Delete “${title}”? This cannot be undone.`)) e.preventDefault();
+          if (!confirm(`Remove “${title}” from this gallery? It stays in any other gallery.`)) e.preventDefault();
         }}
       >
-        Delete artwork
+        Remove from this gallery
       </button>
     </form>
   );

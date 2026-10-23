@@ -68,19 +68,37 @@ export async function getHomeSlideshowVisible(): Promise<boolean> {
 }
 
 export async function getResolvedHeroSlides(): Promise<HeroSlide[]> {
-  const rows = await getDb().select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder), asc(homeSlideshow.createdAt));
-  if (rows.length > 0) {
-    return rows.slice(0, HOME_SLIDESHOW_MAX).map((r) =>
-      toHeroSlide(
-        r.image,
-        r.title,
-        r.subtitle,
-        r.title || r.subtitle ? heroSlideAlt(r.title, r.subtitle) : r.alt,
-        r.href,
-      ),
+  const db = getDb();
+  const rows = await db.select().from(homeSlideshow).orderBy(asc(homeSlideshow.sortOrder), asc(homeSlideshow.createdAt));
+  if (rows.length === 0) return heroHomeSlides();
+
+  const images = [...new Set(rows.map((row) => row.image))];
+  const pieces =
+    images.length === 0
+      ? []
+      : await db
+          .select({
+            image: artwork.image,
+            title: artwork.title,
+            medium: artwork.medium,
+            size: artwork.size,
+          })
+          .from(artwork)
+          .where(inArray(artwork.image, images));
+  const byImage = new Map(pieces.map((piece) => [piece.image, piece]));
+
+  return rows.slice(0, HOME_SLIDESHOW_MAX).map((row) => {
+    const piece = byImage.get(row.image);
+    const title = piece?.title || row.title;
+    const subtitle = piece ? [piece.medium, piece.size].filter(Boolean).join(" · ") : row.subtitle;
+    return toHeroSlide(
+      row.image,
+      title,
+      subtitle,
+      title || subtitle ? heroSlideAlt(title, subtitle) : row.alt,
+      row.href,
     );
-  }
-  return heroHomeSlides();
+  });
 }
 
 async function slotSeriesIds(): Promise<(string | null)[]> {
@@ -207,7 +225,7 @@ async function getPublicHomePayloadUncached() {
 }
 
 /** Cached home payload so public visitors don't hit Railway on every request. */
-export const getPublicHomePayload = unstable_cache(getPublicHomePayloadUncached, ["public-home-payload", "v9"], {
+export const getPublicHomePayload = unstable_cache(getPublicHomePayloadUncached, ["public-home-payload", "v10"], {
   revalidate: SITE_REVALIDATE_SECONDS,
   tags: [CACHE_TAGS.home, CACHE_TAGS.posts, CACHE_TAGS.artwork, CACHE_TAGS.series, CACHE_TAGS.site],
 });

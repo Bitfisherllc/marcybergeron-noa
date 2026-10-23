@@ -4,13 +4,11 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Artwork } from "@/db";
 import {
-  AdminArtworkSelect,
   ArtworkPickerDialog,
   type AdminArtworkSelectOption,
   type AdminArtworkSeriesTag,
 } from "@/components/AdminArtworkSelect";
 import { AdminFilePicker } from "@/components/AdminFilePicker";
-import { ADMIN_UPLOAD_MAX_LABEL } from "@/lib/adminUploadLimits";
 import { useAdminImageUpload } from "@/lib/shrinkImageForUpload";
 import { HERO_SLIDESHOW_MAX, type HeroSlideshowSlot } from "@/lib/featuredArtwork";
 import type { HomeSlideLinkGroup } from "@/lib/homeSlideLinks";
@@ -62,7 +60,7 @@ const COPY: Record<
 > = {
   gallery: {
     legend: "Gallery page slideshow",
-    hint: "Optional. Off by default — About then sits under the title. Turn on Display slideshow to restore the side-by-side About row. One chosen image stays as a single photo with no slideshow arrows. Two or three become a slideshow with navigation. You do not have to fill every slot. Upload a photo, pick one already on the site, or choose a painting from this gallery. This is separate from the listing card on the main Portfolio page.",
+    hint: "Optional. Off by default — About then sits under the title. Turn on Display slideshow to restore the side-by-side About row. One chosen image stays as a single photo with no slideshow arrows. Two or three become a slideshow with navigation. You do not have to fill every slot. Choose a painting or upload an image. This is separate from the listing card on the main Portfolio page.",
     paintingLabel: "Or painting in this gallery",
     emptyPaintings: "Add paintings if you want to pick from this gallery’s works.",
     afterSaveEmpty:
@@ -74,7 +72,7 @@ const COPY: Record<
   },
   home: {
     legend: "Home page slideshow",
-    hint: "Large image beside the opening text on the home page. One image stays as a single photo; two to five become a slideshow. You do not have to fill every slot. Click Choose a painting to pick one by portfolio and series, or to upload a new image. Each slide can link to a gallery, series, or other page — it does not open a lightbox. If none are chosen, the home page uses the automatic mix of series and artwork images.",
+    hint: "Large image beside the opening text on the home page. One image stays as a single photo; two to five become a slideshow. You do not have to fill every slot. Choose a painting, or upload an image. Each slide can link to a gallery, series, or other page — it does not open a lightbox. If none are chosen, the home page uses the automatic mix of series and artwork images.",
     paintingLabel: "Or choose a painting visually",
     emptyPaintings: "Add paintings if you want to pick from your galleries.",
     afterSaveEmpty: "After you save, the home page will use the automatic mix of series and artwork images.",
@@ -163,7 +161,7 @@ const btnPrimary =
 const btnSecondary =
   "inline-flex w-full shrink-0 justify-center border border-line bg-paper px-4 py-3 text-xs tracking-[0.18em] text-ink uppercase transition hover:bg-black/[0.03] focus-ring";
 
-/** Home slideshow slot: one Choose a painting button; the popup also offers an upload. */
+/** Home slideshow slot: choose a painting, or upload an image. */
 function HomeSlidePicker({
   fieldName,
   artworkFieldName,
@@ -236,6 +234,9 @@ function HomeSlidePicker({
       <button type="button" className={btnPrimary} onClick={() => setOpen(true)}>
         Choose a painting
       </button>
+      <button type="button" className={btnSecondary} onClick={() => inputRef.current?.click()}>
+        Upload an image
+      </button>
       <button
         type="button"
         className={`${btnSecondary} ${!hasValue ? "pointer-events-none opacity-30" : ""}`}
@@ -280,13 +281,9 @@ function HomeSlidePicker({
         <ArtworkPickerDialog
           options={options}
           current={draft.artworkId}
-          hint={`Click a painting to use it for this slide, or upload a new image (up to ${ADMIN_UPLOAD_MAX_LABEL}).`}
+          hint="Click a painting to use it for this slide."
           onPick={choose}
           onClose={() => setOpen(false)}
-          onUpload={() => {
-            setOpen(false);
-            inputRef.current?.click();
-          }}
         />
       ) : null}
     </div>
@@ -406,7 +403,7 @@ export function AdminHeroSlideshowField({
       <legend className="px-1 text-sm font-medium text-ink">{copy.legend}</legend>
       <p className="text-xs leading-relaxed text-muted">
         {lockDisplayOn
-          ? "The image sits beside About on this page. One chosen image stays as a still photo with no slideshow arrows. Two or three become a slideshow with navigation. You do not have to fill every slot. Upload a photo, pick one already on the site, or choose a painting from this gallery."
+          ? "The image sits beside About on this page. One chosen image stays as a still photo with no slideshow arrows. Two or three become a slideshow with navigation. You do not have to fill every slot. Choose a painting or upload an image."
           : copy.hint}
       </p>
       {variant === "gallery" && lockDisplayOn ? (
@@ -508,36 +505,13 @@ export function AdminHeroSlideshowField({
               <AdminFilePicker
                 name={`${fieldPrefix}${i}`}
                 existingValue={existingImage}
-                label="Upload or choose from the site"
-                buttonLabel="Upload image"
+                label="Image"
+                buttonLabel="Upload an image"
                 allowClear
                 preview="none"
                 layout="stack"
-                onPreviewChange={(src) => updateDraft(i, { pickerSrc: src })}
+                onPreviewChange={(src) => updateDraft(i, { pickerSrc: src, artworkId: "" })}
               />
-              {pieces.length > 0 ? (
-                <div className="space-y-2 text-sm text-muted">
-                  <p>{copy.paintingLabel}</p>
-                  <AdminArtworkSelect
-                    visual
-                    compact
-                    name={`${fieldPrefix}Artwork${i}`}
-                    value={draft.artworkId}
-                    options={pickerOptions}
-                    onChange={(next) => {
-                      const previousHref = byId.get(draft.artworkId)?.href ?? "";
-                      const nextHref = byId.get(next)?.href ?? "";
-                      const keepCustom = draft.href && draft.href !== previousHref;
-                      updateDraft(i, {
-                        artworkId: next,
-                        href: keepCustom ? draft.href : nextHref,
-                      });
-                    }}
-                  />
-                </div>
-              ) : (
-                <p className="text-xs text-muted">{copy.emptyPaintings}</p>
-              )}
               </>
               )}
               {variant === "home" && linkGroups.length > 0 ? (

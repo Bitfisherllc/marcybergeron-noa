@@ -10,6 +10,7 @@ import {
   getArtworkPortfolioOnlySeriesIds,
   getArtworkPortfolioSeriesIds,
   parsePortfolioSeriesIdsFromForm,
+  partitionExhibitionSeriesIds,
   resolveArtworkAssignment,
   setArtworkPortfolioSeriesIds,
 } from "@/lib/artworkMembership";
@@ -18,10 +19,18 @@ import { readExistingImageField } from "@/lib/resolveAdminImage";
 import { saveUpload } from "@/lib/save-upload";
 import { slugifyPostCategory } from "@/lib/postCategories";
 import { parsePostKind, postAdminBasePath, postPublicBasePath, postPublicHref, type PostKind } from "@/lib/postKind";
+import { parseArtworkPrice } from "@/lib/artworkPrice";
 import { parseWorkshopPrice } from "@/lib/workshopPrice";
 import { CACHE_REVALIDATE_PROFILE, CACHE_TAGS } from "@/lib/cacheConfig";
 import { measureImageBuffer, measureImageSrc } from "@/lib/imageDimensions";
 import { GALLERY_PLACEHOLDER_IMAGE } from "@/lib/galleryDefaults";
+import {
+  adminPathForSeriesId,
+  ensureExhibitionsParent,
+  exhibitionPublicHref,
+  EXHIBITIONS_PARENT_SLUG,
+  isExhibitionsParentSlug,
+} from "@/lib/exhibitions";
 import {
   HERO_SLIDESHOW_MAX,
   parseFeaturedArtworkMode,
@@ -33,6 +42,8 @@ import { verifyTurnstile } from "@/lib/turnstile";
 import {
   getSeriesById,
   listArtworksForHeroPicks,
+  listArtworksForSeries,
+  listExhibitions,
   listPostCategories,
   listPostGalleryImages,
 } from "@/lib/queries";
@@ -92,7 +103,15 @@ async function revalidateArtworkPaths(
   const portfolioIds = new Set([...portfolioSeriesIds, ...(previousPortfolioSeriesIds ?? [])]);
   for (const id of portfolioIds) {
     const s = await getSeriesById(id);
-    if (s) revalidatePath(`/art/${s.slug}`);
+    if (!s) continue;
+    revalidatePath(`/art/${s.slug}`);
+    if (s.parentSeriesId) {
+      const parent = await getSeriesById(s.parentSeriesId);
+      if (parent && isExhibitionsParentSlug(parent.slug)) {
+        revalidatePath("/exhibitions");
+        revalidatePath(exhibitionPublicHref(s.slug));
+      }
+    }
   }
 
   const mediumIds = new Set<string>();
@@ -137,13 +156,24 @@ export async function upsertSeries(formData: FormData) {
   const privacyField = formData.get("isPrivate");
   const featured = formData.get("featured") as File | null;
 
-  const featuredArtworkMode =
+  let featuredArtworkMode =
     parseFeaturedArtworkMode(String(formData.get("featuredArtworkMode") ?? "")) ?? "upload";
   const featuredArtworkIdRaw = String(formData.get("featuredArtworkId") ?? "").trim();
   const showHeroSlideshow = String(formData.get("showHeroSlideshow") ?? "") === "on";
 
-  const formPath = id ? `/admin/series/${id}` : "/admin/series/new";
-  if (!slug || !title) redirect(`${formPath}?error=missing`);
+  const exhibitionChild = String(formData.get("exhibitionParent") ?? "") === "1";
+  const exhibitionsIndex = String(formData.get("exhibitionsIndex") ?? "") === "1";
+  const formPath = exhibitionsIndex
+    ? "/admin/exhibitions"
+    : exhibitionChild
+      ? id
+        ? `/admin/exhibitions/${id}`
+        : "/admin/exhibitions/new"
+      : id
+        ? `/admin/series/${id}`
+        : "/admin/series/new";
+  const resolvedSlug = exhibitionsIndex ? EXHIBITIONS_PARENT_SLUG : slug;
+  if (!resolvedSlug || !title) redirect(`${formPath}?error=missing`);
 
   const db = getDb();
   const existingRow = id
@@ -152,6 +182,8 @@ export async function upsertSeries(formData: FormData) {
           isPrivate: series.isPrivate,
           accessToken: series.accessToken,
           featuredImage: series.featuredImage,
+          featuredArtworkMode: series.featuredArtworkMode,
+          featuredArtworkId: series.featuredArtworkId,
           parentSeriesId: series.parentSeriesId,
         })
         .from(series)
@@ -159,15 +191,26 @@ export async function upsertSeries(formData: FormData) {
         .then((r) => r[0])
     : null;
 
+  if (
+    exhibitionChild &&
+    (isExhibitionsParentSlug(resolvedSlug) || isMediumGallerySlug(resolvedSlug) || isStudioGallerySlug(resolvedSlug))
+  ) {
+    redirect(`${formPath}?error=slug`);
+  }
+
   const slugOwner = await db
     .select({ id: series.id })
     .from(series)
-    .where(eq(series.slug, slug))
+    .where(eq(series.slug, resolvedSlug))
     .then((r) => r[0]);
   if (slugOwner && slugOwner.id !== id) redirect(`${formPath}?error=slug`);
 
   let parentSeriesId = existingRow?.parentSeriesId ?? null;
-  if (formData.has("parentSeriesId")) {
+  if (exhibitionChild) {
+    parentSeriesId = (await ensureExhibitionsParent()).id;
+  } else if (exhibitionsIndex) {
+    parentSeriesId = null;
+  } else if (formData.has("parentSeriesId")) {
     parentSeriesId = await parseSeriesParentId(String(formData.get("parentSeriesId") ?? ""));
     if (!parentSeriesId) redirect(`${formPath}?error=medium`);
   }
@@ -176,22 +219,32 @@ export async function upsertSeries(formData: FormData) {
     !parentSeriesId &&
     (privacyField === null ? (existingRow?.isPrivate ?? false) : String(privacyField) === "on");
 
-  const uploaded = await saveUpload(featured, slug);
+  const uploaded = await saveUpload(featured, resolvedSlug);
   const existing = readExistingImageField(formData, "featuredExisting");
   const featuredImage = uploaded || existing || existingRow?.featuredImage || GALLERY_PLACEHOLDER_IMAGE;
 
   let featuredArtworkId: string | null = null;
+  if (!formData.has("featuredArtworkMode") && existingRow) {
+    featuredArtworkMode =
+      parseFeaturedArtworkMode(existingRow.featuredArtworkMode) ?? featuredArtworkMode;
+    featuredArtworkId = existingRow.featuredArtworkId;
+  }
   const heroSlides: { artworkId: string | null; image: string }[] = [];
   if (id) {
     const ser = await getSeriesById(id);
     if (ser) {
-      const pieces = await listArtworksForHeroPicks(ser);
+      const pieces = exhibitionsIndex
+        ? (await Promise.all((await listExhibitions()).map((row) => listArtworksForSeries(row.id)))).flat()
+        : await listArtworksForHeroPicks(ser);
       const allowed = new Set(pieces.map((piece) => piece.id));
-      if (featuredArtworkMode === "static" && featuredArtworkIdRaw && allowed.has(featuredArtworkIdRaw)) {
-        featuredArtworkId = featuredArtworkIdRaw;
+      if (formData.has("featuredArtworkMode")) {
+        featuredArtworkId = null;
+        if (featuredArtworkMode === "static" && featuredArtworkIdRaw && allowed.has(featuredArtworkIdRaw)) {
+          featuredArtworkId = featuredArtworkIdRaw;
+        }
       }
       for (let i = 0; i < HERO_SLIDESHOW_MAX; i += 1) {
-        const uploaded = await saveUpload(formData.get(`heroSlide${i}`) as File | null, slug);
+        const uploaded = await saveUpload(formData.get(`heroSlide${i}`) as File | null, resolvedSlug);
         const resolved = resolveHeroSlideshowWrite({
           uploaded,
           libraryImage: readExistingImageField(formData, `heroSlide${i}Existing`),
@@ -212,7 +265,7 @@ export async function upsertSeries(formData: FormData) {
     await db
       .update(series)
       .set({
-        slug,
+        slug: resolvedSlug,
         title,
         excerpt,
         content,
@@ -242,7 +295,7 @@ export async function upsertSeries(formData: FormData) {
     const newId = nanoid();
     await db.insert(series).values({
       id: newId,
-      slug,
+      slug: resolvedSlug,
       title,
       excerpt,
       content,
@@ -257,12 +310,15 @@ export async function upsertSeries(formData: FormData) {
       createdAt: now(),
       updatedAt: now(),
     });
-    await revalidateSeriesPaths(slug, [parentSeriesId], accessToken);
+    await revalidateSeriesPaths(resolvedSlug, [parentSeriesId], accessToken);
     revalidatePath("/admin/series");
-    redirect(`/admin/series/${newId}`);
+    revalidatePath("/admin/exhibitions");
+    redirect(exhibitionChild ? `/admin/exhibitions/${newId}` : `/admin/series/${newId}`);
   }
 
-  await revalidateSeriesPaths(slug, [parentSeriesId, existingRow?.parentSeriesId ?? null], accessToken);
+  await revalidateSeriesPaths(resolvedSlug, [parentSeriesId, existingRow?.parentSeriesId ?? null], accessToken);
+  if (exhibitionsIndex) redirect("/admin/exhibitions");
+  if (exhibitionChild) redirect(`/admin/exhibitions/${id}`);
   redirect(`/admin/series/${id}`);
 }
 
@@ -272,10 +328,21 @@ async function revalidateSeriesPaths(slug: string, parentIds: (string | null)[],
   revalidatePath("/medium");
   revalidatePath("/series");
   revalidatePath(`/art/${slug}`);
+  if (isExhibitionsParentSlug(slug)) {
+    revalidatePath("/exhibitions");
+    revalidatePath("/admin/exhibitions");
+  }
   for (const parentId of new Set(parentIds)) {
     if (!parentId) continue;
     const parent = await getSeriesById(parentId);
-    if (parent) revalidatePath(`/art/${parent.slug}`);
+    if (!parent) continue;
+    if (isExhibitionsParentSlug(parent.slug)) {
+      revalidatePath("/exhibitions");
+      revalidatePath(exhibitionPublicHref(slug));
+      revalidatePath("/admin/exhibitions");
+    } else {
+      revalidatePath(`/art/${parent.slug}`);
+    }
   }
   if (accessToken) revalidatePath(`/private/${accessToken}`);
 }
@@ -357,7 +424,7 @@ export async function deleteSeries(formData: FormData) {
   if (impact.isMediumGallery) redirect(returnTo);
 
   const deletedRow = await getDb()
-    .select({ accessToken: series.accessToken })
+    .select({ accessToken: series.accessToken, slug: series.slug, parentSeriesId: series.parentSeriesId })
     .from(series)
     .where(eq(series.id, id))
     .then((r) => r[0]);
@@ -385,8 +452,14 @@ export async function deleteSeries(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/medium");
   revalidatePath("/series");
-  revalidatePath("/medium");
-  revalidatePath("/series");
+  revalidatePath("/exhibitions");
+  revalidatePath("/admin/exhibitions");
+  if (deletedRow?.parentSeriesId) {
+    const parent = await getSeriesById(deletedRow.parentSeriesId);
+    if (parent && isExhibitionsParentSlug(parent.slug) && deletedRow.slug) {
+      revalidatePath(exhibitionPublicHref(deletedRow.slug));
+    }
+  }
   if (deletedRow?.accessToken) revalidatePath(`/private/${deletedRow.accessToken}`);
   redirect(redirectAfter);
 }
@@ -428,13 +501,16 @@ export async function upsertArtwork(formData: FormData) {
   const size = String(formData.get("size") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const status = String(formData.get("status") ?? "unknown").trim();
+  const price = parseArtworkPrice(formData.get("price"));
   const sortOrder = Number(String(formData.get("sortOrder") ?? "0")) || 0;
   const imageFile = formData.get("image") as File | null;
   const existingImage = readExistingImageField(formData, "imageExisting");
   const mediumSeriesIdRaw = await parseMediumSeriesId(String(formData.get("mediumSeriesId") ?? ""));
   let mediumSeriesId = mediumSeriesIdRaw;
 
+  const existingMembershipIds = id ? await getArtworkPortfolioOnlySeriesIds(id) : [];
   let portfolioSeriesIds = await parsePortfolioSeriesIdsFromForm(formData);
+  if (portfolioSeriesIds.length === 0) portfolioSeriesIds = existingMembershipIds;
   if (contextSeriesId && !portfolioSeriesIds.includes(contextSeriesId)) {
     const context = await getSeriesById(contextSeriesId);
     if (context && !isMediumGallerySlug(context.slug)) {
@@ -442,15 +518,21 @@ export async function upsertArtwork(formData: FormData) {
     }
   }
 
-  const failRedirect = contextSeriesId
-    ? `/admin/series/${contextSeriesId}`
-    : id
-      ? `/admin/artworks/${id}`
-      : `/admin/artworks/new`;
+  const contextAdminPath = contextSeriesId ? await adminPathForSeriesId(contextSeriesId) : null;
+  const failRedirect = contextAdminPath
+    ? contextAdminPath
+    : contextSeriesId
+      ? `/admin/series/${contextSeriesId}`
+      : id
+        ? `/admin/artworks/${id}`
+        : `/admin/artworks/new`;
   if (!title) redirect(failRedirect);
 
-  const assignment = await resolveArtworkAssignment(portfolioSeriesIds, mediumSeriesId);
+  const { exhibitionIds, otherIds } = await partitionExhibitionSeriesIds(portfolioSeriesIds);
+  const assignmentSource = otherIds.length > 0 ? otherIds : mediumSeriesId ? [] : exhibitionIds;
+  const assignment = await resolveArtworkAssignment(assignmentSource, mediumSeriesId);
   if (!assignment) redirect(failRedirect);
+  const membershipIds = [...new Set([...assignment.portfolioSeriesIds, ...exhibitionIds])];
 
   const db = getDb();
   const previousMediumSeriesId = id
@@ -510,6 +592,7 @@ export async function upsertArtwork(formData: FormData) {
         imageWidth,
         imageHeight,
         status,
+        price,
         sortOrder,
         mediumSeriesId: assignment.mediumSeriesId,
         updatedAt: t,
@@ -530,21 +613,50 @@ export async function upsertArtwork(formData: FormData) {
       imageWidth,
       imageHeight,
       status,
+      price,
       sortOrder,
       createdAt: t,
       updatedAt: t,
     });
   }
 
-  await setArtworkPortfolioSeriesIds(artworkId, assignment.portfolioSeriesIds);
+  await setArtworkPortfolioSeriesIds(artworkId, membershipIds);
   await revalidateArtworkPaths(
-    assignment.portfolioSeriesIds,
+    membershipIds,
     assignment.mediumSeriesId,
     previousMediumSeriesId,
     previousPortfolioSeriesIds,
   );
 
   redirect(`/admin/artworks/${artworkId}`);
+}
+
+/** Add a painting that already exists to an exhibition or series, without copying it. */
+export async function addExistingArtworkToGallery(formData: FormData) {
+  await requireAdminSession();
+  const artworkId = String(formData.get("artworkId") ?? "").trim();
+  const seriesId = String(formData.get("seriesId") ?? "").trim();
+  const back = seriesId ? ((await adminPathForSeriesId(seriesId)) ?? `/admin/series/${seriesId}`) : "/admin/series";
+  if (!artworkId || !seriesId) redirect(back);
+
+  const db = getDb();
+  const [piece, gallery] = await Promise.all([
+    db
+      .select({ id: artwork.id, mediumSeriesId: artwork.mediumSeriesId })
+      .from(artwork)
+      .where(eq(artwork.id, artworkId))
+      .then((rows) => rows[0]),
+    getSeriesById(seriesId),
+  ]);
+  if (!piece || !gallery || isMediumGallerySlug(gallery.slug)) redirect(back);
+
+  const existing = await getArtworkPortfolioSeriesIds(artworkId);
+  if (!existing.includes(seriesId)) {
+    await db.insert(artworkSeries).values({ artworkId, seriesId }).onConflictDoNothing();
+  }
+
+  await revalidateArtworkPaths([...existing, seriesId], piece.mediumSeriesId);
+  redirect(back);
 }
 
 /** Quick membership edit from a signed-in public gallery card. */
@@ -560,10 +672,15 @@ export async function updateArtworkMembershipFromSite(formData: FormData) {
     portfolioSeriesIds = await getArtworkPortfolioOnlySeriesIds(id);
   }
   const mediumSeriesId = await parseMediumSeriesId(String(formData.get("mediumSeriesId") ?? ""));
-  const assignment = await resolveArtworkAssignment(portfolioSeriesIds, mediumSeriesId);
+  const { exhibitionIds, otherIds } = await partitionExhibitionSeriesIds(portfolioSeriesIds);
+  const assignmentSource = otherIds.length > 0 ? otherIds : mediumSeriesId ? [] : exhibitionIds;
+  const assignment = await resolveArtworkAssignment(assignmentSource, mediumSeriesId);
   if (!assignment) redirect(returnPath);
+  const membershipIds = [...new Set([...assignment.portfolioSeriesIds, ...exhibitionIds])];
 
   const status = String(formData.get("status") ?? "unknown").trim();
+  const priceField = formData.get("price");
+  const price = priceField === null ? undefined : parseArtworkPrice(priceField);
 
   const db = getDb();
   const previousMediumSeriesId = await db
@@ -579,13 +696,14 @@ export async function updateArtworkMembershipFromSite(formData: FormData) {
       seriesId: assignment.storageSeriesId,
       mediumSeriesId: assignment.mediumSeriesId,
       status,
+      ...(price !== undefined ? { price } : {}),
       updatedAt: now(),
     })
     .where(eq(artwork.id, id));
 
-  await setArtworkPortfolioSeriesIds(id, assignment.portfolioSeriesIds);
+  await setArtworkPortfolioSeriesIds(id, membershipIds);
   await revalidateArtworkPaths(
-    assignment.portfolioSeriesIds,
+    membershipIds,
     assignment.mediumSeriesId,
     previousMediumSeriesId,
     previousPortfolioSeriesIds,
@@ -599,8 +717,16 @@ export async function deleteArtworkFromSite(formData: FormData) {
   await requireAdminSession();
 
   const id = String(formData.get("id") ?? "");
+  const seriesId = String(formData.get("seriesId") ?? "").trim();
   const returnPath = String(formData.get("returnPath") ?? "/medium").trim() || "/medium";
   if (!id) redirect(returnPath);
+
+  if (seriesId) {
+    await removeArtworkFromGallery(id, seriesId);
+    revalidatePath(returnPath);
+    revalidatePath("/");
+    redirect(returnPath);
+  }
 
   const db = getDb();
   const piece = await db
@@ -616,21 +742,67 @@ export async function deleteArtworkFromSite(formData: FormData) {
   redirect(returnPath);
 }
 
+/**
+ * Take a painting out of one gallery. If it still belongs to another gallery, the
+ * painting stays on the site. If this was its only gallery, the painting is deleted.
+ */
+async function removeArtworkFromGallery(id: string, contextSeriesId: string) {
+  const db = getDb();
+  const piece = await db
+    .select({ seriesId: artwork.seriesId, mediumSeriesId: artwork.mediumSeriesId })
+    .from(artwork)
+    .where(eq(artwork.id, id))
+    .then((r) => r[0]);
+  const portfolioSeriesIds = piece ? await getArtworkPortfolioSeriesIds(id) : [];
+  const gallery = await getSeriesById(contextSeriesId);
+  if (!piece || !gallery) {
+    return { portfolioSeriesIds, previousMediumSeriesId: piece?.mediumSeriesId ?? null, mediumSeriesId: piece?.mediumSeriesId ?? null };
+  }
+
+  const otherMemberships = portfolioSeriesIds.filter((seriesId) => seriesId !== contextSeriesId);
+  const mediumRemains = piece.mediumSeriesId && piece.mediumSeriesId !== contextSeriesId ? piece.mediumSeriesId : null;
+  if (otherMemberships.length === 0 && !mediumRemains) {
+    await db.delete(artwork).where(eq(artwork.id, id));
+    await revalidateArtworkPaths(portfolioSeriesIds, piece.mediumSeriesId);
+    return { portfolioSeriesIds, previousMediumSeriesId: piece.mediumSeriesId, mediumSeriesId: null };
+  }
+
+  await setArtworkPortfolioSeriesIds(id, otherMemberships);
+  const nextSeriesId = piece.seriesId !== contextSeriesId ? piece.seriesId : (otherMemberships[0] ?? mediumRemains!);
+  await db
+    .update(artwork)
+    .set({
+      seriesId: nextSeriesId,
+      mediumSeriesId: mediumRemains,
+      updatedAt: now(),
+    })
+    .where(eq(artwork.id, id));
+  await revalidateArtworkPaths(portfolioSeriesIds, mediumRemains, piece.mediumSeriesId, portfolioSeriesIds);
+  return { portfolioSeriesIds, previousMediumSeriesId: piece.mediumSeriesId, mediumSeriesId: mediumRemains };
+}
+
 export async function deleteArtwork(formData: FormData) {
   await requireAdminSession();
   const id = String(formData.get("id") ?? "");
   const contextSeriesId = String(formData.get("contextSeriesId") ?? "");
   if (!id || !contextSeriesId) redirect("/admin/series");
-  const db = getDb();
-  const piece = await db
-    .select({ mediumSeriesId: artwork.mediumSeriesId })
-    .from(artwork)
-    .where(eq(artwork.id, id))
-    .then((r) => r[0]);
-  const portfolioSeriesIds = await getArtworkPortfolioSeriesIds(id);
-  await db.delete(artwork).where(eq(artwork.id, id));
-  await revalidateArtworkPaths(portfolioSeriesIds, piece?.mediumSeriesId ?? null);
-  redirect(`/admin/series/${contextSeriesId}`);
+  const back = (await adminPathForSeriesId(contextSeriesId)) ?? `/admin/series/${contextSeriesId}`;
+
+  if (String(formData.get("everywhere") ?? "") === "1") {
+    const db = getDb();
+    const piece = await db
+      .select({ mediumSeriesId: artwork.mediumSeriesId })
+      .from(artwork)
+      .where(eq(artwork.id, id))
+      .then((r) => r[0]);
+    const portfolioSeriesIds = await getArtworkPortfolioSeriesIds(id);
+    await db.delete(artwork).where(eq(artwork.id, id));
+    await revalidateArtworkPaths(portfolioSeriesIds, piece?.mediumSeriesId ?? null);
+    redirect(back);
+  }
+
+  await removeArtworkFromGallery(id, contextSeriesId);
+  redirect(back);
 }
 
 /** Save a gallery's full painting order in one write. Called in the background by the admin arrow buttons. */
@@ -638,7 +810,7 @@ export async function saveGalleryArtworkOrder(seriesId: string, orderedIds: stri
   await requireAdminSession();
   const db = getDb();
   const gallery = await db
-    .select({ slug: series.slug })
+    .select({ slug: series.slug, parentSeriesId: series.parentSeriesId })
     .from(series)
     .where(eq(series.id, seriesId))
     .then((r) => r[0]);
@@ -668,6 +840,13 @@ export async function saveGalleryArtworkOrder(seriesId: string, orderedIds: stri
 
   updateTag(CACHE_TAGS.artwork);
   revalidatePath(`/art/${gallery.slug}`);
+  if (gallery.parentSeriesId) {
+    const parent = await getSeriesById(gallery.parentSeriesId);
+    if (parent && isExhibitionsParentSlug(parent.slug)) {
+      revalidatePath("/exhibitions");
+      revalidatePath(exhibitionPublicHref(gallery.slug));
+    }
+  }
   revalidatePath("/medium");
   revalidatePath("/");
   return { ok: true };
@@ -685,7 +864,7 @@ export async function saveChildSeriesOrder(mediumId: string, orderedIds: string[
   if (!medium) return { ok: false };
 
   const children = await db
-    .select({ id: series.id, sortOrder: series.sortOrder })
+    .select({ id: series.id, slug: series.slug, sortOrder: series.sortOrder })
     .from(series)
     .where(and(eq(series.parentSeriesId, mediumId), eq(series.isPrivate, false)))
     .orderBy(asc(series.sortOrder), asc(series.title));
@@ -712,8 +891,14 @@ export async function saveChildSeriesOrder(mediumId: string, orderedIds: string[
   }
 
   updateTag(CACHE_TAGS.series);
-  revalidatePath(`/art/${medium.slug}`);
-  revalidatePath("/medium");
+  if (isExhibitionsParentSlug(medium.slug)) {
+    revalidatePath("/exhibitions");
+    revalidatePath("/admin/exhibitions");
+    for (const child of children) revalidatePath(exhibitionPublicHref(child.slug));
+  } else {
+    revalidatePath(`/art/${medium.slug}`);
+    revalidatePath("/medium");
+  }
   revalidatePath("/");
   revalidatePath("/admin/series");
   return { ok: true };

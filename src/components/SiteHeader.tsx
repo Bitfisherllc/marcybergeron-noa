@@ -19,6 +19,7 @@ import { socialLinkLabel } from "@/lib/socialLinks";
 const workshopsLink = { href: "/workshops", label: "Workshops" } as const;
 
 const navLinks = [
+  { href: "/exhibitions", label: "Exhibitions" },
   { href: "/news", label: "News" },
   { href: "/contact", label: "Contact" },
 ] as const;
@@ -142,6 +143,7 @@ function adminNav(galleries: Series[]): HeaderNav {
       ],
     },
     links: [
+      { href: "/admin/exhibitions", label: "Exhibitions" },
       { href: "/admin/posts", label: "News" },
       { href: "/admin/contact-page", label: "Contact" },
     ],

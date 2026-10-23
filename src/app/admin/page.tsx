@@ -42,10 +42,15 @@ export default async function AdminHomePage() {
             {rows.length} galleries — view all paintings, reorder, edit titles &amp; photos
           </p>
         </AdminLink>
+        <AdminLink variant="menu" href="/admin/exhibitions">
+          <div className="text-xs tracking-[0.18em] text-muted uppercase">Exhibitions</div>
+          <div className="mt-2 font-serif text-2xl tracking-tight">Exhibitions</div>
+          <p className="mt-3 text-sm text-muted">Exhibition cards and the paintings inside each one</p>
+        </AdminLink>
         <AdminLink variant="menu" href="/admin/posts">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">News</div>
           <div className="mt-2 font-serif text-2xl tracking-tight">Posts</div>
-          <p className="mt-3 text-sm text-muted">Exhibitions, updates, press</p>
+          <p className="mt-3 text-sm text-muted">Updates, press, and announcements</p>
         </AdminLink>
         <AdminLink variant="menu" href="/admin/workshops">
           <div className="text-xs tracking-[0.18em] text-muted uppercase">Workshops</div>

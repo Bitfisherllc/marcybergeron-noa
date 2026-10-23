@@ -3,6 +3,7 @@ import { AdminFilePicker } from "@/components/AdminFilePicker";
 import { AdminLink, adminBtnPrimary } from "@/components/AdminLink";
 import { AdminMediumGalleryField } from "@/components/AdminMediumGalleryField";
 import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
+import { ARTWORK_PRICE_HINT } from "@/lib/artworkPrice";
 import { isMediumGallerySlug } from "@/lib/mediumGalleries";
 import { getSeriesById, listMediumGalleries } from "@/lib/queries";
 
@@ -88,10 +89,20 @@ export default async function NewArtworkPage({
             </select>
           </label>
           <label className="block text-sm text-muted">
-            Sort order
-            <input name="sortOrder" defaultValue="0" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+            Price
+            <input
+              name="price"
+              inputMode="decimal"
+              placeholder="1200"
+              className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm"
+            />
+            <span className="mt-1.5 block text-xs leading-relaxed text-muted">{ARTWORK_PRICE_HINT}</span>
           </label>
         </div>
+        <label className="block text-sm text-muted">
+          Sort order
+          <input name="sortOrder" defaultValue="0" className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm" />
+        </label>
 
         <AdminFilePicker name="image" label="Image" buttonLabel="Upload image" required />
 

@@ -243,6 +243,16 @@ function main() {
     process.exit(1);
   }
 
+  try {
+    execSync("npx tsx scripts/migrate-artwork-price.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] artwork price column migration failed.", e);
+    process.exit(1);
+  }
+
   console.log("[prebuild] Postgres schema push OK.");
 }
 

@@ -17,6 +17,8 @@ export type GallerySlide = {
   mediumGallery?: GallerySeriesLink | null;
   artworkId?: string;
   status?: string;
+  /** Set only for exhibition pages. */
+  price?: number | null;
   description?: string;
   width?: number;
   height?: number;

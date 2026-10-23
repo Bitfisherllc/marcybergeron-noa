@@ -92,7 +92,7 @@ export default async function AdminHomePage({
     ? fallbackSlides.map((slide) => ({ src: slide.src, title: slide.title }))
     : slides.slice(0, HOME_SLIDESHOW_MAX).map((slide) => ({
         src: slide.image,
-        title: slide.title || artworkOptions.find((piece) => piece.image === slide.image)?.title || "",
+        title: artworkOptions.find((piece) => piece.image === slide.image)?.title || slide.title,
       }));
   const slideshowPieces = artworkOptions.map((piece) => ({
     id: piece.id,

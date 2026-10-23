@@ -202,12 +202,12 @@ function homeSlideCaption(
   pieces: { id: string; title: string; image: string; medium: string; size: string }[],
   previous: { image: string; title: string; subtitle: string }[],
 ): { title: string; subtitle: string } {
-  const prev = previous.find((row) => row.image === resolved.image);
-  if (prev) return { title: prev.title, subtitle: prev.subtitle };
   const piece = resolved.artworkId
     ? pieces.find((row) => row.id === resolved.artworkId)
     : pieces.find((row) => row.image === resolved.image);
   if (piece) return { title: piece.title, subtitle: captionSubtitle({ medium: piece.medium, size: piece.size }) };
+  const prev = previous.find((row) => row.image === resolved.image);
+  if (prev) return { title: prev.title, subtitle: prev.subtitle };
   return { title: "", subtitle: "" };
 }
 

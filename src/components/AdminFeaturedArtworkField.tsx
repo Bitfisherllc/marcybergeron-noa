@@ -12,7 +12,7 @@ type AdminFeaturedArtworkFieldProps = {
   mode: string | null | undefined;
   artworkId: string | null | undefined;
   pieces: Pick<Artwork, "id" | "title" | "image">[];
-  listingSurface?: "portfolio" | "series";
+  listingSurface?: "portfolio" | "series" | "exhibition";
   /** Saved card image, or empty when only the placeholder is stored. */
   cardImage: string;
   /** Button that submits the form, when it is not the top-bar SAVE. */
@@ -43,9 +43,15 @@ export function AdminFeaturedArtworkField({
   cardImage,
   submitLabel,
 }: AdminFeaturedArtworkFieldProps) {
-  const listingName = listingSurface === "series" ? "Series" : "Portfolio";
-  const pageName = listingSurface === "series" ? "medium’s page" : "Portfolio page";
-  const noun = listingSurface === "series" ? "series" : "gallery";
+  const listingName =
+    listingSurface === "exhibition" ? "Exhibition" : listingSurface === "series" ? "Series" : "Portfolio";
+  const pageName =
+    listingSurface === "exhibition"
+      ? "Exhibitions page"
+      : listingSurface === "series"
+        ? "medium’s page"
+        : "Portfolio page";
+  const noun = listingSurface === "exhibition" ? "exhibition" : listingSurface === "series" ? "series" : "gallery";
   const hasPieces = pieces.length > 0;
   const firstPiece = pieces[0];
   const byId = useMemo(() => new Map(pieces.map((piece) => [piece.id, piece])), [pieces]);

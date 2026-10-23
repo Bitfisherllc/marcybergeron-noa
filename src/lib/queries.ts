@@ -22,6 +22,7 @@ import {
   withMediumGalleryTitle,
 } from "@/lib/mediumGalleries";
 import type { PostKind } from "@/lib/postKind";
+import { EXHIBITIONS_PARENT_SLUG, exhibitionPublicHref } from "@/lib/exhibitions";
 import { artSeriesHref, normalizeRouteSlug } from "@/lib/routeSlug";
 
 async function listSeriesUncached() {
@@ -47,12 +48,67 @@ export async function listPortfolioSeries(): Promise<Series[]> {
   return [];
 }
 
-/** Admin artwork membership options — series and private galleries. */
+/** Admin artwork membership options — portfolio series and private galleries. */
 export async function listAdminSeriesMembershipOptions(): Promise<Series[]> {
   const all = await listSeries();
+  const exhibitionsParentId = all.find((s) => s.slug === EXHIBITIONS_PARENT_SLUG)?.id;
   return all
-    .filter((s) => (s.isPrivate || s.parentSeriesId) && !isMediumGallerySlug(s.slug))
+    .filter(
+      (s) =>
+        s.slug !== EXHIBITIONS_PARENT_SLUG &&
+        s.parentSeriesId !== exhibitionsParentId &&
+        (s.isPrivate || s.parentSeriesId) &&
+        !isMediumGallerySlug(s.slug),
+    )
     .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+}
+
+/** Exhibitions listed on `/exhibitions`, in admin sort order. */
+export async function listExhibitions(): Promise<Series[]> {
+  const db = getDb();
+  const parent = await db
+    .select({ id: series.id })
+    .from(series)
+    .where(eq(series.slug, EXHIBITIONS_PARENT_SLUG))
+    .then((rows) => rows[0]);
+  if (!parent) return [];
+  return db
+    .select()
+    .from(series)
+    .where(and(eq(series.parentSeriesId, parent.id), eq(series.isPrivate, false)))
+    .orderBy(asc(series.sortOrder), asc(series.title));
+}
+
+/** Cards for the exhibitions index. Each card opens that exhibition’s gallery. */
+export async function listExhibitionIndexCards() {
+  const galleries = await listExhibitions();
+  return Promise.all(
+    galleries.map(async (s) => {
+      const pieces = await listArtworksForSeries(s.id);
+      const featured = resolveStatementArtwork(s, pieces);
+      return {
+        id: s.id,
+        href: exhibitionPublicHref(s.slug),
+        title: s.title,
+        excerpt: s.excerpt,
+        image: featured.image,
+        alt: featured.alt,
+        imageWidth: featured.artwork?.imageWidth,
+        imageHeight: featured.artwork?.imageHeight,
+      };
+    }),
+  );
+}
+
+/** Previous / next exhibition on the public index. */
+export async function getExhibitionNeighbors(s: Pick<Series, "slug">) {
+  const all = await listExhibitions();
+  const idx = all.findIndex((row) => row.slug === s.slug);
+  if (idx === -1) return { prev: null as null | Series, next: null as null | Series };
+  return {
+    prev: idx > 0 ? all[idx - 1]! : null,
+    next: idx < all.length - 1 ? all[idx + 1]! : null,
+  };
 }
 
 export async function getSeriesById(id: string) {

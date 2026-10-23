@@ -4,9 +4,13 @@ export function seriesInquiryHref(seriesSlug: string): string {
   return `/contact?series=${encodeURIComponent(seriesSlug)}`;
 }
 
-export function buildSeriesInquiryMessage(series: Pick<Series, "title">): string {
+export function buildSeriesInquiryMessage(
+  series: Pick<Series, "title">,
+  kind: "series" | "exhibition" = "series",
+): string {
+  const noun = kind === "exhibition" ? "exhibition" : "series";
   return [
-    `I am interested in the "${series.title}" series and have a few questions.`,
+    `I am interested in the "${series.title}" ${noun} and have a few questions.`,
     "",
     "I may also be interested in commissioning something similar.",
     "",

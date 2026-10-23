@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { deleteSeries } from "@/app/admin/actions";
 import type { Series } from "@/db";
+import { captionSubtitle } from "@/components/ArtCaption";
+import { formatArtworkPrice } from "@/lib/artworkPrice";
 import { AdminArtworkSiteEdit } from "@/components/AdminArtworkSiteEdit";
 import { AdminDeleteSeriesForm } from "@/components/AdminDeleteSeriesForm";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
+import { ExhibitionPriceGate } from "@/components/ExhibitionPriceGate";
 import { GalleryIndexCards } from "@/components/GalleryIndexCards";
 import { GalleryLightboxProvider, GalleryLightboxTrigger } from "@/components/GalleryLightbox";
 import { IntrinsicGalleryImage } from "@/components/IntrinsicGalleryImage";
@@ -11,6 +14,7 @@ import { ProseMarkdown } from "@/components/ProseMarkdown";
 import { RichText } from "@/components/RichText";
 import { StatementSlideshow } from "@/components/StatementSlideshow";
 import { getAdminSession } from "@/lib/auth";
+import { exhibitionPublicHref } from "@/lib/exhibitions";
 import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
 import { slideFromArtwork, slideFromArtworkCached, slideFromSeriesHero, type GallerySlide } from "@/lib/gallerySlides";
 import { artworkStoredDimensions } from "@/lib/imageDimensions";
@@ -21,6 +25,7 @@ import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
 import {
   getArtworkGalleryMeta,
   getChildSeriesNeighbors,
+  getExhibitionNeighbors,
   getSeriesById,
   getSeriesNeighbors,
   listAdminSeriesMembershipOptions,
@@ -37,6 +42,11 @@ import { seriesInquiryHref } from "@/lib/seriesInquiry";
 type SeriesGalleryViewProps = {
   series: Series;
   variant: "public" | "private";
+  /** Exhibition pages use the series gallery layout with Exhibitions navigation. */
+  surface?: "exhibition";
+  /** Exhibition prices stay off the page until this is true. */
+  showPrices?: boolean;
+  priceLoginError?: boolean;
 };
 
 function GalleryAbout({
@@ -72,7 +82,14 @@ function GalleryAbout({
   );
 }
 
-export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryViewProps) {
+export async function SeriesGalleryView({
+  series: s,
+  variant,
+  surface,
+  showPrices = false,
+  priceLoginError = false,
+}: SeriesGalleryViewProps) {
+  const isExhibition = surface === "exhibition";
   const isStudioGallery = isStudioGallerySlug(s.slug);
   const isOcwOverview = variant === "public" && isOilColdWaxParentSlug(s.slug);
   const isChildSeries = Boolean(s.parentSeriesId);
@@ -84,8 +101,9 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
     listsSeries ? listSeriesIndexCards(s.id) : Promise.resolve([]),
     s.parentSeriesId ? getSeriesById(s.parentSeriesId) : Promise.resolve(null),
   ]);
-  const parentHref = parentMedium ? artSeriesHref(parentMedium.slug) : "/medium";
-  const parentTitle = parentMedium?.title ?? "portfolio";
+  const parentHref = isExhibition ? "/exhibitions" : parentMedium ? artSeriesHref(parentMedium.slug) : "/medium";
+  const parentTitle = isExhibition ? "Exhibitions" : (parentMedium?.title ?? "portfolio");
+  const pageHref = isExhibition ? exhibitionPublicHref(s.slug) : artSeriesHref(s.slug);
   const isDeletableGallery = isPrivateGallery(s);
   const session = variant === "private" ? await getAdminSession() : null;
   const galleryMeta = await getArtworkGalleryMeta(pieces.map((p) => p.id));
@@ -95,22 +113,26 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
   const deleteImpact = session && isDeletableGallery ? await getSeriesDeleteImpact(s.id) : null;
   const { prev, next } =
     variant === "public"
-      ? isChildSeries
-        ? await getChildSeriesNeighbors(s)
-        : isMediumGallerySlug(s.slug)
-          ? await getSeriesNeighbors(s.slug)
-          : { prev: null, next: null }
+      ? isExhibition
+        ? await getExhibitionNeighbors(s)
+        : isChildSeries
+          ? await getChildSeriesNeighbors(s)
+          : isMediumGallerySlug(s.slug)
+            ? await getSeriesNeighbors(s.slug)
+            : { prev: null, next: null }
       : { prev: null, next: null };
-  const returnPath = variant === "private" && s.accessToken ? `/private/${s.accessToken}` : artSeriesHref(s.slug);
+  const returnPath = variant === "private" && s.accessToken ? `/private/${s.accessToken}` : pageHref;
 
   const aboutHeading = "About";
   const aboutContent = publicGalleryStatement(s.content) ?? mediumGalleryAbout(s.slug) ?? s.content;
   const statement = publicGalleryStatement(aboutContent);
   const publicExcerpt = statement ? null : publicGalleryExcerpt(s.excerpt);
   const inquireHref = isStudioGallery ? undefined : seriesInquiryHref(s.slug);
-  const inquireLabel = isChildSeries
-    ? "Contact Marcy to learn more about this series and how to purchase →"
-    : "Contact Marcy to learn more about this medium and how to purchase →";
+  const inquireLabel = isExhibition
+    ? "Contact Marcy to learn more about this exhibition and how to purchase →"
+    : isChildSeries
+      ? "Contact Marcy to learn more about this series and how to purchase →"
+      : "Contact Marcy to learn more about this medium and how to purchase →";
   const heroResolved = showSlideshow ? resolveInteriorHeroSlides(s, pieces, heroSlots) : [];
   const lightboxByArtworkId = new Map<string, number>();
   const lightboxSlides: GallerySlide[] = [];
@@ -129,7 +151,12 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
     lightboxSlides.push(
       isStudioGallery
         ? { ...slide, hideTitle: true, title: "", portfolioSeries: [], mediumGallery: null }
-        : slide,
+        : {
+            ...slide,
+            medium: s.title,
+            subtitle: captionSubtitle({ medium: s.title, size: piece.size }),
+            ...(isExhibition && showPrices ? { price: piece.price } : {}),
+          },
     );
   };
   for (const [slot, hero] of heroResolved.entries()) {
@@ -161,18 +188,53 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
     };
   });
 
-  const crumbs: Crumb[] = isStudioGallery
-    ? [{ label: "About", href: "/about" }]
-    : [
-        { label: "Portfolio", href: "/medium" },
-        ...(parentMedium ? [{ label: parentMedium.title, href: parentHref }] : []),
-      ];
+  const crumbs: Crumb[] = isExhibition
+    ? [{ label: "Exhibitions", href: "/exhibitions" }]
+    : isStudioGallery
+      ? [{ label: "About", href: "/about" }]
+      : [
+          { label: "Portfolio", href: "/medium" },
+          ...(parentMedium ? [{ label: parentMedium.title, href: parentHref }] : []),
+        ];
   const breadcrumbs =
     variant === "public" ? (
-      <Breadcrumbs items={[...crumbs, { label: s.title, href: artSeriesHref(s.slug) }]} className="mb-8" />
+      <Breadcrumbs items={[...crumbs, { label: s.title, href: pageHref }]} className="mb-8" />
     ) : null;
 
-  const studioHero = isStudioGallery && showSlideshow;
+  const heroSlideshow = showSlideshow && slideshowSlides.length > 0;
+  const measure = heroSlideshow ? "" : "max-w-3xl";
+  const intro = (
+    <>
+      <p className="text-xs tracking-[0.22em] text-muted uppercase">
+        {isStudioGallery
+          ? "Studio"
+          : variant === "private"
+            ? "Private gallery"
+            : isExhibition
+              ? "Exhibition"
+              : isChildSeries
+                ? "Series"
+                : "Portfolio"}
+      </p>
+      <h1 className={`mt-4 ${measure} font-serif text-4xl tracking-tight md:text-5xl`}>{s.title}</h1>
+      {publicExcerpt ? (
+        <RichText content={publicExcerpt} className={`mt-6 ${measure} text-base leading-relaxed text-muted`} />
+      ) : null}
+      {variant === "private" ? (
+        <p className={`mt-4 ${measure} text-sm text-muted`}>
+          This gallery is shared privately for review—it is not listed on the public portfolio.
+        </p>
+      ) : null}
+      <div className={`mt-10 ${measure}`}>
+        <GalleryAbout
+          heading={aboutHeading}
+          content={aboutContent}
+          inquireHref={inquireHref}
+          inquireLabel={inquireLabel}
+        />
+      </div>
+    </>
+  );
   const seriesList = (
     <>
       <h2 className="font-serif text-3xl tracking-tight">Series</h2>
@@ -195,59 +257,18 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       <header className="border-b border-line">
         <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
           {breadcrumbs}
-          {studioHero ? (
+          {heroSlideshow ? (
             <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
-              <div>
-                <p className="text-xs tracking-[0.22em] text-muted uppercase">Studio</p>
-                <h1 className="mt-4 font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
-                {publicExcerpt ? (
-                  <RichText content={publicExcerpt} className="mt-6 text-base leading-relaxed text-muted" />
-                ) : null}
-                <div className="mt-10">
-                  <GalleryAbout
-                    heading={aboutHeading}
-                    content={aboutContent}
-                    inquireHref={inquireHref}
-                    inquireLabel={inquireLabel}
-                  />
-                </div>
-              </div>
-              <StatementSlideshow slides={slideshowSlides} frame="landscape" />
+              <div>{intro}</div>
+              <StatementSlideshow slides={slideshowSlides} frame={isStudioGallery ? "landscape" : "column"} />
             </div>
           ) : (
-            <>
-              <p className="text-xs tracking-[0.22em] text-muted uppercase">
-                {variant === "private" ? "Private gallery" : isChildSeries ? "Series" : "Portfolio"}
-              </p>
-              <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{s.title}</h1>
-              {publicExcerpt ? (
-                <RichText content={publicExcerpt} className="mt-6 max-w-3xl text-base leading-relaxed text-muted" />
-              ) : null}
-              {variant === "private" ? (
-                <p className="mt-4 max-w-3xl text-sm text-muted">
-                  This gallery is shared privately for review—it is not listed on the public portfolio.
-                </p>
-              ) : null}
-              <div className="mt-10 max-w-3xl">
-                <GalleryAbout
-                  heading={aboutHeading}
-                  content={aboutContent}
-                  inquireHref={inquireHref}
-                  inquireLabel={inquireLabel}
-                />
-              </div>
-            </>
+            intro
           )}
         </div>
       </header>
 
-        {showSlideshow && !isStudioGallery ? (
-          <section className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
-            <StatementSlideshow slides={slideshowSlides} />
-          </section>
-        ) : null}
-
-        <section className={`${showSlideshow && !isStudioGallery ? "border-t border-line " : ""}bg-white/35`}>
+        <section className="bg-white/35">
           <div className="mx-auto max-w-6xl px-5 py-14 md:px-8 md:py-16">
             {isOcwOverview ? (
               seriesList
@@ -257,6 +278,9 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                 <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
                   Click an image to view it larger, with title and details.
                 </p>
+                {isExhibition && pieces.some((p) => p.price != null) ? (
+                  <ExhibitionPriceGate returnTo={pageHref} signedIn={showPrices} error={priceLoginError} />
+                ) : null}
                 <div className="mt-12 grid grid-cols-1 items-start gap-8 md:grid-cols-2 lg:grid-cols-3">
                   {pieces.map((p) => (
                     <figure key={p.id}>
@@ -273,6 +297,9 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                           frame="portrait"
                         />
                       </GalleryLightboxTrigger>
+                      {isExhibition && showPrices && p.price != null ? (
+                        <p className="mt-3 text-sm leading-relaxed text-ink">{formatArtworkPrice(p.price)}</p>
+                      ) : null}
                       {session && adminLists ? (
                         <AdminArtworkSiteEdit
                           artworkId={p.id}
@@ -280,7 +307,9 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
                           mediumSeriesId={p.mediumSeriesId}
                           mediumGalleries={adminLists[0]}
                           status={p.status}
+                          price={isExhibition ? p.price : undefined}
                           returnPath={returnPath}
+                          seriesId={s.id}
                         />
                       ) : null}
                     </figure>
@@ -299,11 +328,11 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       </GalleryLightboxProvider>
 
       {variant === "public" && (prev || next) ? (
-        <nav className="border-t border-line" aria-label="Series pagination">
+        <nav className="border-t border-line" aria-label={isExhibition ? "Exhibition pagination" : "Series pagination"}>
           <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-10 text-sm text-muted md:flex-row md:items-center md:justify-between md:px-8">
             <div>
               {prev ? (
-                <Link className="link-quiet" href={artSeriesHref(prev.slug)}>
+                <Link className="link-quiet" href={isExhibition ? exhibitionPublicHref(prev.slug) : artSeriesHref(prev.slug)}>
                   ← Previous: {prev.title}
                 </Link>
               ) : (
@@ -312,7 +341,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
             </div>
             <div className="text-right">
               {next ? (
-                <Link className="link-quiet" href={artSeriesHref(next.slug)}>
+                <Link className="link-quiet" href={isExhibition ? exhibitionPublicHref(next.slug) : artSeriesHref(next.slug)}>
                   Next: {next.title} →
                 </Link>
               ) : (
@@ -350,7 +379,7 @@ export async function SeriesGalleryView({ series: s, variant }: SeriesGalleryVie
       {variant === "public" ? (
         <section className="border-t border-line">
           <div className="mx-auto max-w-6xl px-5 py-10 md:px-8">
-            {isChildSeries ? (
+            {isExhibition || isChildSeries ? (
               <Link href={parentHref} className="text-sm tracking-wide text-muted hover:text-ink">
                 ← Back to {parentTitle}
               </Link>

@@ -2,31 +2,17 @@
 
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
-import { listSiteImagesAction } from "@/lib/adminImageActions";
+import { addExistingArtworkToGallery } from "@/app/admin/actions";
+import { listPaintingsForPickerAction } from "@/lib/adminImageActions";
 import { ADMIN_UPLOAD_HINT } from "@/lib/adminUploadLimits";
 import { useAdminImageUpload } from "@/lib/shrinkImageForUpload";
-import type { SiteImageOption } from "@/lib/siteImages";
+import { ArtworkPickerDialog, type AdminArtworkSelectOption } from "@/components/AdminArtworkSelect";
 
 const btnChoose =
   "inline-flex shrink-0 border border-ink bg-ink px-4 py-3 text-xs tracking-[0.18em] text-paper uppercase transition hover:bg-ink/90 focus-ring";
 
 const btnSecondary =
   "inline-flex shrink-0 border border-line bg-paper px-4 py-3 text-xs tracking-[0.18em] text-ink uppercase transition hover:bg-black/[0.03] focus-ring";
-
-const filterBtn =
-  "focus-ring border px-3 py-1.5 text-[0.78rem] tracking-[0.16em] uppercase transition";
-
-function galleryFilterNames(options: SiteImageOption[]): string[] {
-  const names = new Set<string>();
-  for (const option of options) {
-    for (const gallery of option.galleries ?? []) names.add(gallery);
-  }
-  return [...names].sort((a, b) => {
-    if (a === "The Studio") return -1;
-    if (b === "The Studio") return 1;
-    return a.localeCompare(b, undefined, { sensitivity: "base" });
-  });
-}
 
 type AdminFilePickerProps = {
   name: string;
@@ -47,11 +33,14 @@ type AdminFilePickerProps = {
   onPreviewChange?: (src: string) => void;
   /** Stack buttons in a narrow column (slideshow slots). */
   layout?: "row" | "stack";
+  /**
+   * When set, Choose a painting adds that existing painting to this gallery.
+   * Title, size, material, and price stay on the original painting.
+   */
+  linkSeriesId?: string;
 };
 
-function imageLabel(src: string, options: SiteImageOption[]): string {
-  const match = options.find((o) => o.src === src);
-  if (match) return match.label;
+function imageLabel(src: string): string {
   const parts = src.split("/");
   return parts[parts.length - 1] || src;
 }
@@ -87,6 +76,7 @@ export function AdminFilePicker({
   allowClear,
   onPreviewChange,
   layout = "row",
+  linkSeriesId,
 }: AdminFilePickerProps) {
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -98,21 +88,19 @@ export function AdminFilePicker({
   const [sizeError, setSizeError] = useState<string | null>(null);
   const [sizeWarning, setSizeWarning] = useState<string | null>(null);
   const [selectedExisting, setSelectedExisting] = useState(existingValue);
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const [options, setOptions] = useState<SiteImageOption[]>([]);
-  const [loadingLibrary, setLoadingLibrary] = useState(false);
-  const [galleryFilter, setGalleryFilter] = useState("all");
+  const [selectedLabel, setSelectedLabel] = useState("");
+  const [paintingOpen, setPaintingOpen] = useState(false);
+  const [paintings, setPaintings] = useState<AdminArtworkSelectOption[]>([]);
+  const [loadingPaintings, setLoadingPaintings] = useState(false);
   const upload = useAdminImageUpload();
 
-  const visibleOptions =
-    galleryFilter === "all" ? options : options.filter((option) => (option.galleries ?? []).includes(galleryFilter));
   const displaySrc = objectUrl || selectedExisting;
   const isReplacement = Boolean(objectUrl) || (selectedExisting !== "" && selectedExisting !== existingValue);
 
   const statusText = fileName
     ? `Upload: ${fileName}`
     : selectedExisting
-      ? `Site image: ${imageLabel(selectedExisting, options) || selectedExisting}`
+      ? selectedLabel || imageLabel(selectedExisting)
       : "No image chosen yet";
 
   function clearObjectUrl() {
@@ -145,33 +133,59 @@ export function AdminFilePicker({
     notifyFormDirty(inputRef.current?.form ?? null);
   }, [fileName, selectedExisting, objectUrl]);
 
-  async function openLibrary() {
-    setLibraryOpen(true);
-    if (options.length > 0) return;
-    setLoadingLibrary(true);
-    try {
-      setOptions(await listSiteImagesAction());
-    } finally {
-      setLoadingLibrary(false);
-    }
-  }
-
-  function pickExisting(src: string) {
+  function pickExisting(src: string, label = "") {
     upload.reset();
     setPreviewFile(undefined);
     setSelectedExisting(src);
+    setSelectedLabel(label);
     setFileName("");
     setSizeError(null);
     setSizeWarning(null);
     if (inputRef.current) inputRef.current.value = "";
-    setLibraryOpen(false);
+    setPaintingOpen(false);
     onPreviewChange?.(src);
+  }
+
+  async function openPaintings() {
+    setPaintingOpen(true);
+    if (paintings.length > 0) return;
+    setLoadingPaintings(true);
+    try {
+      const rows = await listPaintingsForPickerAction();
+      setPaintings(
+        rows.map((row) => ({
+          id: row.id,
+          label: row.label || row.title,
+          image: row.image,
+          gallery: row.gallery,
+          gallerySortOrder: row.gallerySortOrder,
+          series: row.series,
+        })),
+      );
+    } finally {
+      setLoadingPaintings(false);
+    }
+  }
+
+  async function pickPainting(id: string) {
+    if (linkSeriesId) {
+      setPaintingOpen(false);
+      const data = new FormData();
+      data.set("artworkId", id);
+      data.set("seriesId", linkSeriesId);
+      await addExistingArtworkToGallery(data);
+      return;
+    }
+    const piece = paintings.find((row) => row.id === id);
+    if (!piece?.image) return;
+    pickExisting(piece.image, piece.label);
   }
 
   function clearSelection() {
     upload.reset();
     setPreviewFile(undefined);
     setSelectedExisting("");
+    setSelectedLabel("");
     setFileName("");
     setSizeError(null);
     setSizeWarning(null);
@@ -206,6 +220,7 @@ export function AdminFilePicker({
     setFileName(file?.name ?? "");
     if (file?.name) {
       setSelectedExisting("");
+      setSelectedLabel("");
       setPreviewFile(file);
       const url = objectUrlRef.current ?? "";
       onPreviewChange?.(url);
@@ -235,7 +250,7 @@ export function AdminFilePicker({
           {isReplacement ? (
             <p className="mt-3 text-sm leading-relaxed text-ink">{replacementNote}</p>
           ) : (
-            <p className="mt-3 text-sm leading-relaxed text-muted">Current image. Choose a new file to replace it.</p>
+            <p className="mt-3 text-sm leading-relaxed text-muted">Current image. Upload an image to replace it.</p>
           )}
         </div>
       ) : null}
@@ -244,16 +259,16 @@ export function AdminFilePicker({
         <button
           type="button"
           className={layout === "stack" ? `${btnChoose} w-full justify-center` : btnChoose}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => void openPaintings()}
         >
-          {buttonLabel}
+          Choose a painting
         </button>
         <button
           type="button"
           className={layout === "stack" ? `${btnSecondary} w-full justify-center` : btnSecondary}
-          onClick={() => void openLibrary()}
+          onClick={() => inputRef.current?.click()}
         >
-          Choose existing
+          {buttonLabel}
         </button>
         {allowClear && (layout === "stack" || displaySrc) ? (
           <button
@@ -316,102 +331,21 @@ export function AdminFilePicker({
       />
       <input type="hidden" name={existingName} value={selectedExisting} />
 
-      {libraryOpen ? (
-        <div
-          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/50 p-4 sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Choose an existing site image"
-          onClick={() => setLibraryOpen(false)}
-        >
-          <div
-            className="flex max-h-[min(85vh,720px)] w-full max-w-3xl flex-col overflow-hidden border border-line bg-paper shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
-              <div>
-                <h3 className="font-serif text-xl tracking-tight">Site images</h3>
-                <p className="mt-1 text-xs text-muted">
-                  Click an image to use it for this field. The Studio gallery is included — use the filters to show
-                  only those photos.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="focus-ring border border-line px-3 py-1.5 text-xs tracking-wide uppercase"
-                onClick={() => setLibraryOpen(false)}
-              >
-                Close
-              </button>
-            </div>
-            {options.length > 0 ? (
-              <div className="flex flex-wrap gap-2 border-b border-line px-5 py-3">
-                <button
-                  type="button"
-                  className={`${filterBtn} ${
-                    galleryFilter === "all" ? "border-ink bg-ink text-paper" : "border-line bg-paper text-ink hover:border-ink/40"
-                  }`}
-                  onClick={() => setGalleryFilter("all")}
-                >
-                  All
-                </button>
-                {galleryFilterNames(options).map((gallery) => (
-                  <button
-                    key={gallery}
-                    type="button"
-                    className={`${filterBtn} ${
-                      galleryFilter === gallery
-                        ? "border-ink bg-ink text-paper"
-                        : "border-line bg-paper text-ink hover:border-ink/40"
-                    }`}
-                    onClick={() => setGalleryFilter(gallery)}
-                  >
-                    {gallery}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              {loadingLibrary ? (
-                <p className="text-sm text-muted">Loading images…</p>
-              ) : options.length === 0 ? (
-                <p className="text-sm text-muted">No images found yet.</p>
-              ) : visibleOptions.length === 0 ? (
-                <p className="text-sm text-muted">No images in this gallery yet.</p>
-              ) : (
-                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                  {visibleOptions.map((option) => {
-                    const selected = selectedExisting === option.src;
-                    return (
-                      <li key={option.src}>
-                        <button
-                          type="button"
-                          className={`focus-ring w-full border p-1.5 text-left transition ${
-                            selected ? "border-ink bg-black/[0.04]" : "border-line hover:border-ink/40"
-                          }`}
-                          onClick={() => pickExisting(option.src)}
-                        >
-                          <div className="relative aspect-square overflow-hidden bg-black/[0.04]">
-                            {option.src.startsWith("/") ? (
-                              <Image src={option.src} alt="" fill className="object-cover" sizes="120px" />
-                            ) : (
-                              // eslint-disable-next-line @next/next/no-img-element -- blob URLs
-                              <img src={option.src} alt="" className="h-full w-full object-cover" />
-                            )}
-                          </div>
-                          <span className="mt-1.5 block truncate text-[0.78rem] leading-snug text-muted">
-                            {option.label}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
+      {paintingOpen ? (
+        <ArtworkPickerDialog
+          options={paintings}
+          current=""
+          loading={loadingPaintings}
+          hint={
+            linkSeriesId
+              ? "Click a painting to add it here. Its title, size, material, and price come with it."
+              : "Click a painting to use its image here."
+          }
+          onPick={(id) => void pickPainting(id)}
+          onClose={() => setPaintingOpen(false)}
+        />
       ) : null}
+
     </div>
   );
 }

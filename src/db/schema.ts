@@ -40,6 +40,8 @@ export const artwork = pgTable("artwork", {
   imageWidth: integer("image_width"),
   imageHeight: integer("image_height"),
   status: text("status").notNull().default("unknown"),
+  /** Whole USD. Shown on exhibition pages only. Null hides the price. */
+  price: integer("price"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
