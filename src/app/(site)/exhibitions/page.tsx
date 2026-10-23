@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { ExhibitionPriceGate } from "@/components/ExhibitionPriceGate";
 import { GalleryIndexCards } from "@/components/GalleryIndexCards";
 import { ProseMarkdown } from "@/components/ProseMarkdown";
 import { RichText } from "@/components/RichText";
 import { StatementSlideshow } from "@/components/StatementSlideshow";
 import { ensureExhibitionsParent } from "@/lib/exhibitions";
+import { hasPriceViewSession } from "@/lib/priceAccess";
 import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
 import { publicGalleryExcerpt, publicGalleryStatement } from "@/lib/galleryCopy";
 import { GALLERY_PLACEHOLDER_IMAGE } from "@/lib/galleryDefaults";
@@ -22,8 +24,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function ExhibitionsPage() {
-  const parent = await ensureExhibitionsParent();
+export default async function ExhibitionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ prices?: string }>;
+}) {
+  const sp = await searchParams;
+  const [parent, showPrices] = await Promise.all([ensureExhibitionsParent(), hasPriceViewSession()]);
   const [cards, heroSlots] = await Promise.all([
     listExhibitionIndexCards(),
     parent.showHeroSlideshow ? listHeroSlideshowSlots(parent.id) : Promise.resolve([]),
@@ -47,6 +54,7 @@ export default async function ExhibitionsPage() {
     <>
       <p className="text-xs tracking-[0.22em] text-muted uppercase">Exhibitions</p>
       <h1 className="mt-4 max-w-3xl font-serif text-4xl tracking-tight md:text-5xl">{parent.title}</h1>
+      <ExhibitionPriceGate returnTo="/exhibitions" signedIn={showPrices} error={sp.prices === "1"} />
       {excerpt ? (
         <RichText content={excerpt} className="mt-6 max-w-2xl text-base leading-relaxed text-muted" />
       ) : null}
