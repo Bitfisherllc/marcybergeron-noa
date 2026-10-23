@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArtCaption, captionSubtitle } from "@/components/ArtCaption";
+import { GalleryLightboxProvider, GalleryLightboxTrigger } from "@/components/GalleryLightbox";
 import { HeroSlideshow } from "@/components/HeroSlideshow";
 import { HomeJournalSlider } from "@/components/HomeJournalSlider";
 import { HomeMarkdown } from "@/components/HomeMarkdown";
@@ -184,39 +184,41 @@ export default async function HomePage() {
 
       {selectedSec.visible && selectedPicks.length > 0 ? (
         <section className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">
-          <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
-            <div>
-              <h2 className="font-serif text-3xl tracking-tight">{selectedSec.title}</h2>
-              <RichText content={selectedSec.body} className="mt-3 max-w-prose text-sm leading-relaxed text-muted" />
+          <div>
+            <h2 className="font-serif text-3xl tracking-tight">{selectedSec.title}</h2>
+            <RichText content={selectedSec.body} className="mt-3 max-w-prose text-sm leading-relaxed text-muted" />
+          </div>
+          <GalleryLightboxProvider
+            slides={selectedPicks.map(({ piece }) => ({
+              id: piece.id,
+              src: piece.image,
+              alt: piece.alt || "Selected work",
+              title: "",
+              subtitle: "",
+              hideTitle: true,
+              width: piece.imageWidth ?? undefined,
+              height: piece.imageHeight ?? undefined,
+            }))}
+          >
+            <div className="mt-10 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+              {selectedPicks.map(({ piece }, index) => (
+                <figure key={piece.id} className="border border-line bg-white/30 p-4">
+                  <GalleryLightboxTrigger index={index} label="Enlarge image">
+                    <div className="relative aspect-[3/4] overflow-hidden bg-black/[0.03]">
+                      <Image
+                        src={piece.image}
+                        alt={piece.alt || ""}
+                        fill
+                        quality={SITE_IMAGE_QUALITY}
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                      />
+                    </div>
+                  </GalleryLightboxTrigger>
+                </figure>
+              ))}
             </div>
-            <Link href="/medium" className="link-quiet text-sm tracking-wide">
-              Browse the full archive →
-            </Link>
-          </div>
-          <div className="mt-10 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-            {selectedPicks.map(({ series: s, piece }) => (
-              <figure key={piece.id} className="border border-line bg-white/30 p-4">
-                <Link href={`/art/${s.slug}`} className="focus-ring block">
-                  <div className="relative aspect-[3/4] overflow-hidden bg-black/[0.03]">
-                    <Image
-                      src={piece.image}
-                      alt={piece.alt}
-                      fill
-                      quality={SITE_IMAGE_QUALITY}
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                    />
-                  </div>
-                </Link>
-                <ArtCaption
-                  title={piece.title}
-                  subtitle={captionSubtitle({ medium: piece.medium, size: piece.size })}
-                  status={piece.status}
-                  artworkId={piece.id}
-                />
-              </figure>
-            ))}
-          </div>
+          </GalleryLightboxProvider>
         </section>
       ) : null}
     </div>

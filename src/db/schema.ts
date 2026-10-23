@@ -40,6 +40,8 @@ export const artwork = pgTable("artwork", {
   imageWidth: integer("image_width"),
   imageHeight: integer("image_height"),
   status: text("status").notNull().default("unknown"),
+  /** Hidden paintings stay in admin and can be shown again. They are left off the public site. */
+  hidden: boolean("hidden").notNull().default(false),
   /** Whole USD. Shown on exhibition pages only. Null hides the price. */
   price: integer("price"),
   sortOrder: integer("sort_order").notNull().default(0),

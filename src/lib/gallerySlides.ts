@@ -17,6 +17,8 @@ export type GallerySlide = {
   mediumGallery?: GallerySeriesLink | null;
   artworkId?: string;
   status?: string;
+  /** Exhibition pages label Available or Sold under the painting. */
+  showAvailability?: boolean;
   /** Set only for exhibition pages. */
   price?: number | null;
   description?: string;

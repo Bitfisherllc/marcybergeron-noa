@@ -7,6 +7,12 @@ import { artSeriesHref } from "@/lib/routeSlug";
 
 export type GallerySeriesLink = { slug: string; title: string };
 
+function availabilityLabel(status?: string) {
+  if (status === "sold") return "Sold";
+  if (status === "available") return "Available";
+  return "";
+}
+
 type ArtworkGalleryCaptionProps = {
   title: string;
   medium?: string;
@@ -15,6 +21,8 @@ type ArtworkGalleryCaptionProps = {
   mediumGallery?: GallerySeriesLink | null;
   description?: string;
   status?: string;
+  /** Show Available or Sold. Exhibition galleries turn this on. */
+  showStatus?: boolean;
   /** Whole USD. Omit on portfolio and series pages. */
   price?: number | null;
   artworkId?: string;
@@ -33,6 +41,7 @@ export function ArtworkGalleryCaption({
   mediumGallery,
   description,
   status,
+  showStatus = false,
   price,
   artworkId,
   as: Tag = "figcaption",
@@ -41,6 +50,7 @@ export function ArtworkGalleryCaption({
   hideTitle = false,
 }: ArtworkGalleryCaptionProps) {
   const subtitle = captionSubtitle({ medium, size });
+  const availability = showStatus ? availabilityLabel(status) : "";
   const isLightbox = variant === "lightbox";
   const linkClass = isLightbox
     ? "underline decoration-white/25 underline-offset-2 transition hover:text-white hover:decoration-white/50"
@@ -60,6 +70,7 @@ export function ArtworkGalleryCaption({
         </div>
       )}
       {subtitle ? <div className={`text-sm leading-relaxed ${textClass}`}>{subtitle}</div> : null}
+      {availability ? <div className={`text-sm leading-relaxed ${textClass}`}>{availability}</div> : null}
       {price != null ? (
         <div className={`text-sm leading-relaxed ${isLightbox ? "text-white/80" : "text-ink"}`}>
           {formatArtworkPrice(price)}

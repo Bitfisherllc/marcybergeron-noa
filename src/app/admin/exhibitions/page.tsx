@@ -65,11 +65,6 @@ export default async function AdminExhibitionsPage({
       {error ? (
         <p className="border border-red-200 bg-red-50/60 px-4 py-3 text-sm text-red-900">{error}</p>
       ) : null}
-      {sp.saved === "password" ? (
-        <p className="border border-line bg-white/70 px-4 py-3 text-sm text-ink">
-          Password saved. Visitors using the previous password will need this new one.
-        </p>
-      ) : null}
 
       <form action={savePriceGuidePassword} className="space-y-4 border border-line bg-white/50 p-6">
         <div>
@@ -79,6 +74,11 @@ export default async function AdminExhibitionsPage({
             password stops working.
           </p>
         </div>
+        {sp.saved === "password" ? (
+          <p className="border border-green-700/30 bg-green-50 px-4 py-3 text-sm text-ink" role="status">
+            The password has been changed. Visitors using the previous password will need this new one.
+          </p>
+        ) : null}
         <label className="block max-w-sm text-sm text-muted">
           Password
           <input

@@ -37,6 +37,7 @@ import {
   resolveHeroSlideshowWrite,
 } from "@/lib/featuredArtwork";
 import { isMediumGallerySlug, isStudioGallerySlug } from "@/lib/mediumGalleries";
+import { artSeriesHref } from "@/lib/routeSlug";
 import { generatePrivateGalleryAccessToken } from "@/lib/privateGalleries";
 import { verifyTurnstile } from "@/lib/turnstile";
 import {
@@ -99,16 +100,19 @@ async function revalidateArtworkPaths(
   revalidatePath("/");
   revalidatePath("/medium");
   revalidatePath("/series");
+  revalidatePath("/exhibitions");
+  revalidatePath("/art/[slug]", "page");
+  revalidatePath("/exhibitions/[slug]", "page");
 
   const portfolioIds = new Set([...portfolioSeriesIds, ...(previousPortfolioSeriesIds ?? [])]);
   for (const id of portfolioIds) {
     const s = await getSeriesById(id);
     if (!s) continue;
+    revalidatePath(artSeriesHref(s.slug));
     revalidatePath(`/art/${s.slug}`);
     if (s.parentSeriesId) {
       const parent = await getSeriesById(s.parentSeriesId);
       if (parent && isExhibitionsParentSlug(parent.slug)) {
-        revalidatePath("/exhibitions");
         revalidatePath(exhibitionPublicHref(s.slug));
       }
     }
@@ -120,7 +124,10 @@ async function revalidateArtworkPaths(
 
   for (const id of mediumIds) {
     const m = await getSeriesById(id);
-    if (m) revalidatePath(`/art/${m.slug}`);
+    if (m) {
+      revalidatePath(artSeriesHref(m.slug));
+      revalidatePath(`/art/${m.slug}`);
+    }
   }
 }
 
@@ -648,15 +655,56 @@ export async function addExistingArtworkToGallery(formData: FormData) {
       .then((rows) => rows[0]),
     getSeriesById(seriesId),
   ]);
-  if (!piece || !gallery || isMediumGallerySlug(gallery.slug)) redirect(back);
+  if (!piece || !gallery) redirect(back);
 
   const existing = await getArtworkPortfolioSeriesIds(artworkId);
-  if (!existing.includes(seriesId)) {
+  if (isMediumGallerySlug(gallery.slug)) {
+    if (piece.mediumSeriesId === seriesId) redirect(back);
+    if (!piece.mediumSeriesId) {
+      await db.update(artwork).set({ mediumSeriesId: seriesId, updatedAt: now() }).where(eq(artwork.id, artworkId));
+    } else if (!existing.includes(seriesId)) {
+      await db.insert(artworkSeries).values({ artworkId, seriesId }).onConflictDoNothing();
+    }
+  } else if (!existing.includes(seriesId)) {
     await db.insert(artworkSeries).values({ artworkId, seriesId }).onConflictDoNothing();
   }
 
-  await revalidateArtworkPaths([...existing, seriesId], piece.mediumSeriesId);
+  const nextMedium =
+    isMediumGallerySlug(gallery.slug) && !piece.mediumSeriesId ? seriesId : piece.mediumSeriesId;
+  await revalidateArtworkPaths([...existing, seriesId], nextMedium, piece.mediumSeriesId);
   redirect(back);
+}
+
+/** Hide a painting from the public site, or show it again. The painting stays in admin. */
+export async function setArtworkHidden(formData: FormData) {
+  await requireAdminSession();
+
+  const id = String(formData.get("id") ?? "");
+  const hidden = String(formData.get("hidden") ?? "") === "1";
+  const seriesId = String(formData.get("seriesId") ?? "").trim();
+  const requested = String(formData.get("returnPath") ?? "").trim();
+  const returnPath =
+    requested.startsWith("/") && !requested.startsWith("//") && !requested.includes("?") && !requested.includes("\\")
+      ? requested
+      : seriesId
+        ? ((await adminPathForSeriesId(seriesId)) ?? `/admin/series/${seriesId}`)
+        : "/admin/series";
+  if (!id) redirect(returnPath);
+
+  const db = getDb();
+  const piece = await db
+    .select({ mediumSeriesId: artwork.mediumSeriesId })
+    .from(artwork)
+    .where(eq(artwork.id, id))
+    .then((rows) => rows[0]);
+  if (!piece) redirect(returnPath);
+
+  await db.update(artwork).set({ hidden, updatedAt: now() }).where(eq(artwork.id, id));
+  const portfolioSeriesIds = await getArtworkPortfolioSeriesIds(id);
+  await revalidateArtworkPaths(portfolioSeriesIds, piece.mediumSeriesId);
+  revalidatePath(returnPath);
+  revalidatePath("/");
+  redirect(returnPath);
 }
 
 /** Quick membership edit from a signed-in public gallery card. */

@@ -274,6 +274,7 @@ function LightboxDialog({ index, onClose }: { index: number; onClose: () => void
               mediumGallery={slide.mediumGallery}
               description={slide.description}
               status={slide.status}
+              showStatus={slide.showAvailability}
               price={slide.price}
               artworkId={slide.artworkId}
             />

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Series } from "@/db";
 import { inArray } from "drizzle-orm";
 import { upsertArtwork, upsertSeries, deleteSeries } from "@/app/admin/actions";
 import { getDb } from "@/db";
@@ -24,6 +25,7 @@ import { isMediumGallerySlug, isStudioGallerySlug, publicPortfolioGalleries } fr
 import { artSeriesHref } from "@/lib/routeSlug";
 import { ARTWORK_PRICE_HINT } from "@/lib/artworkPrice";
 import { exhibitionPublicHref, isExhibitionsParentSlug } from "@/lib/exhibitions";
+import { richTextToPlain } from "@/lib/richText";
 import { getSeriesDeleteImpact } from "@/lib/seriesDelete";
 import {
   getSeriesById,
@@ -33,6 +35,7 @@ import {
   listChildSeries,
   listHeroSlideshowSlots,
   listMediumGalleries,
+  listSeries,
 } from "@/lib/queries";
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -56,7 +59,7 @@ export default async function EditSeriesPage({
   const parentRow = s.parentSeriesId ? await getSeriesById(s.parentSeriesId) : null;
   const isExhibition = Boolean(parentRow && isExhibitionsParentSlug(parentRow.slug));
   const isChildSeries = Boolean(s.parentSeriesId) && !isExhibition;
-  const [arts, mediumGalleries, membershipOptions, deleteImpact, statementPieceOptions, heroSlots, childSeries] =
+  const [arts, mediumGalleries, membershipOptions, deleteImpact, statementPieceOptions, heroSlots, childSeries, allSeries] =
     await Promise.all([
       listArtworksForPublicGallery(s),
       listMediumGalleries(),
@@ -65,6 +68,7 @@ export default async function EditSeriesPage({
       listArtworksForHeroPicks(s),
       listHeroSlideshowSlots(s.id),
       isMediumGallery && !isStudioGallery ? listChildSeries(s.id) : Promise.resolve([]),
+      listSeries(),
     ]);
   const artIds = arts.map((piece) => piece.id);
   const membershipRows =
@@ -77,10 +81,37 @@ export default async function EditSeriesPage({
   const homesByArtwork = new Map<string, Set<string>>();
   for (const piece of arts) {
     const homes = new Set<string>();
+    if (piece.seriesId) homes.add(piece.seriesId);
     if (piece.mediumSeriesId) homes.add(piece.mediumSeriesId);
     homesByArtwork.set(piece.id, homes);
   }
   for (const row of membershipRows) homesByArtwork.get(row.artworkId)?.add(row.seriesId);
+  const seriesById = new Map(allSeries.map((row) => [row.id, row]));
+  const exhibitionParentIds = new Set(allSeries.filter((row) => isExhibitionsParentSlug(row.slug)).map((row) => row.id));
+  const placeRank: Record<string, number> = {
+    Portfolio: 0,
+    Series: 1,
+    Exhibition: 2,
+    "Private gallery": 3,
+    Gallery: 4,
+  };
+  const placesFor = (artworkId: string) =>
+    [...(homesByArtwork.get(artworkId) ?? [])]
+      .map((homeId) => seriesById.get(homeId))
+      .filter((row): row is Series => Boolean(row && !isExhibitionsParentSlug(row.slug)))
+      .map((row) => {
+        const kind = isMediumGallerySlug(row.slug)
+          ? "Portfolio"
+          : row.parentSeriesId && exhibitionParentIds.has(row.parentSeriesId)
+            ? "Exhibition"
+            : row.isPrivate
+              ? "Private gallery"
+              : row.parentSeriesId
+                ? "Series"
+                : "Gallery";
+        return { kind, title: row.title };
+      })
+      .sort((a, b) => placeRank[a.kind]! - placeRank[b.kind]! || a.title.localeCompare(b.title));
   const seriesMediums = publicPortfolioGalleries(mediumGalleries);
   const parentMedium = isChildSeries ? mediumGalleries.find((m) => m.id === s.parentSeriesId) : undefined;
   const error = sp.error ? (ERROR_MESSAGES[sp.error] ?? "Something went wrong. Try again.") : null;
@@ -289,24 +320,27 @@ export default async function EditSeriesPage({
               {isExhibition ? "Paintings in this exhibition" : "Paintings in this gallery"}
             </h2>
             <p className="mt-2 text-sm text-muted">
-              {isMediumGallery
-                ? "Edit changes the title, size, material, and price everywhere that painting appears. Remove takes it out of this gallery and leaves it in any other gallery. Delete is only for a painting that appears here alone."
-                : isExhibition
-                  ? "Paintings added from the portfolio keep their title, size, material, and price. Edit changes that information everywhere the painting appears. Remove takes it out of this exhibition and leaves it in any other gallery."
-                  : "Paintings added from another gallery keep their title, size, material, and price. Edit changes that information everywhere the painting appears. Remove takes it out of this gallery and leaves it in any other gallery."}
+              Edit changes the title, size, material, description, and price everywhere that painting appears. Remove
+              takes it out of this {isExhibition ? "exhibition" : "gallery"} and leaves it in any other gallery.
             </p>
           </div>
         </div>
 
         <AdminGalleryArtworkTable
           seriesId={s.id}
+          returnPath={isExhibition ? `/admin/exhibitions/${s.id}` : `/admin/series/${s.id}`}
           rows={arts.map((a) => ({
             id: a.id,
             title: a.title,
             medium: a.medium,
             size: a.size,
+            description: richTextToPlain(a.description),
+            status: a.status,
+            price: a.price,
+            places: placesFor(a.id),
             image: a.image,
             alt: a.alt,
+            hidden: a.hidden,
             alsoElsewhere: [...(homesByArtwork.get(a.id) ?? [])].some((homeId) => homeId !== s.id),
           }))}
         />
@@ -314,12 +348,11 @@ export default async function EditSeriesPage({
 
       <div id="add-artwork" data-admin-section="Add artwork" className="border border-line bg-white/50 p-6">
         <h3 className="font-serif text-xl tracking-tight">Add artwork</h3>
-        {isMediumGallery ? null : (
-          <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
-            Choose a painting to add one that is already on the site. Its title, size, material, and price come with
-            it. Upload an image to create a new painting.
-          </p>
-        )}
+        <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
+          Choose a painting to add one that is already on the site. It keeps its title, size, material, description,
+          and price. Changing those later updates every place that painting appears. Upload an image to create a new
+          painting.
+        </p>
         <form id="series-add-artwork" action={upsertArtwork} className="mt-6 space-y-4">
           <input type="hidden" name="id" value="" />
           <input type="hidden" name="contextSeriesId" value={s.id} />
@@ -376,7 +409,7 @@ export default async function EditSeriesPage({
               label="Add image"
               buttonLabel="Upload image"
               required
-              linkSeriesId={isMediumGallery ? undefined : s.id}
+              linkSeriesId={s.id}
             />
             <label className="block text-sm text-muted">
               Sort order

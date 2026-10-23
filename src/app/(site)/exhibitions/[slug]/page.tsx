@@ -3,23 +3,13 @@ import { notFound } from "next/navigation";
 import { SeriesGalleryView } from "@/components/SeriesGalleryView";
 import { exhibitionPublicHref, isExhibitionsParentSlug } from "@/lib/exhibitions";
 import { hasPriceViewSession } from "@/lib/priceAccess";
-import { getSeriesById, getSeriesBySlug, listExhibitions } from "@/lib/queries";
+import { getSeriesById, getSeriesBySlug } from "@/lib/queries";
 import { normalizeRouteSlug } from "@/lib/routeSlug";
 import { richTextToPlain } from "@/lib/richText";
 import { SITE_URL } from "@/lib/site";
 
-export const revalidate = 300;
-
-export async function generateStaticParams() {
-  try {
-    const rows = await listExhibitions();
-    return rows.map((s) => ({ slug: s.slug }));
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.warn("[exhibitions/[slug]] generateStaticParams: could not list exhibitions —", msg);
-    return [];
-  }
-}
+/** Prices depend on a visitor cookie, so this page cannot be cached as a static file. */
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,

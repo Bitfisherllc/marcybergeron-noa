@@ -84,7 +84,7 @@ export async function listExhibitionIndexCards() {
   const galleries = await listExhibitions();
   return Promise.all(
     galleries.map(async (s) => {
-      const pieces = await listArtworksForSeries(s.id);
+      const pieces = (await listArtworksForSeries(s.id)).filter((piece) => !piece.hidden);
       const featured = resolveStatementArtwork(s, pieces);
       return {
         id: s.id,
@@ -160,7 +160,7 @@ export async function listSeriesIndexCards(parentSeriesId: string) {
   const galleries = await listChildSeries(parentSeriesId);
   return Promise.all(
     galleries.map(async (s) => {
-      const pieces = await listArtworksForSeries(s.id);
+      const pieces = (await listArtworksForSeries(s.id)).filter((piece) => !piece.hidden);
       const featured = resolveStatementArtwork(s, pieces);
       return {
         id: s.id,
@@ -192,7 +192,10 @@ export async function listArtworksGroupedForMediumGalleries(galleries: Series[])
 
   const [staticPieces, firstPieces] = await Promise.all([
     staticArtworkIds.length > 0
-      ? db.select().from(artwork).where(inArray(artwork.id, staticArtworkIds))
+      ? db
+          .select()
+          .from(artwork)
+          .where(and(inArray(artwork.id, staticArtworkIds), eq(artwork.hidden, false)))
       : Promise.resolve([] as Artwork[]),
     db
       .select()
@@ -202,6 +205,7 @@ export async function listArtworksGroupedForMediumGalleries(galleries: Series[])
           SELECT DISTINCT ON (${artwork.mediumSeriesId}) ${artwork.id}
           FROM ${artwork}
           WHERE ${artwork.mediumSeriesId} IN ${mediumIds}
+            AND ${artwork.hidden} = false
           ORDER BY ${artwork.mediumSeriesId}, ${artwork.sortOrder}, ${artwork.title}
         )`,
       ),
@@ -243,17 +247,25 @@ export const listArtworksForSeries = unstable_cache(listArtworksForSeriesUncache
 });
 
 async function listArtworksForMediumGalleryUncached(mediumSeriesId: string) {
-  return getDb()
-    .select()
-    .from(artwork)
-    .where(eq(artwork.mediumSeriesId, mediumSeriesId))
-    .orderBy(asc(artwork.sortOrder), asc(artwork.title));
+  const db = getDb();
+  const [byHome, byLink] = await Promise.all([
+    db.select().from(artwork).where(eq(artwork.mediumSeriesId, mediumSeriesId)),
+    db
+      .select({ piece: artwork })
+      .from(artwork)
+      .innerJoin(artworkSeries, eq(artworkSeries.artworkId, artwork.id))
+      .where(eq(artworkSeries.seriesId, mediumSeriesId)),
+  ]);
+  const byId = new Map<string, (typeof byHome)[number]>();
+  for (const piece of byHome) byId.set(piece.id, piece);
+  for (const row of byLink) byId.set(row.piece.id, row.piece);
+  return [...byId.values()].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title));
 }
 
 /** Paintings assigned to a Medium nav gallery via `medium_series_id`. */
 export const listArtworksForMediumGallery = unstable_cache(
   listArtworksForMediumGalleryUncached,
-  ["list-artworks-medium-gallery", "v3"],
+  ["list-artworks-medium-gallery", "v4"],
   { revalidate: SITE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.artwork] },
 );
 
@@ -307,7 +319,7 @@ export async function featuredHomePieces(): Promise<{ series: Series; piece: Art
   const rows = await getDb()
     .select()
     .from(artwork)
-    .where(inArray(artwork.mediumSeriesId, mediumIds))
+    .where(and(inArray(artwork.mediumSeriesId, mediumIds), eq(artwork.hidden, false)))
     .orderBy(asc(artwork.sortOrder), asc(artwork.title));
 
   const firstByMedium = new Map<string, Artwork>();
@@ -355,15 +367,20 @@ export async function getArtworkGalleryMeta(artworkIds: string[]): Promise<Map<s
   const empty = (): ArtworkGalleryMeta => ({ portfolioSeries: [], mediumSeries: null });
   const map = new Map(artworkIds.map((id) => [id, empty()]));
 
-  const portfolioRows = await db
-    .select({ artworkId: artworkSeries.artworkId, ser: series })
-    .from(artworkSeries)
-    .innerJoin(series, eq(artworkSeries.seriesId, series.id))
-    .where(inArray(artworkSeries.artworkId, artworkIds))
-    .orderBy(asc(series.sortOrder), asc(series.title));
+  const [portfolioRows, exhibitionParents] = await Promise.all([
+    db
+      .select({ artworkId: artworkSeries.artworkId, ser: series })
+      .from(artworkSeries)
+      .innerJoin(series, eq(artworkSeries.seriesId, series.id))
+      .where(inArray(artworkSeries.artworkId, artworkIds))
+      .orderBy(asc(series.sortOrder), asc(series.title)),
+    db.select({ id: series.id }).from(series).where(eq(series.slug, EXHIBITIONS_PARENT_SLUG)),
+  ]);
+  const exhibitionParentIds = new Set(exhibitionParents.map((row) => row.id));
 
   for (const row of portfolioRows) {
     if (isMediumGallerySlug(row.ser.slug) || row.ser.isPrivate) continue;
+    if (row.ser.parentSeriesId && exhibitionParentIds.has(row.ser.parentSeriesId)) continue;
     map.get(row.artworkId)!.portfolioSeries.push({ id: row.ser.id, slug: row.ser.slug, title: row.ser.title });
   }
 

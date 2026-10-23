@@ -7,24 +7,13 @@ import { isMediumGallerySlug, legacyMediumGalleryRedirect } from "@/lib/mediumGa
 import { retiredSeriesRedirect } from "@/lib/oilColdWaxSeries";
 import { isAllWorkSlug } from "@/lib/portfolioGalleries";
 import { isPrivateGallery } from "@/lib/privateGalleries";
-import { getSeriesById, getSeriesBySlug, listChildSeries, listMediumGalleries } from "@/lib/queries";
+import { getSeriesById, getSeriesBySlug } from "@/lib/queries";
 import { SITE_URL } from "@/lib/site";
 import { richTextToPlain } from "@/lib/richText";
 import { artSeriesHref, normalizeRouteSlug } from "@/lib/routeSlug";
 
-export const revalidate = 300;
-
-/** Build-time paths for SSG; if Postgres is unreachable (e.g. no local Docker), skip rather than fail `next build`. */
-export async function generateStaticParams() {
-  try {
-    const [mediums, childSeries] = await Promise.all([listMediumGalleries(), listChildSeries()]);
-    return [...mediums, ...childSeries].map((s) => ({ slug: s.slug }));
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.warn("[art/[slug]] generateStaticParams: could not list series —", msg);
-    return [];
-  }
-}
+/** Signed-in hide controls read the admin cookie, so this page cannot be cached as a static file. */
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,

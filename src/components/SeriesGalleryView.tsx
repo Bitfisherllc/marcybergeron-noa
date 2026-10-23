@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { deleteSeries } from "@/app/admin/actions";
 import type { Series } from "@/db";
-import { captionSubtitle } from "@/components/ArtCaption";
-import { formatArtworkPrice } from "@/lib/artworkPrice";
 import { AdminArtworkSiteEdit } from "@/components/AdminArtworkSiteEdit";
+import { ArtworkGalleryCaption } from "@/components/ArtworkGalleryCaption";
+import { AdminHideArtworkForm } from "@/components/AdminHideArtworkForm";
 import { AdminDeleteSeriesForm } from "@/components/AdminDeleteSeriesForm";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { ExhibitionPriceGate } from "@/components/ExhibitionPriceGate";
@@ -105,12 +105,23 @@ export async function SeriesGalleryView({
   const parentTitle = isExhibition ? "Exhibitions" : (parentMedium?.title ?? "portfolio");
   const pageHref = isExhibition ? exhibitionPublicHref(s.slug) : artSeriesHref(s.slug);
   const isDeletableGallery = isPrivateGallery(s);
-  const session = variant === "private" ? await getAdminSession() : null;
+  const session = await getAdminSession();
+  const visiblePieces = pieces.filter((piece) => !piece.hidden);
+  /** Hide stays in admin. Public pages, including a signed-in price guide, never show it. */
+  const showHideOnPage = variant === "private" && Boolean(session);
+  const gridPieces = showHideOnPage ? pieces : visiblePieces;
+  const hiddenImages = new Set(pieces.filter((piece) => piece.hidden).map((piece) => piece.image));
+  const visibleSlots = heroSlots.filter((slot) => {
+    if (slot.artworkId && pieces.some((piece) => piece.id === slot.artworkId && piece.hidden)) return false;
+    if (slot.image && hiddenImages.has(slot.image)) return false;
+    return true;
+  });
   const galleryMeta = await getArtworkGalleryMeta(pieces.map((p) => p.id));
-  const adminLists = session
+  const manageOnPage = variant === "private" && Boolean(session);
+  const adminLists = manageOnPage
     ? await Promise.all([listMediumGalleries(), listAdminSeriesMembershipOptions()])
     : null;
-  const deleteImpact = session && isDeletableGallery ? await getSeriesDeleteImpact(s.id) : null;
+  const deleteImpact = manageOnPage && isDeletableGallery ? await getSeriesDeleteImpact(s.id) : null;
   const { prev, next } =
     variant === "public"
       ? isExhibition
@@ -133,7 +144,7 @@ export async function SeriesGalleryView({
     : isChildSeries
       ? "Contact Marcy to learn more about this series and how to purchase →"
       : "Contact Marcy to learn more about this medium and how to purchase →";
-  const heroResolved = showSlideshow ? resolveInteriorHeroSlides(s, pieces, heroSlots) : [];
+  const heroResolved = showSlideshow ? resolveInteriorHeroSlides(s, visiblePieces, visibleSlots) : [];
   const lightboxByArtworkId = new Map<string, number>();
   const lightboxSlides: GallerySlide[] = [];
   const heroLightboxIndex: number[] = [];
@@ -153,9 +164,7 @@ export async function SeriesGalleryView({
         ? { ...slide, hideTitle: true, title: "", portfolioSeries: [], mediumGallery: null }
         : {
             ...slide,
-            medium: s.title,
-            subtitle: captionSubtitle({ medium: s.title, size: piece.size }),
-            ...(isExhibition && showPrices ? { price: piece.price } : {}),
+            ...(isExhibition ? { showAvailability: true, ...(showPrices ? { price: piece.price } : {}) } : {}),
           },
     );
   };
@@ -172,7 +181,7 @@ export async function SeriesGalleryView({
     }
   }
   if (!isOcwOverview) {
-    for (const piece of pieces) {
+    for (const piece of gridPieces) {
       await pushArtworkSlide(piece);
     }
   }
@@ -278,12 +287,12 @@ export async function SeriesGalleryView({
                 <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted">
                   Click an image to view it larger, with title and details.
                 </p>
-                {isExhibition && pieces.some((p) => p.price != null) ? (
+                {isExhibition && visiblePieces.some((p) => p.price != null) ? (
                   <ExhibitionPriceGate returnTo={pageHref} signedIn={showPrices} error={priceLoginError} />
                 ) : null}
                 <div className="mt-12 grid grid-cols-1 items-start gap-8 md:grid-cols-2 lg:grid-cols-3">
-                  {pieces.map((p) => (
-                    <figure key={p.id}>
+                  {gridPieces.map((p) => (
+                    <figure key={p.id} className={p.hidden ? "opacity-60" : undefined}>
                       <GalleryLightboxTrigger
                         index={lightboxByArtworkId.get(p.id) ?? 0}
                         label={`Enlarge: ${p.title}`}
@@ -297,10 +306,27 @@ export async function SeriesGalleryView({
                           frame="portrait"
                         />
                       </GalleryLightboxTrigger>
-                      {isExhibition && showPrices && p.price != null ? (
-                        <p className="mt-3 text-sm leading-relaxed text-ink">{formatArtworkPrice(p.price)}</p>
+                      {isExhibition ? (
+                        <ArtworkGalleryCaption
+                          title={p.title}
+                          medium={p.medium}
+                          size={p.size}
+                          description={p.description || undefined}
+                          status={p.status}
+                          showStatus
+                          price={showPrices ? p.price : undefined}
+                          artworkId={p.id}
+                          portfolioSeries={galleryMeta.get(p.id)?.portfolioSeries ?? []}
+                          mediumGallery={galleryMeta.get(p.id)?.mediumSeries ?? null}
+                        />
                       ) : null}
-                      {session && adminLists ? (
+                      {showHideOnPage ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                          <AdminHideArtworkForm artworkId={p.id} hidden={p.hidden} returnPath={pageHref} seriesId={s.id} />
+                          {p.hidden ? <p className="text-sm text-muted">Hidden. It can be shown again.</p> : null}
+                        </div>
+                      ) : null}
+                      {manageOnPage && adminLists ? (
                         <AdminArtworkSiteEdit
                           artworkId={p.id}
                           title={p.title}
@@ -352,7 +378,7 @@ export async function SeriesGalleryView({
         </nav>
       ) : null}
 
-      {session && deleteImpact && adminLists ? (
+      {manageOnPage && deleteImpact && adminLists ? (
         <section className="border-t border-red-200/80 bg-red-50/30">
           <div className="mx-auto max-w-6xl px-5 py-10 md:px-8">
             <p className="text-xs tracking-[0.18em] text-red-900/70 uppercase">Admin</p>

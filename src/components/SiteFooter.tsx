@@ -5,6 +5,12 @@ import { getSiteContact } from "@/lib/contactPage";
 import { SITE_DOMAIN, SITE_NAME } from "@/lib/site";
 import { socialLinkLabel } from "@/lib/socialLinks";
 
+const PORTER_MILL_STUDIOS_URL = "https://www.portermillstudios.com/";
+
+function isPorterMillStudios(line: string) {
+  return /^porter\s+mills?\s+studios?$/i.test(line.trim());
+}
+
 export async function SiteFooter() {
   const contact = await getSiteContact();
   return (
@@ -13,7 +19,11 @@ export async function SiteFooter() {
         <div>
           <div className="font-serif text-xl tracking-tight">{SITE_NAME}</div>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            Abstract paintings and series-based work. Studio at Porter Mill, Beverly, Massachusetts.
+            Abstract paintings and series-based work. Studio at{" "}
+            <a className="link-quiet" href={PORTER_MILL_STUDIOS_URL} target="_blank" rel="noopener noreferrer">
+              Porter Mill
+            </a>
+            , Beverly, Massachusetts.
           </p>
           <p className="mt-4">
             <Link className="link-quiet text-sm" href="/mailing-list">
@@ -30,7 +40,15 @@ export async function SiteFooter() {
           <div className="font-medium text-ink">Studio</div>
           <div className="mt-2 space-y-1">
             {contact.studioLines.map((l, i) => (
-              <div key={`${i}-${l}`}>{l}</div>
+              <div key={`${i}-${l}`}>
+                {isPorterMillStudios(l) ? (
+                  <a className="link-quiet" href={PORTER_MILL_STUDIOS_URL} target="_blank" rel="noopener noreferrer">
+                    {l}
+                  </a>
+                ) : (
+                  l
+                )}
+              </div>
             ))}
           </div>
           <div className="mt-4 space-y-1">
