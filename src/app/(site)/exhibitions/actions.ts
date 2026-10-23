@@ -18,7 +18,7 @@ function returnPath(raw: FormDataEntryValue | null) {
 export async function loginToViewPrices(formData: FormData) {
   const back = returnPath(formData.get("returnTo"));
   const password = String(formData.get("password") ?? "");
-  if (!verifyPriceViewPassword(password)) redirect(`${back}?prices=1`);
+  if (!(await verifyPriceViewPassword(password))) redirect(`${back}?prices=1`);
   await createPriceViewSession();
   redirect(back);
 }

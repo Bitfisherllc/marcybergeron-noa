@@ -1,11 +1,13 @@
 import { upsertSeries } from "@/app/admin/actions";
+import { savePriceGuidePassword } from "@/app/admin/exhibitions/actions";
 import { AdminChildSeriesList } from "@/components/AdminChildSeriesList";
 import { AdminHeroSlideshowField } from "@/components/AdminHeroSlideshowField";
-import { AdminLink } from "@/components/AdminLink";
+import { AdminLink, adminBtnPrimary } from "@/components/AdminLink";
 import { AdminRichTextEditor } from "@/components/AdminRichTextEditor";
 import { AdminSaveTracker } from "@/components/AdminSaveTracker";
 import { AdminWhereShown } from "@/components/AdminWhereShown";
 import { ensureExhibitionsParent } from "@/lib/exhibitions";
+import { getPriceGuidePassword } from "@/lib/priceAccess";
 import { resolveInteriorHeroSlides } from "@/lib/featuredArtwork";
 import { isPlaceholderGalleryStatement } from "@/lib/galleryCopy";
 import {
@@ -17,15 +19,16 @@ import {
 const ERROR_MESSAGES: Record<string, string> = {
   missing: "Add a title for the exhibitions page.",
   slug: "That URL slug is already used. Choose a different one.",
+  password: "Enter a password.",
 };
 
 export default async function AdminExhibitionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string }>;
 }) {
   const sp = await searchParams;
-  const parent = await ensureExhibitionsParent();
+  const [parent, pricePassword] = await Promise.all([ensureExhibitionsParent(), getPriceGuidePassword()]);
   const [exhibitions, heroSlots] = await Promise.all([
     listExhibitions(),
     listHeroSlideshowSlots(parent.id),
@@ -62,6 +65,35 @@ export default async function AdminExhibitionsPage({
       {error ? (
         <p className="border border-red-200 bg-red-50/60 px-4 py-3 text-sm text-red-900">{error}</p>
       ) : null}
+      {sp.saved === "password" ? (
+        <p className="border border-line bg-white/70 px-4 py-3 text-sm text-ink">
+          Password saved. Visitors using the previous password will need this new one.
+        </p>
+      ) : null}
+
+      <form action={savePriceGuidePassword} className="space-y-4 border border-line bg-white/50 p-6">
+        <div>
+          <h2 className="font-serif text-2xl tracking-tight">Price guide password</h2>
+          <p className="mt-2 max-w-prose text-sm text-muted">
+            Visitors enter this in Exhibition Attendees Price Guide. Change it for each exhibition so the previous
+            password stops working.
+          </p>
+        </div>
+        <label className="block max-w-sm text-sm text-muted">
+          Password
+          <input
+            name="password"
+            required
+            defaultValue={pricePassword}
+            autoComplete="off"
+            spellCheck={false}
+            className="mt-2 w-full border border-line bg-paper px-3 py-2 text-sm text-ink"
+          />
+        </label>
+        <button type="submit" className={adminBtnPrimary}>
+          Save password
+        </button>
+      </form>
 
       <form
         id="exhibitions-index"

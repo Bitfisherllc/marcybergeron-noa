@@ -253,6 +253,16 @@ function main() {
     process.exit(1);
   }
 
+  try {
+    execSync("npx tsx scripts/migrate-price-guide.ts", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e) {
+    console.error("[prebuild] price guide password migration failed.", e);
+    process.exit(1);
+  }
+
   console.log("[prebuild] Postgres schema push OK.");
 }
 

@@ -251,6 +251,13 @@ export const siteFavicon = pgTable("site_favicon", {
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });
 
+/** Shared door code for exhibition prices. One row (`default`). Changing it signs visitors out. */
+export const priceGuide = pgTable("price_guide", {
+  id: text("id").primaryKey(),
+  password: text("password").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
+});
+
 /** Site-wide on/off switches keyed by feature (e.g. `workshops`). A missing row means off. */
 export const siteFeature = pgTable("site_feature", {
   key: text("key").primaryKey(),
